@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
   const uid = await requireUser(req, res);
   if (!uid) return;
-  if (!rateLimit(uid)) return res.status(429).json({ error: 'rate_limited' });
+  if (!(await rateLimit(uid, 'ocr', 6, Number(process.env.OCR_DAILY_LIMIT ?? 30)))) return res.status(429).json({ error: 'rate_limited' });
 
   const { image, mime } = (bodyObject(req) ?? {}) as { image?: string; mime?: string };
   if (typeof image !== 'string' || image.length === 0) return res.status(400).json({ error: 'bad_request' });

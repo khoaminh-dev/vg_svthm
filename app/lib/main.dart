@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/analytics/analytics.dart';
 import 'core/config/env.dart';
 import 'shared/widgets/config_error_screen.dart';
 
@@ -15,5 +16,6 @@ Future<void> main() async {
   }
 
   await Supabase.initialize(url: Env.supabaseUrl, publishableKey: Env.supabaseAnonKey);
+  Analytics.init();
   runApp(const ProviderScope(child: App()));
 }

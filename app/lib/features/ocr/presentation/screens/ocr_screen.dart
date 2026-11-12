@@ -92,7 +92,7 @@ class OcrScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(32),
                     child: Center(child: Text(errorMessage(e))),
                   ),
-                  data: (list) => list.isEmpty
+                  data: (page) => page.items.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(32),
                           child: Center(
@@ -104,7 +104,7 @@ class OcrScreen extends ConsumerWidget {
                         )
                       : Column(
                           children: [
-                            for (final r in list)
+                            for (final r in page.items)
                               OcrRecordTile(
                                 record: r,
                                 onTap: () {

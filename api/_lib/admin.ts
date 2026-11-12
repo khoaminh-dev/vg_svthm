@@ -44,6 +44,18 @@ export function requireAdmin(req: VercelRequest, res: VercelResponse): boolean {
   return false;
 }
 
+/** Gọi hàm Postgres (RPC) bằng service role (chỉ chạy trên server). */
+export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const base = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !key) throw new Error('service_key_missing');
+  const headers: Record<string, string> = { apikey: key, 'Content-Type': 'application/json' };
+  if (!key.startsWith('sb_')) headers.Authorization = `Bearer ${key}`;
+  const r = await fetch(`${base}/rest/v1/rpc/${fn}`, { method: 'POST', headers, body: JSON.stringify(args) });
+  if (!r.ok) throw new Error(`db_${r.status}`);
+  return (await r.json()) as T;
+}
+
 /** Gọi PostgREST của Supabase bằng service role (chỉ chạy trên server). */
 export async function dbGet<T>(path: string): Promise<T> {
   const base = process.env.SUPABASE_URL;

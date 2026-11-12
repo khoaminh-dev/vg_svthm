@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
   const uid = await requireUser(req, res);
   if (!uid) return;
-  if (!rateLimit(uid)) return res.status(429).json({ error: 'rate_limited' });
+  if (!(await rateLimit(uid, 'stt', 10, Number(process.env.STT_DAILY_LIMIT ?? 200)))) return res.status(429).json({ error: 'rate_limited' });
 
   const { audioBase64, filename = 'audio.m4a', language = 'vi' } = (bodyObject(req) ?? {}) as {
     audioBase64?: unknown; filename?: unknown; language?: unknown;

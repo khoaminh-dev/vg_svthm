@@ -82,12 +82,40 @@ class ChatScreen extends ConsumerWidget {
                 if (list.isEmpty) {
                   return const Center(child: Text('Chưa có tin nhắn, hãy nói gì đó!'));
                 }
-                final reversed = list.reversed.toList();
+                final older = ref.watch(olderMessagesProvider(roomId));
+                final liveIds = {for (final m in list) m.id};
+                final all = [...older.items.where((m) => !liveIds.contains(m.id)), ...list];
+                final reversed = all.reversed.toList();
+                // Còn tin cũ hơn khi cửa sổ realtime đã đầy (hoặc đã từng tải thêm) và chưa hết.
+                final canLoadMore =
+                    older.hasMore && (list.length >= messageWindowSize || older.items.isNotEmpty);
                 return ListView.builder(
                   reverse: true,
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: reversed.length,
+                  itemCount: reversed.length + (canLoadMore ? 1 : 0),
                   itemBuilder: (_, i) {
+                    if (i == reversed.length) {
+                      return Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Center(
+                          child: older.loading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : TextButton(
+                                  onPressed: () {
+                                    Analytics.track('chat_load_older');
+                                    ref
+                                        .read(olderMessagesProvider(roomId).notifier)
+                                        .loadMore(all.first.createdAt);
+                                  },
+                                  child: const Text('Tải tin cũ hơn'),
+                                ),
+                        ),
+                      );
+                    }
                     final m = reversed[i];
                     final sender = byId[m.userId];
                     return MessageBubble(

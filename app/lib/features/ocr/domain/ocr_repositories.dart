@@ -8,7 +8,8 @@ abstract interface class OcrEngine {
 
 /// Lưu và đọc kết quả OCR (Supabase).
 abstract interface class OcrRepository {
-  Future<List<OcrRecord>> list();
+  /// Một trang kết quả (mới nhất trước). [before] là mốc `createdAt` của bản ghi cuối trang trước.
+  Future<List<OcrRecord>> list({DateTime? before, int limit = 20});
 
   /// Tải ảnh lên Storage rồi lưu bản ghi.
   Future<OcrRecord> save({

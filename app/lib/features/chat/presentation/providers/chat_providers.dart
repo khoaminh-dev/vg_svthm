@@ -6,6 +6,7 @@ import '../../data/supabase_chat_repository.dart';
 import '../../domain/chat_repository.dart';
 import '../../domain/message.dart';
 import '../../domain/room.dart';
+import '../../data/supabase_chat_repository.dart' show SupabaseChatRepository;
 
 final chatRepositoryProvider = Provider<ChatRepository>(
   (ref) => SupabaseChatRepository(ref.watch(supabaseClientProvider)),
@@ -41,3 +42,44 @@ final membersProvider = FutureProvider.autoDispose.family<List<Profile>, String>
 final onlineProvider = StreamProvider.autoDispose.family<Set<String>, String>(
   (ref, roomId) => ref.watch(chatRepositoryProvider).watchOnline(roomId),
 );
+
+/// Tin nhắn cũ đã tải thêm (phân trang kiểu keyset theo thời gian), ngoài cửa sổ realtime mới nhất.
+class OlderMessagesState {
+  const OlderMessagesState({this.items = const [], this.hasMore = true, this.loading = false});
+
+  final List<Message> items;
+  final bool hasMore;
+  final bool loading;
+}
+
+class OlderMessagesNotifier extends Notifier<OlderMessagesState> {
+  OlderMessagesNotifier(this.roomId);
+
+  final String roomId;
+
+  @override
+  OlderMessagesState build() => const OlderMessagesState();
+
+  /// Tải thêm một trang tin cũ hơn [oldestShown] (tin cũ nhất đang hiển thị).
+  Future<void> loadMore(DateTime oldestShown) async {
+    if (state.loading || !state.hasMore) return;
+    state = OlderMessagesState(items: state.items, hasMore: state.hasMore, loading: true);
+    try {
+      const page = 50;
+      final older = await ref
+          .read(chatRepositoryProvider)
+          .fetchOlderMessages(roomId, before: oldestShown, limit: page);
+      state = OlderMessagesState(items: [...older, ...state.items], hasMore: older.length >= page);
+    } catch (_) {
+      state = OlderMessagesState(items: state.items, hasMore: state.hasMore);
+    }
+  }
+}
+
+final olderMessagesProvider = NotifierProvider.autoDispose
+    .family<OlderMessagesNotifier, OlderMessagesState, String>(
+      (roomId) => OlderMessagesNotifier(roomId),
+    );
+
+/// Kích thước cửa sổ realtime: chỉ khi đủ chừng này tin thì mới có thể còn tin cũ hơn.
+const messageWindowSize = SupabaseChatRepository.messageWindow;

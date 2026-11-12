@@ -34,9 +34,36 @@ final ocrRepositoryProvider = Provider<OcrRepository>(
 
 final imagePickerProvider = Provider<ImagePicker>((ref) => ImagePicker());
 
-/// Lịch sử OCR của người dùng.
-final ocrRecordsProvider = FutureProvider.autoDispose<List<OcrRecord>>(
-  (ref) => ref.watch(ocrRepositoryProvider).list(),
+/// Một trang lịch sử OCR đã tải và còn trang sau hay không.
+class OcrPage {
+  const OcrPage(this.items, {required this.hasMore});
+
+  final List<OcrRecord> items;
+  final bool hasMore;
+}
+
+/// Lịch sử OCR của người dùng, tải từng trang (20 bản ghi mỗi lần).
+class OcrRecordsNotifier extends AsyncNotifier<OcrPage> {
+  static const pageSize = 20;
+
+  @override
+  Future<OcrPage> build() async {
+    final items = await ref.watch(ocrRepositoryProvider).list(limit: pageSize);
+    return OcrPage(items, hasMore: items.length >= pageSize);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.value;
+    if (current == null || !current.hasMore || current.items.isEmpty) return;
+    final next = await ref
+        .read(ocrRepositoryProvider)
+        .list(before: current.items.last.createdAt, limit: pageSize);
+    state = AsyncData(OcrPage([...current.items, ...next], hasMore: next.length >= pageSize));
+  }
+}
+
+final ocrRecordsProvider = AsyncNotifierProvider.autoDispose<OcrRecordsNotifier, OcrPage>(
+  OcrRecordsNotifier.new,
 );
 
 /// Link xem ảnh đã lưu.

@@ -25,6 +25,13 @@ abstract interface class ChatRepository {
   /// Danh sách tin nhắn của phòng (cũ đến mới), cập nhật realtime.
   Stream<List<Message>> watchMessages(String roomId);
 
+  /// Tin nhắn cũ hơn mốc [before] (cũ đến mới), tối đa [limit] tin. Dùng cho nút "Tải tin cũ hơn".
+  Future<List<Message>> fetchOlderMessages(
+    String roomId, {
+    required DateTime before,
+    int limit = 50,
+  });
+
   Future<void> sendMessage(String roomId, String content);
 
   /// Tập user id đang online trong phòng (Realtime Presence).
