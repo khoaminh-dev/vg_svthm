@@ -56,7 +56,10 @@ class SupabaseAuthRepository implements AuthRepository {
         if (res.user?.identities?.isEmpty ?? false) {
           throw const AppFailure('Email này đã được đăng ký, hãy đăng nhập');
         }
-        return res.session == null;
+        final needsConfirm = res.session == null;
+        // Đăng ký xong phải đăng nhập lại: bỏ phiên tự tạo để app quay về màn đăng nhập.
+        if (!needsConfirm) await _auth.signOut();
+        return needsConfirm;
       });
 
   @override
@@ -114,6 +117,7 @@ class SupabaseAuthRepository implements AuthRepository {
           email: u.email,
           fullName: u.userMetadata?['full_name'] as String?,
           username: u.userMetadata?['username'] as String?,
+          avatarUrl: (u.userMetadata?['avatar_url'] ?? u.userMetadata?['picture']) as String?,
         );
 
   Future<T> _guard<T>(Future<T> Function() run) async {

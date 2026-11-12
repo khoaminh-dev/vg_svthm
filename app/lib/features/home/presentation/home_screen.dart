@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_spacing.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import 'widgets/feature_card.dart';
+import 'widgets/profile_header.dart';
 
-/// Trang chủ tạm: sẽ thay bằng điều hướng tới Chat, OCR, Voice.
+/// Trang chủ: thông tin người dùng và lối vào các tính năng.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -23,35 +26,34 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Xin chào, ${user?.displayName ?? ''}',
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          const _FeatureTile(icon: Icons.chat_bubble_outline, label: 'Chat realtime'),
-          const _FeatureTile(icon: Icons.document_scanner_outlined, label: 'OCR số liệu'),
-          const _FeatureTile(icon: Icons.mic_none, label: 'Điều khiển giọng nói'),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureTile extends StatelessWidget {
-  const _FeatureTile({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(label),
-        subtitle: const Text('Sắp có'),
-        enabled: false,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                if (user != null) ProfileHeader(user: user),
+                const SizedBox(height: AppSpacing.lg),
+                Text('Tính năng', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.sm),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 1.2,
+                  children: const [
+                    FeatureCard(icon: Icons.chat_bubble_outline, label: 'Chat'),
+                    FeatureCard(icon: Icons.document_scanner_outlined, label: 'OCR số liệu'),
+                    FeatureCard(icon: Icons.mic_none, label: 'Giọng nói'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

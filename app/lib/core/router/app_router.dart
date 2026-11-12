@@ -22,7 +22,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     // Deep link (viegrand://...) không khớp route nào: về trang chủ, redirect lo phần còn lại.
     onException: (_, _, router) => router.go(Routes.home),
     redirect: (context, state) {
-      final user = ref.read(currentUserProvider);
+      // Đọc thẳng từ repository (nguồn chính xác nhất), không qua provider đã cache.
+      final user = ref.read(authRepositoryProvider).currentUser;
       final loggedIn = user != null;
       final loc = state.matchedLocation;
 

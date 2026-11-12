@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
@@ -10,7 +11,6 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_scaffold.dart';
 import '../../../../shared/widgets/password_field.dart';
 import '../providers/auth_controller.dart';
-import '../widgets/google_sign_in_section.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -44,11 +44,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         .signUp(_email.text, _password.text, _name.text, _username.text);
     if (!mounted || needsConfirm == null) return;
 
-    // Không cần xác nhận email: đã đăng nhập, router tự chuyển trang.
-    if (needsConfirm) {
-      showAppSnackBar(context, 'Đã gửi email xác nhận, hãy kiểm tra hộp thư rồi đăng nhập');
-      context.pop();
-    }
+    showAppSnackBar(
+      context,
+      needsConfirm
+          ? 'Đã gửi email xác nhận, hãy kiểm tra hộp thư rồi đăng nhập'
+          : 'Đăng ký thành công, hãy đăng nhập',
+    );
+    context.go(Routes.login);
   }
 
   @override
@@ -113,8 +115,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             const SizedBox(height: 24),
             AppButton(label: 'Đăng ký', loading: loading, onPressed: _submit),
-            const SizedBox(height: 16),
-            const GoogleSignInSection(),
           ],
         ),
       ),
