@@ -19,6 +19,17 @@ class ChatController extends AsyncNotifier<void> {
     return room;
   }
 
+  /// Mở chat riêng với một username; trả về `null` nếu lỗi (lỗi nằm trong state).
+  Future<Room?> openDirectRoom(String username) async {
+    state = const AsyncLoading();
+    Room? room;
+    state = await AsyncValue.guard(() async {
+      room = await ref.read(chatRepositoryProvider).openDirectRoom(username);
+    });
+    if (room != null) ref.invalidate(roomsProvider);
+    return room;
+  }
+
   Future<bool> addMember(String roomId, String username) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(

@@ -22,11 +22,8 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<List<Room>> fetchRooms() => _guard(() async {
-        final rows = await _client
-            .from('rooms')
-            .select()
-            .order('created_at', ascending: false);
-        return rows.map(Room.fromMap).toList();
+        final rows = await _client.rpc('my_rooms') as List<dynamic>;
+        return rows.map((r) => Room.fromMap(r as Map<String, dynamic>)).toList();
       });
 
   @override
@@ -38,8 +35,57 @@ class SupabaseChatRepository implements ChatRepository {
             .select()
             .single();
         await _client.from('room_members').insert({'room_id': row['id'], 'user_id': uid});
-        return Room.fromMap(row);
+        return Room(
+          id: row['id'] as String,
+          name: row['name'] as String,
+          type: RoomType.group,
+          createdAt: DateTime.parse(row['created_at'] as String),
+        );
       });
+
+  @override
+  Future<Room> openDirectRoom(String username) async {
+    try {
+      final id = await _client.rpc(
+        'create_or_get_direct_room',
+        params: {'p_username': username},
+      ) as String;
+      final rooms = await fetchRooms();
+      return rooms.firstWhere((r) => r.id == id);
+    } catch (e) {
+      throw mapChatError(e);
+    }
+  }
+
+  @override
+  Stream<void> watchJoinedRooms() {
+    late final StreamController<void> controller;
+    RealtimeChannel? channel;
+
+    controller = StreamController<void>(
+      onListen: () {
+        channel = _client
+            .channel('joined-rooms:$_uid')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.insert,
+              schema: 'public',
+              table: 'room_members',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'user_id',
+                value: _uid,
+              ),
+              callback: (_) => controller.add(null),
+            )
+            .subscribe();
+      },
+      onCancel: () async {
+        final ch = channel;
+        if (ch != null) await _client.removeChannel(ch);
+      },
+    );
+    return controller.stream;
+  }
 
   @override
   Future<void> addMember(String roomId, String username) => _guard(

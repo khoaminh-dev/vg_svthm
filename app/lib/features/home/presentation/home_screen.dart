@@ -52,7 +52,11 @@ class HomeScreen extends ConsumerWidget {
                       label: 'Chat',
                       onTap: () => context.push(Routes.rooms),
                     ),
-                    const FeatureCard(icon: Icons.document_scanner_outlined, label: 'OCR số liệu'),
+                    FeatureCard(
+                      icon: Icons.document_scanner_outlined,
+                      label: 'OCR số liệu',
+                      onTap: () => context.push(Routes.ocr),
+                    ),
                     const FeatureCard(icon: Icons.mic_none, label: 'Giọng nói'),
                   ],
                 ),

@@ -10,6 +10,8 @@ AppFailure mapChatError(Object error) {
         return const AppFailure('Không tìm thấy người dùng này');
       case '42501':
         return const AppFailure('Bạn không có quyền thực hiện thao tác này');
+      case '22023':
+        return const AppFailure('Không thể thực hiện với phòng hoặc người dùng này');
       case '23514':
         return const AppFailure('Nội dung không hợp lệ (quá dài hoặc để trống)');
     }

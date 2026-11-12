@@ -38,6 +38,9 @@ dependencies:
   go_router: ^18.1.4
   supabase_flutter: ^2.18.3
   google_sign_in: ^7.2.0
+  google_mlkit_text_recognition: ^1.0.2
+  image_picker: ^1.2.4
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

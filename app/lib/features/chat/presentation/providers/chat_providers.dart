@@ -16,6 +16,13 @@ final roomsProvider = FutureProvider.autoDispose<List<Room>>(
   (ref) => ref.watch(chatRepositoryProvider).fetchRooms(),
 );
 
+/// Mỗi khi mình được thêm vào phòng mới thì làm mới danh sách phòng.
+final joinedRoomsProvider = StreamProvider.autoDispose<void>((ref) {
+  return ref.watch(chatRepositoryProvider).watchJoinedRooms().map((_) {
+    ref.invalidate(roomsProvider);
+  });
+});
+
 /// Tin nhắn của một phòng, cập nhật realtime.
 final messagesProvider = StreamProvider.autoDispose.family<List<Message>, String>(
   (ref, roomId) => ref.watch(chatRepositoryProvider).watchMessages(roomId),

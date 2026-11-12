@@ -18,11 +18,12 @@ Trạng thái: ✅ xong · 🚧 đang làm · ⬜ chưa làm · ➖ tạm bỏ
 ## 2. Chat realtime
 | Tính năng | Trạng thái |
 |---|---|
-| Danh sách phòng, tạo phòng | 🚧 |
-| Thêm thành viên theo username | 🚧 |
-| Gửi / nhận tin nhắn realtime | 🚧 |
-| Hiện ai đang online trong phòng (Presence) | 🚧 |
-| Chat 1-1 (tạo phòng trực tiếp với @username) | ⬜ |
+| Danh sách phòng, tạo phòng nhóm | ✅ |
+| Thêm thành viên theo username | ✅ |
+| Gửi / nhận tin nhắn realtime | ✅ |
+| Hiện ai đang online trong phòng (Presence) | ✅ |
+| Chat 1-1 (mở trực tiếp với @username) | ✅ |
+| Phòng mới tự hiện khi được mời (realtime) | ✅ |
 | Tin nhắn cuối + số tin chưa đọc ở danh sách phòng | ⬜ |
 | Gửi ảnh / file | ⬜ |
 | Sửa, xoá tin nhắn | ⬜ |
@@ -32,11 +33,13 @@ Trạng thái: ✅ xong · 🚧 đang làm · ⬜ chưa làm · ➖ tạm bỏ
 ## 3. OCR số liệu
 | Tính năng | Trạng thái |
 |---|---|
-| Chụp ảnh / chọn ảnh từ thư viện | ⬜ |
-| Đọc chữ bằng ML Kit (chạy trên máy) | ⬜ |
-| Tách số liệu (regex, tuỳ chọn LLM để ra JSON) | ⬜ |
-| Màn hình sửa tay kết quả | ⬜ |
-| Lưu vào `ocr_records`, xem lịch sử | ⬜ |
+| Chụp ảnh / chọn ảnh từ thư viện | ✅ |
+| Đọc chữ bằng ML Kit (chạy trên máy, Android/iOS) | ✅ |
+| Tách số liệu bằng quy tắc (nhãn, giá trị, đơn vị; số Việt/Anh) | ✅ |
+| Đọc bằng AI (Groq vision) cho LCD, hoá đơn, bảng: công tắc "Đọc bằng AI" + `/api/ocr` | 🚧 code xong, chờ deploy Vercel |
+| Màn hình sửa tay kết quả | ✅ |
+| Lưu vào `ocr_records` (kèm ảnh), xem lịch sử, xoá | ✅ |
+| Sửa lại kết quả đã lưu | ⬜ |
 | Xuất CSV / chia sẻ vào chat | ⬜ |
 
 ## 4. Giọng nói
@@ -50,8 +53,8 @@ Trạng thái: ✅ xong · 🚧 đang làm · ⬜ chưa làm · ➖ tạm bỏ
 ## 5. Server / API (Vercel)
 | Tính năng | Trạng thái |
 |---|---|
-| Viết `/api/llm`, `/api/stt`, `/api/tts` + router xoay vòng key | ✅ (chưa kiểm tra) |
-| Kiểm tra TypeScript (`tsc`), deploy lên Vercel | ⬜ |
+| Viết `/api/llm`, `/api/stt`, `/api/tts`, `/api/ocr` + router xoay vòng key | ✅ (`tsc` đạt; chưa chạy trên Vercel) |
+| Deploy lên Vercel | ⬜ |
 | Trỏ `api.<domain>` về Vercel | ⬜ |
 | Nhập key Groq, ElevenLabs, Gemini vào Vercel | ⬜ |
 

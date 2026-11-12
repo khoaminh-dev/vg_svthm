@@ -6,6 +6,9 @@ abstract final class Routes {
   static const rooms = '/rooms';
   static const room = '/rooms/:id';
   static String roomPath(String id) => '/rooms/$id';
+  static const ocr = '/ocr';
+  static const ocrEdit = '/ocr/edit';
+  static const ocrDetail = '/ocr/detail';
   static const home = '/';
 
   /// Các trang không cần đăng nhập.

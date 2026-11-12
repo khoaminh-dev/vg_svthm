@@ -5,13 +5,19 @@ import 'room.dart';
 abstract interface class ChatRepository {
   Future<List<Room>> fetchRooms();
 
-  /// Tạo phòng và tự thêm người tạo vào làm thành viên.
+  /// Tạo phòng nhóm và tự thêm người tạo vào làm thành viên.
   Future<Room> createRoom(String name);
 
-  /// Mời người dùng vào phòng theo username.
+  /// Mở (hoặc tạo nếu chưa có) cuộc trò chuyện riêng với một username.
+  Future<Room> openDirectRoom(String username);
+
+  /// Mời người dùng vào phòng nhóm theo username.
   Future<void> addMember(String roomId, String username);
 
   Future<List<Profile>> fetchMembers(String roomId);
+
+  /// Phát một sự kiện mỗi khi mình được thêm vào một phòng mới.
+  Stream<void> watchJoinedRooms();
 
   /// Danh sách tin nhắn của phòng (cũ đến mới), cập nhật realtime.
   Stream<List<Message>> watchMessages(String roomId);

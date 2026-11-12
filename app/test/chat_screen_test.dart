@@ -69,6 +69,10 @@ class _FakeChat implements ChatRepository {
   @override
   Future<Room> createRoom(String name) => throw UnimplementedError();
   @override
+  Future<Room> openDirectRoom(String username) => throw UnimplementedError();
+  @override
+  Stream<void> watchJoinedRooms() => const Stream.empty();
+  @override
   Future<void> addMember(String roomId, String username) async {}
 }
 
@@ -81,7 +85,17 @@ void main() {
           chatRepositoryProvider.overrideWithValue(chat),
           authRepositoryProvider.overrideWithValue(_FakeAuth()),
         ],
-        child: const MaterialApp(home: ChatScreen(roomId: 'r1', roomName: 'Nhóm A')),
+        child: MaterialApp(
+          home: ChatScreen(
+            roomId: 'r1',
+            room: Room(
+              id: 'r1',
+              name: 'Nhóm A',
+              type: RoomType.group,
+              createdAt: DateTime(2026, 1, 1),
+            ),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();

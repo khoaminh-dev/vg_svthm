@@ -10,6 +10,10 @@ import '../../features/chat/domain/room.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/chat/presentation/screens/room_list_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/ocr/domain/ocr_models.dart';
+import '../../features/ocr/presentation/screens/ocr_detail_screen.dart';
+import '../../features/ocr/presentation/screens/ocr_editor_screen.dart';
+import '../../features/ocr/presentation/screens/ocr_screen.dart';
 import 'routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -50,8 +54,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.room,
         builder: (_, state) => ChatScreen(
           roomId: state.pathParameters['id']!,
-          roomName: (state.extra as Room?)?.name,
+          room: state.extra as Room?,
         ),
+      ),
+      GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
+      GoRoute(
+        path: Routes.ocrEdit,
+        builder: (_, state) => OcrEditorScreen(draft: state.extra! as OcrDraft),
+      ),
+      GoRoute(
+        path: Routes.ocrDetail,
+        builder: (_, state) => OcrDetailScreen(record: state.extra! as OcrRecord),
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),

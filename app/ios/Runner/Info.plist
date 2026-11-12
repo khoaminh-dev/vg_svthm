@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Chụp ảnh để đọc số liệu</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chọn ảnh để đọc số liệu</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
