@@ -82,8 +82,14 @@ class BpReading {
 
 /// Tìm SYS / DIA / PULSE trong các dòng số liệu OCR.
 abstract final class BpExtractor {
-  static final _sys = RegExp(r'sys|systolic|t[âa]m\s*thu|tam\s*thu|t\.?\s*thu', caseSensitive: false);
-  static final _dia = RegExp(r'dia|diastolic|t[âa]m\s*tr[ưu]ơng|tam\s*truong|t\.?\s*tr[ưu]ơng', caseSensitive: false);
+  static final _sys = RegExp(
+    r'sys|systolic|t[âa]m\s*thu|tam\s*thu|t\.?\s*thu',
+    caseSensitive: false,
+  );
+  static final _dia = RegExp(
+    r'dia|diastolic|t[âa]m\s*tr[ưu]ơng|tam\s*truong|t\.?\s*tr[ưu]ơng',
+    caseSensitive: false,
+  );
   static final _pul = RegExp(r'pul|m[ạa]ch|nh[ịi]p|heart|bpm', caseSensitive: false);
 
   static BpReading? fromValues(List<OcrValue> values, {required String source, DateTime? at}) {

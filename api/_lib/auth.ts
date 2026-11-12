@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './vercel-types.js';
 
 /** Xác thực bằng token Supabase của người dùng. Trả về user id hoặc null (đã trả 401). */
 export async function requireUser(req: VercelRequest, res: VercelResponse): Promise<string | null> {
@@ -8,7 +8,7 @@ export async function requireUser(req: VercelRequest, res: VercelResponse): Prom
     return null;
   }
   const base = process.env.SUPABASE_URL;
-  if (!base) {
+  if (!base || !process.env.SUPABASE_ANON_KEY) {
     res.status(500).json({ error: 'server_not_configured' });
     return null;
   }

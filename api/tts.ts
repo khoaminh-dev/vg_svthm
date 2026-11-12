@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
 import { requireUser, rateLimit } from './_lib/auth.js';
 import { elevenTts } from './_lib/providers/elevenlabs.js';
-import { sendError } from './_lib/http.js';
+import { bodyObject, sendError } from './_lib/http.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -9,8 +9,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!uid) return;
   if (!rateLimit(uid)) return res.status(429).json({ error: 'rate_limited' });
 
-  const { text } = req.body as { text?: string };
-  if (!text || text.length > 600) return res.status(400).json({ error: 'bad_request' });
+  const { text } = (bodyObject(req) ?? {}) as { text?: unknown };
+  if (typeof text !== 'string' || !text || text.length > 600) return res.status(400).json({ error: 'bad_request' });
 
   try {
     const audio = await elevenTts(text);

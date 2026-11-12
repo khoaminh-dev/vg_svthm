@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
 import { checkLogin, issueToken } from '../_lib/admin.js';
 
 // Chống dò mật khẩu: tối đa 10 lần sai / 5 phút mỗi IP (trong bộ nhớ).

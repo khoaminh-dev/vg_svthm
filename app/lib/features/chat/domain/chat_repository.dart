@@ -16,6 +16,9 @@ abstract interface class ChatRepository {
 
   Future<List<Profile>> fetchMembers(String roomId);
 
+  /// Phát một sự kiện mỗi khi danh sách thành viên của phòng thay đổi.
+  Stream<void> watchMembers(String roomId);
+
   /// Phát một sự kiện mỗi khi mình được thêm vào một phòng mới.
   Stream<void> watchJoinedRooms();
 

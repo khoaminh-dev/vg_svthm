@@ -118,7 +118,9 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
                 }),
               ),
             ListenableBuilder(
-              listenable: Listenable.merge([for (final r in _rows) ...[r.label, r.value]]),
+              listenable: Listenable.merge([
+                for (final r in _rows) ...[r.label, r.value],
+              ]),
               builder: (context, _) {
                 final r = _currentReading();
                 if (r == null) return const SizedBox.shrink();

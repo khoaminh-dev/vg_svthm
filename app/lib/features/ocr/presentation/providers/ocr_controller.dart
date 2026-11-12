@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/errors/app_failure.dart';
 import '../../../bp/domain/bp_models.dart';
 import '../../../bp/presentation/providers/bp_providers.dart';
 import '../../domain/ocr_models.dart';
@@ -13,24 +14,39 @@ class OcrController extends AsyncNotifier<void> {
 
   /// Chụp hoặc chọn ảnh rồi đọc chữ. Trả về `null` nếu người dùng huỷ hoặc lỗi (lỗi nằm trong state).
   Future<OcrDraft?> scan(ImageSource source) async {
-    final file = await ref
-        .read(imagePickerProvider)
-        .pickImage(source: source, maxWidth: 1800, imageQuality: 85);
-    if (file == null) return null;
+    XFile? file;
+    try {
+      file = await ref
+          .read(imagePickerProvider)
+          .pickImage(source: source, maxWidth: 1800, imageQuality: 85);
+    } catch (e, st) {
+      // Lỗi quyền camera / plugin: đưa vào state để UI báo, không để thoát ra thành exception.
+      state = AsyncError(
+        const AppFailure('Không mở được camera hoặc thư viện ảnh, hãy kiểm tra quyền truy cập'),
+        st,
+      );
+      return null;
+    }
+    if (file == null) {
+      // Người dùng huỷ: xoá lỗi cũ để không hiện lại thông báo cũ.
+      state = const AsyncData(null);
+      return null;
+    }
 
+    final path = file.path;
     state = const AsyncLoading();
     OcrDraft? draft;
     state = await AsyncValue.guard(() async {
       final useAi = ref.read(ocrUseAiProvider);
       final engine = ref.read(useAi ? aiOcrEngineProvider : ocrEngineProvider);
-      final scan = await engine.scan(file.path);
-      draft = OcrDraft(imagePath: file.path, rawText: scan.rawText, values: scan.values);
+      final scan = await engine.scan(path);
+      draft = OcrDraft(imagePath: path, rawText: scan.rawText, values: scan.values);
     });
     return draft;
   }
 
   /// Lưu kết quả OCR; nếu có [reading] thì lưu luôn lần đo huyết áp liên kết với bản ghi đó.
-  /// Lưu kết quả OCR; nếu có [reading] thì lưu luôn lần đo huyết áp liên kết với bản ghi đó.
+  /// Hai bước được coi như một: nếu lưu huyết áp lỗi thì bản ghi OCR vừa tạo bị hoàn tác.
   Future<bool> save(
     OcrDraft draft,
     String title,
@@ -48,24 +64,30 @@ class OcrController extends AsyncNotifier<void> {
             localImagePath: draft.imagePath,
           );
       if (reading != null) {
-        await ref
-            .read(bpRepositoryProvider)
-            .add(
-              BpReading(
-                systolic: reading.systolic,
-                diastolic: reading.diastolic,
-                pulse: reading.pulse,
-                measuredAt: reading.measuredAt,
-                source: reading.source,
-                ocrRecordId: record.id,
-              ),
-            );
+        try {
+          await ref
+              .read(bpRepositoryProvider)
+              .add(
+                BpReading(
+                  systolic: reading.systolic,
+                  diastolic: reading.diastolic,
+                  pulse: reading.pulse,
+                  measuredAt: reading.measuredAt,
+                  source: reading.source,
+                  ocrRecordId: record.id,
+                ),
+              );
+        } catch (_) {
+          try {
+            await ref.read(ocrRepositoryProvider).delete(record);
+          } catch (_) {}
+          rethrow;
+        }
       }
     });
-    if (!state.hasError) {
-      ref.invalidate(ocrRecordsProvider);
-      ref.invalidate(bpReadingsProvider);
-    }
+    // Làm mới danh sách dù thành công hay lỗi để không hiển thị dữ liệu cũ.
+    ref.invalidate(ocrRecordsProvider);
+    ref.invalidate(bpReadingsProvider);
     return !state.hasError;
   }
 

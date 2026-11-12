@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
 import { requireUser, rateLimit } from './_lib/auth.js';
 import { groqVision } from './_lib/providers/groq.js';
-import { sendError } from './_lib/http.js';
+import { bodyObject, sendError } from './_lib/http.js';
 
 // Vercel giới hạn body ~4.5 MB; ảnh base64 lớn hơn mức này sẽ bị từ chối.
 const MAX_BASE64_CHARS = 4_000_000;
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!uid) return;
   if (!rateLimit(uid)) return res.status(429).json({ error: 'rate_limited' });
 
-  const { image, mime } = req.body as { image?: string; mime?: string };
+  const { image, mime } = (bodyObject(req) ?? {}) as { image?: string; mime?: string };
   if (typeof image !== 'string' || image.length === 0) return res.status(400).json({ error: 'bad_request' });
   if (image.length > MAX_BASE64_CHARS) return res.status(413).json({ error: 'image_too_large' });
   const type = mime === 'image/png' ? 'image/png' : 'image/jpeg';

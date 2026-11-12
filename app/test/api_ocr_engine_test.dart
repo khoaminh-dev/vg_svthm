@@ -18,8 +18,11 @@ void main() {
   });
   tearDown(() => dir.deleteSync(recursive: true));
 
-  ApiOcrEngine engine(http.Client client, {String? token = 't', String base = 'https://api.test'}) =>
-      ApiOcrEngine(accessToken: () => token, client: client, baseUrl: base);
+  ApiOcrEngine engine(
+    http.Client client, {
+    String? token = 't',
+    String base = 'https://api.test',
+  }) => ApiOcrEngine(accessToken: () => token, client: client, baseUrl: base);
 
   test('gửi ảnh kèm token và đọc kết quả', () async {
     late http.Request sent;

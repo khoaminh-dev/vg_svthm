@@ -28,13 +28,9 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<Room> createRoom(String name) => _guard(() async {
-    final uid = _uid;
-    final row = await _client
-        .from('rooms')
-        .insert({'name': name.trim(), 'created_by': uid})
-        .select()
-        .single();
-    await _client.from('room_members').insert({'room_id': row['id'], 'user_id': uid});
+    // Một RPC duy nhất: tạo phòng và thêm người tạo trong cùng một giao dịch (không để phòng mồ côi).
+    final rows = await _client.rpc('create_group_room', params: {'p_name': name}) as List<dynamic>;
+    final row = rows.first as Map<String, dynamic>;
     return Room(
       id: row['id'] as String,
       name: row['name'] as String,
@@ -101,13 +97,47 @@ class SupabaseChatRepository implements ChatRepository {
     return rows.map(Profile.fromMap).toList();
   });
 
+  /// Số tin nhắn mới nhất được nạp cho mỗi phòng (không tải toàn bộ lịch sử).
+  static const messageWindow = 200;
+
   @override
   Stream<List<Message>> watchMessages(String roomId) => _client
       .from('messages')
       .stream(primaryKey: ['id'])
       .eq('room_id', roomId)
-      .order('created_at', ascending: true)
-      .map((rows) => rows.map(Message.fromMap).toList());
+      .order('created_at', ascending: false)
+      .limit(messageWindow)
+      .map((rows) => rows.map(Message.fromMap).toList().reversed.toList());
+
+  @override
+  Stream<void> watchMembers(String roomId) {
+    late final StreamController<void> controller;
+    RealtimeChannel? channel;
+
+    controller = StreamController<void>(
+      onListen: () {
+        channel = _client
+            .channel('members:$roomId')
+            .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'room_members',
+              filter: PostgresChangeFilter(
+                type: PostgresChangeFilterType.eq,
+                column: 'room_id',
+                value: roomId,
+              ),
+              callback: (_) => controller.add(null),
+            )
+            .subscribe();
+      },
+      onCancel: () async {
+        final ch = channel;
+        if (ch != null) await _client.removeChannel(ch);
+      },
+    );
+    return controller.stream;
+  }
 
   @override
   Future<void> sendMessage(String roomId, String content) => _guard(

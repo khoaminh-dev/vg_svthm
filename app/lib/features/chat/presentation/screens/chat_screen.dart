@@ -38,6 +38,9 @@ class ChatScreen extends ConsumerWidget {
     final members = ref.watch(membersProvider(roomId)).value ?? const <Profile>[];
     final online = ref.watch(onlineProvider(roomId)).value ?? const <String>{};
     final byId = {for (final p in members) p.id: p};
+    // Mở thẳng bằng đường dẫn thì không có `room` qua extra: tìm trong danh sách phòng.
+    final rooms = ref.watch(roomsProvider).value ?? const <Room>[];
+    final room = this.room ?? rooms.where((r) => r.id == roomId).firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -54,7 +57,7 @@ class ChatScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          if (!(room?.isDirect ?? false))
+          if (room != null && !room.isDirect)
             IconButton(
               tooltip: 'Thành viên',
               icon: const Icon(Icons.group_outlined),

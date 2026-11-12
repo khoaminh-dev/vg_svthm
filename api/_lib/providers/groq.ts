@@ -6,7 +6,7 @@ const BASE = 'https://api.groq.com/openai/v1';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
-export function groqChat(messages: ChatMessage[], opts: { json?: boolean; temperature?: number } = {}) {
+export function groqChat(messages: ChatMessage[], opts: { json?: boolean; temperature?: number; maxTokens?: number } = {}) {
   return withKeyFailover(pool, async (key) => {
     const r = await fetch(`${BASE}/chat/completions`, {
       method: 'POST',
@@ -15,6 +15,7 @@ export function groqChat(messages: ChatMessage[], opts: { json?: boolean; temper
         model: process.env.GROQ_LLM_MODEL ?? 'openai/gpt-oss-20b',
         messages,
         temperature: opts.temperature ?? 0.2,
+        max_tokens: opts.maxTokens ?? 800,
         ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       }),
     });

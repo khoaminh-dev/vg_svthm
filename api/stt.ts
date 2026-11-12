@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
 import { requireUser, rateLimit } from './_lib/auth.js';
 import { groqTranscribe } from './_lib/providers/groq.js';
-import { sendError } from './_lib/http.js';
+import { bodyObject, sendError } from './_lib/http.js';
 
 // Body JSON: { audioBase64, filename?, language? }  (giới hạn body của Vercel ~4.5MB)
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -10,10 +10,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!uid) return;
   if (!rateLimit(uid)) return res.status(429).json({ error: 'rate_limited' });
 
-  const { audioBase64, filename = 'audio.m4a', language = 'vi' } = req.body as {
-    audioBase64?: string; filename?: string; language?: string;
+  const { audioBase64, filename = 'audio.m4a', language = 'vi' } = (bodyObject(req) ?? {}) as {
+    audioBase64?: unknown; filename?: unknown; language?: unknown;
   };
-  if (!audioBase64) return res.status(400).json({ error: 'bad_request' });
+  if (typeof audioBase64 !== 'string' || !audioBase64 || audioBase64.length > 4_000_000) {
+    return res.status(400).json({ error: 'bad_request' });
+  }
+  if (typeof filename !== 'string' || !/^[\w.-]{1,60}$/.test(filename)) return res.status(400).json({ error: 'bad_request' });
+  if (typeof language !== 'string' || !/^[a-z]{2,3}$/.test(language)) return res.status(400).json({ error: 'bad_request' });
 
   try {
     const text = await groqTranscribe(Buffer.from(audioBase64, 'base64'), filename, language);

@@ -37,7 +37,10 @@ class _BpPainter extends CustomPainter {
 
   void _text(Canvas c, String s, Offset o, {bool right = false}) {
     final tp = TextPainter(
-      text: TextSpan(text: s, style: labelStyle.copyWith(color: grid)),
+      text: TextSpan(
+        text: s,
+        style: labelStyle.copyWith(color: grid),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     tp.paint(c, Offset(right ? o.dx - tp.width : o.dx, o.dy));
@@ -52,7 +55,7 @@ class _BpPainter extends CustomPainter {
 
     var lo = 1000, hi = 0;
     for (final r in data) {
-      hi = max(hi, r.systolic);
+      hi = max(hi, max(r.systolic, r.pulse ?? 0));
       lo = min(lo, min(r.diastolic, r.pulse ?? r.diastolic));
     }
     lo = ((lo - 10) ~/ 10) * 10;
@@ -75,11 +78,7 @@ class _BpPainter extends CustomPainter {
     for (final v in [120, 80]) {
       if (v < lo || v > hi) continue;
       for (var dx = left; dx < size.width - rightPad; dx += 8) {
-        canvas.drawLine(
-          Offset(dx, y(v)),
-          Offset(min(dx + 4, size.width - rightPad), y(v)),
-          ref,
-        );
+        canvas.drawLine(Offset(dx, y(v)), Offset(min(dx + 4, size.width - rightPad), y(v)), ref);
       }
     }
 

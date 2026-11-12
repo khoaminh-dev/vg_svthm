@@ -12,6 +12,27 @@ class SupabaseOcrRepository implements OcrRepository {
 
   static const _bucket = 'ocr-images';
 
+  /// Số bản ghi mới nhất được tải cho lịch sử (không tải toàn bộ).
+  static const listLimit = 50;
+
+  /// Nhận dạng định dạng ảnh theo nội dung file (không tin vào đuôi file).
+  static ({String ext, String mime}) sniff(List<int> b) {
+    bool at(int i, List<int> sig) {
+      if (b.length < i + sig.length) return false;
+      for (var k = 0; k < sig.length; k++) {
+        if (b[i + k] != sig[k]) return false;
+      }
+      return true;
+    }
+
+    if (at(0, [0x89, 0x50, 0x4E, 0x47])) return (ext: 'png', mime: 'image/png');
+    if (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) {
+      return (ext: 'webp', mime: 'image/webp');
+    }
+    if (at(4, [0x66, 0x74, 0x79, 0x70])) return (ext: 'heic', mime: 'image/heic'); // ftyp
+    return (ext: 'jpg', mime: 'image/jpeg');
+  }
+
   final SupabaseClient _client;
 
   String get _uid {
@@ -22,7 +43,11 @@ class SupabaseOcrRepository implements OcrRepository {
 
   @override
   Future<List<OcrRecord>> list() => _guard(() async {
-    final rows = await _client.from('ocr_records').select().order('created_at', ascending: false);
+    final rows = await _client
+        .from('ocr_records')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(listLimit);
     return rows.map(OcrRecord.fromMap).toList();
   });
 
@@ -34,13 +59,15 @@ class SupabaseOcrRepository implements OcrRepository {
     required String localImagePath,
   }) => _guard(() async {
     final uid = _uid;
-    final name = '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 32)}.jpg';
+    final bytes = await XFile(localImagePath).readAsBytes();
+    final kind = sniff(bytes);
+    final name =
+        '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 32)}.${kind.ext}';
     final path = '$uid/$name';
 
-    final bytes = await XFile(localImagePath).readAsBytes();
     await _client.storage
         .from(_bucket)
-        .uploadBinary(path, bytes, fileOptions: const FileOptions(contentType: 'image/jpeg'));
+        .uploadBinary(path, bytes, fileOptions: FileOptions(contentType: kind.mime));
 
     try {
       final row = await _client
@@ -64,9 +91,10 @@ class SupabaseOcrRepository implements OcrRepository {
 
   @override
   Future<void> delete(OcrRecord record) => _guard(() async {
-    await _client.from('ocr_records').delete().eq('id', record.id);
+    // Xoá ảnh trước: nếu bước này lỗi thì bản ghi còn nguyên để thử lại, không để ảnh riêng tư mồ côi.
     final path = record.imagePath;
     if (path != null) await _client.storage.from(_bucket).remove([path]);
+    await _client.from('ocr_records').delete().eq('id', record.id);
   });
 
   @override

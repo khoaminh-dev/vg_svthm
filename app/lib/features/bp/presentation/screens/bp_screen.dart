@@ -63,7 +63,10 @@ class BpScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ListView(
             children: [
-              Padding(padding: const EdgeInsets.all(32), child: Center(child: Text(errorMessage(e)))),
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Center(child: Text(errorMessage(e))),
+              ),
             ],
           ),
           data: (list) {

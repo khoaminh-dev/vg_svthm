@@ -16,7 +16,7 @@ class EditableOcrRow {
   OcrValue toValue() =>
       OcrValue(label: label.text.trim(), value: value.text.trim(), unit: unit.text.trim());
 
-  bool get isEmpty => label.text.trim().isEmpty && value.text.trim().isEmpty;
+  bool get isEmpty => value.text.trim().isEmpty;
 
   void dispose() {
     label.dispose();

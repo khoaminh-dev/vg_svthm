@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
 import { dbGet, requireAdmin } from '../_lib/admin.js';
 
 type Ev = { user_id: string; name: string; screen: string | null; props: Record<string, unknown>; created_at: string };
@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const [events, profiles, bpRows] = await Promise.all([
       dbGet<Ev[]>(`events?select=user_id,name,screen,props,created_at&created_at=gte.${since}&order=created_at.desc&limit=20000`),
       dbGet<Prof[]>('profiles?select=id,username,display_name,created_at,last_seen_at&order=created_at.desc&limit=1000'),
-      dbGet<Bp[]>(`bp_readings?select=user_id,systolic,diastolic,pulse,category,source,measured_at&measured_at=gte.${since}&order=measured_at.desc&limit=5000`),
+      dbGet<Bp[]>(`bp_readings?select=user_id,systolic,diastolic,pulse,category,source,measured_at&measured_at=gte.${since}&order=measured_at.desc&limit=5000`).catch(() => [] as Bp[]),
     ]);
     const who = new Map(profiles.map((p) => [p.id, p.username ? `@${p.username}` : (p.display_name ?? p.id.slice(0, 8))]));
 

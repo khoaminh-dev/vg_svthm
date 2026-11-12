@@ -29,9 +29,13 @@ final messagesProvider = StreamProvider.autoDispose.family<List<Message>, String
 );
 
 /// Thành viên của một phòng.
-final membersProvider = FutureProvider.autoDispose.family<List<Profile>, String>(
-  (ref, roomId) => ref.watch(chatRepositoryProvider).fetchMembers(roomId),
-);
+final membersProvider = FutureProvider.autoDispose.family<List<Profile>, String>((ref, roomId) {
+  final repo = ref.watch(chatRepositoryProvider);
+  // Có người được thêm/xoá thì tải lại danh sách (để tên hiển thị đúng ngay).
+  final sub = repo.watchMembers(roomId).listen((_) => ref.invalidateSelf(), onError: (_) {});
+  ref.onDispose(sub.cancel);
+  return repo.fetchMembers(roomId);
+});
 
 /// Id những người đang online trong phòng.
 final onlineProvider = StreamProvider.autoDispose.family<Set<String>, String>(

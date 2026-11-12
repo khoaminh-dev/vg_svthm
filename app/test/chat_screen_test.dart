@@ -33,33 +33,40 @@ class _FakeChat implements ChatRepository {
   }
 
   @override
+  Stream<void> watchMembers(String roomId) => const Stream.empty();
+
+  @override
   Future<void> sendMessage(String roomId, String content) async {
-    _sent.add(Message(
-      id: _sent.length + 1,
-      roomId: roomId,
-      userId: 'me',
-      content: content,
-      createdAt: DateTime(2026, 1, 1, 9, 5),
-    ));
+    _sent.add(
+      Message(
+        id: _sent.length + 1,
+        roomId: roomId,
+        userId: 'me',
+        content: content,
+        createdAt: DateTime(2026, 1, 1, 9, 5),
+      ),
+    );
     _messages.add(List.of(_sent));
   }
 
   void receive(String userId, String content) {
-    _sent.add(Message(
-      id: _sent.length + 1,
-      roomId: 'r1',
-      userId: userId,
-      content: content,
-      createdAt: DateTime(2026, 1, 1, 9, 6),
-    ));
+    _sent.add(
+      Message(
+        id: _sent.length + 1,
+        roomId: 'r1',
+        userId: userId,
+        content: content,
+        createdAt: DateTime(2026, 1, 1, 9, 6),
+      ),
+    );
     _messages.add(List.of(_sent));
   }
 
   @override
   Future<List<Profile>> fetchMembers(String roomId) async => const [
-        Profile(id: 'me', username: 'me', displayName: 'Tôi'),
-        Profile(id: 'u2', username: 'bob', displayName: 'Bob'),
-      ];
+    Profile(id: 'me', username: 'me', displayName: 'Tôi'),
+    Profile(id: 'u2', username: 'bob', displayName: 'Bob'),
+  ];
 
   @override
   Stream<Set<String>> watchOnline(String roomId) => Stream.value({'me', 'u2'});
