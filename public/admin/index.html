@@ -40,6 +40,15 @@
   code { background:#eef1f7; padding:1px 5px; border-radius:4px; font-size:12px; }
   .scroll { max-height:420px; overflow:auto; }
   .hidden { display:none; }
+  nav { display:flex; gap:4px; padding:0 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  nav button { background:transparent; color:var(--mute); border-radius:0; border-bottom:2px solid transparent; padding:10px 14px; }
+  nav button.on { color:var(--pri); border-bottom-color:var(--pri); font-weight:600; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; background:#eef1f7; }
+  .pill.ok { background:#e3f4e6; color:#1b6e2f; } .pill.bad { background:#fde8e6; color:#b42318; } .pill.warn { background:#fff3d6; color:#8a5a00; }
+  .form { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; align-items:end; }
+  .form label { font-size:12px; color:var(--mute); display:block; margin-bottom:2px; }
+  button.sm { padding:3px 9px; font-size:12px; } button.danger { background:#b42318; }
+  .note { background:#fff3d6; color:#6b4a00; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
 </style>
 </head>
 <body>
@@ -69,7 +78,55 @@
       <button class="ghost" id="logout">Đăng xuất</button>
     </div>
   </header>
-  <main>
+  <nav id="tabs">
+    <button data-tab="stats" class="on">Thống kê</button>
+    <button data-tab="voice">Giọng nói</button>
+    <button data-tab="settings">Cài đặt</button>
+  </nav>
+  <main id="tab-voice" class="hidden">
+    <div class="err" id="voiceErr"></div>
+    <div class="grid kpis" id="vKpis"></div>
+    <div class="card" style="margin-top:16px"><h2>Lượt hội thoại theo ngày</h2><div class="chart" id="vDaily"></div><div class="axis" id="vAxis"></div></div>
+    <div class="grid two">
+      <div class="card"><h2>Ý định được dùng</h2><div id="vIntent"></div></div>
+      <div class="card"><h2>Kết quả bước</h2><div id="vAction"></div></div>
+      <div class="card"><h2>Nhận dạng giọng nói (STT)</h2><div id="vStt"></div></div>
+      <div class="card"><h2>Hiểu lệnh (LLM)</h2><div id="vNlu"></div></div>
+      <div class="card"><h2>Giọng đọc: lý do dùng giọng máy</h2><div id="vReason"></div></div>
+      <div class="card"><h2>Ký tự ElevenLabs theo key</h2><div id="vKey"></div></div>
+      <div class="card"><h2>Người dùng nhiều ký tự ElevenLabs</h2><div id="vTop"></div></div>
+      <div class="card"><h2>Lỗi gần đây</h2><div class="scroll"><table id="vErr"></table></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Lượt gần đây (không lưu nội dung câu nói)</h2><div class="scroll"><table id="vRecent"></table></div></div>
+  </main>
+  <main id="tab-settings" class="hidden">
+    <div class="err" id="setErr"></div>
+    <div id="lockNote" class="note hidden">Đang khoá thêm/xoá key vì mật khẩu admin còn là mặc định. Đặt biến <code>ADMIN_PASS</code> (≥ 6 ký tự, khác 123) trong Vercel → Environment Variables, redeploy, rồi đăng nhập lại bằng mật khẩu mới.</div>
+    <div class="card"><h2>Thêm key nhà cung cấp</h2>
+      <form class="form" id="keyForm" autocomplete="off">
+        <div><label>Nhà cung cấp</label><select id="kProv"><option value="elevenlabs">ElevenLabs (giọng đọc + STT dự phòng)</option><option value="deepseek">DeepSeek (hiểu lệnh)</option><option value="groq">Groq (STT + LLM dự phòng)</option><option value="gemini">Gemini (LLM dự phòng)</option></select></div>
+        <div><label>Nhãn (tuỳ chọn)</label><input id="kLabel" maxlength="60" placeholder="vd: eleven-free-1"></div>
+        <div><label>API key</label><input id="kKey" type="password" autocomplete="new-password" placeholder="Dán key vào đây" required></div>
+        <div><button type="submit">Kiểm tra &amp; thêm</button></div>
+      </form>
+      <div class="mute" id="kMsg" style="margin-top:8px"></div>
+      <div class="mute" style="margin-top:4px">Key được thử thật với nhà cung cấp trước khi lưu và chỉ hiện 4 ký tự cuối. Hết hạn mức thì hệ thống tự nghỉ key đó và chuyển sang key khác.</div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Key đang có</h2><div class="scroll"><table id="keyTable"></table></div><div class="mute" id="envNote" style="margin-top:6px"></div></div>
+    <div class="card" style="margin-top:16px"><h2>Ngưỡng &amp; công tắc giọng nói</h2>
+      <form class="form" id="polForm"></form>
+      <div class="mute" id="pMsg" style="margin-top:8px"></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Hạng người dùng (VIP gấp ngưỡng, Tắt = luôn giọng máy)</h2>
+      <form class="form" id="tierForm">
+        <div><label>Username</label><input id="tUser" placeholder="vd: hung" required></div>
+        <div><label>Hạng</label><select id="tTier"><option value="vip">VIP</option><option value="off">Tắt ElevenLabs</option><option value="normal">Thường (xoá hạng)</option></select></div>
+        <div><button type="submit">Lưu hạng</button></div>
+      </form>
+      <div class="scroll" style="margin-top:8px"><table id="tierTable"></table></div>
+    </div>
+  </main>
+  <main id="tab-stats">
     <div class="err" id="appErr"></div>
     <div class="grid kpis" id="kpis"></div>
     <div class="card" style="margin-top:16px"><h2>Số thao tác theo ngày</h2><div class="chart" id="daily"></div><div class="axis" id="axis"></div></div>
@@ -187,9 +244,123 @@ $('loginForm').addEventListener('submit', async (e) => {
   token = d.token; sessionStorage.setItem('adm', token); $('p').value = '';
   show(true); load();
 });
-$('refresh').onclick = load;
-$('days').onchange = load;
+let tab = 'stats';
+function loadTab() { return tab === 'voice' ? loadVoice() : tab === 'settings' ? loadSettings() : load(); }
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-tab]');
+  if (!b) return;
+  tab = b.dataset.tab;
+  document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  for (const t of ['stats', 'voice', 'settings']) $('tab-' + t).classList.toggle('hidden', t !== tab);
+  $('days').style.display = tab === 'settings' ? 'none' : '';
+  loadTab();
+});
+$('refresh').onclick = loadTab;
+$('days').onchange = loadTab;
 $('logout').onclick = () => { sessionStorage.removeItem('adm'); token = null; show(false); };
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } });
+  if (r.status === 401) { sessionStorage.removeItem('adm'); token = null; show(false); throw new Error('unauthorized'); }
+  const d = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, d };
+}
+
+// ---------- Giọng nói ----------
+const ACTION = { ask: 'Hỏi lại', confirm: 'Xác nhận', execute: 'Thực hiện', answer: 'Trả lời', cancel: 'Hủy', unsupported: 'Chưa hỗ trợ', repeat: 'Nhắc lại' };
+const REASON = { user_calls: 'Hết số câu/ngày', user_chars: 'Hết ký tự/ngày', user_rate: 'Quá nhanh', global: 'Hết ngân sách chung', disabled: 'Đã tắt', tier_off: 'Hạng Tắt', class: 'Câu thường', too_long: 'Câu quá dài', busy: 'Quá tải', error: 'Lỗi ElevenLabs', no_key: 'Chưa có key', empty: 'Rỗng' };
+async function loadVoice() {
+  $('voiceErr').textContent = '';
+  const { ok, d } = await api('/api/admin/voice?days=' + $('days').value).catch(() => ({ ok: false, d: {} }));
+  if (!ok) { $('voiceErr').textContent = 'Lỗi: ' + (d.error || ''); return; }
+  const t = d.totals, l = d.latency || {}, e = d.tts;
+  $('vKpis').innerHTML = [
+    ['Lượt hội thoại', t.turns], ['Người dùng', t.users], ['Lỗi', t.errors], ['Không nghe thấy', t.noSpeech],
+    ['Trễ tổng p50 (ms)', l.totalP50 ?? '—'], ['Trễ tổng p95 (ms)', l.totalP95 ?? '—'], ['Giọng ElevenLabs', e.eleven], ['Cache', e.cache], ['Giọng máy', e.device], ['Ký tự Eleven hôm nay', e.charsToday],
+  ].map(([k, v]) => `<div class="card kpi"><b>${v ?? 0}</b><span>${k}</span></div>`).join('');
+  const mx = Math.max(1, ...d.daily.map((x) => x.count));
+  $('vDaily').innerHTML = d.daily.map((x) => `<div title="${x.day}: ${x.count}" style="height:${(x.count / mx) * 100}%"></div>`).join('');
+  $('vAxis').innerHTML = `<span>${d.daily[0]?.day ?? ''}</span><span>${d.daily.at(-1)?.day ?? ''}</span>`;
+  const kc = (arr, _k, cnt = 'count') => (arr || []).map((x) => ({ key: x.key ?? '', count: x[cnt] ?? 0 }));
+  bars($('vIntent'), kc(d.byIntent, 'intent'));
+  bars($('vAction'), kc(d.byAction, 'action'), (k) => ACTION[k] || k);
+  bars($('vStt'), kc(d.sttProviders, 'provider'));
+  bars($('vNlu'), kc(d.nluProviders, 'provider'));
+  bars($('vReason'), kc(e.byReason, 'reason'), (k) => REASON[k] || k);
+  bars($('vKey'), kc(e.byKey, 'key', 'chars'));
+  bars($('vTop'), kc(e.topUsers, 'label'));
+  $('vErr').innerHTML = (d.recentErrors || []).map((x) => `<tr><td>${fmt(x.at)}</td><td>${esc(x.intent || '')}</td><td><code>${esc(x.error)}</code></td></tr>`).join('') || '<tr><td class="mute">Không có lỗi</td></tr>';
+  $('vRecent').innerHTML = '<tr><th>Thời gian</th><th>Người dùng</th><th>Ý định</th><th>Bước</th><th>STT</th><th>LLM</th><th>Tổng (ms)</th><th>Kết quả</th></tr>' +
+    (d.recent || []).map((x) => `<tr><td>${fmt(x.at)}</td><td>${esc(x.user)}</td><td>${esc(x.intent || '')}</td><td>${esc(ACTION[x.action] || x.action || '')}</td><td>${esc(x.stt || '')}</td><td>${esc(x.nlu || '')}</td><td>${x.ms ?? ''}</td><td>${esc(x.outcome || '')}</td></tr>`).join('');
+}
+
+// ---------- Cài đặt ----------
+const PROV = { elevenlabs: 'ElevenLabs', deepseek: 'DeepSeek', groq: 'Groq', gemini: 'Gemini' };
+const POL = [
+  ['voice_enabled', 'Bật tính năng giọng nói', 'bool'], ['eleven_enabled', 'Bật ElevenLabs', 'bool'],
+  ['eleven_calls_per_day', 'Câu Eleven / người / ngày', 'num'], ['eleven_chars_per_day', 'Ký tự Eleven / người / ngày', 'num'],
+  ['eleven_calls_per_min', 'Câu Eleven / người / phút', 'num'], ['eleven_max_chars', 'Độ dài tối đa 1 câu (ký tự)', 'num'],
+  ['eleven_global_chars_per_day', 'Ngân sách chung (ký tự/ngày)', 'num'], ['vip_multiplier', 'Hệ số VIP', 'num'],
+  ['turns_per_min', 'Lượt nói / người / phút', 'num'], ['turns_per_day', 'Lượt nói / người / ngày', 'num'],
+  ['deepseek_model', 'Model DeepSeek', 'text'], ['eleven_voice_id', 'ElevenLabs voice ID', 'text'], ['eleven_model', 'ElevenLabs model', 'text'],
+];
+let settings = null;
+function renderSettings(s) {
+  settings = s;
+  $('lockNote').classList.toggle('hidden', s.canEdit);
+  $('keyTable').innerHTML = '<tr><th>Nhà cung cấp</th><th>Nhãn</th><th>Key</th><th>Trạng thái</th><th>Thêm lúc</th><th></th></tr>' +
+    (s.keys.map((k) => {
+      const st = !k.enabled ? '<span class="pill">Tắt</span>' : k.status === 'ok' ? '<span class="pill ok">Dùng được</span>'
+        : k.status === 'exhausted' ? '<span class="pill warn">Hết hạn mức</span>' : '<span class="pill bad">Sai key</span>';
+      return `<tr><td>${PROV[k.provider]}</td><td>${esc(k.label)}</td><td><code>${esc(k.masked)}</code></td><td>${st}${k.error ? ' <span class="mute">' + esc(k.error) + '</span>' : ''}</td><td>${fmt(k.createdAt)}</td>` +
+        `<td style="white-space:nowrap"><button class="ghost sm" data-a="test_key" data-id="${k.id}">Thử lại</button> ` +
+        `<button class="ghost sm" data-a="toggle_key" data-id="${k.id}" data-en="${k.enabled ? 0 : 1}">${k.enabled ? 'Tắt' : 'Bật'}</button> ` +
+        `<button class="danger sm" data-a="delete_key" data-id="${k.id}">Xoá</button></td></tr>`;
+    }).join('') || '<tr><td class="mute" colspan="6">Chưa có key nào được thêm ở đây</td></tr>');
+  $('envNote').textContent = 'Key từ biến môi trường Vercel: ' + Object.entries(s.envCounts).map(([p, n]) => `${PROV[p]} ${n}`).join(' · ');
+  $('polForm').innerHTML = POL.map(([k, label, type]) => type === 'bool'
+    ? `<div><label>${label}</label><select data-k="${k}"><option value="1" ${s.policy[k] ? 'selected' : ''}>Bật</option><option value="0" ${s.policy[k] ? '' : 'selected'}>Tắt</option></select></div>`
+    : `<div><label>${label}</label><input data-k="${k}" data-t="${type}" value="${esc(s.policy[k])}" ${type === 'num' ? 'inputmode="numeric"' : ''}></div>`).join('') +
+    '<div><button type="submit">Lưu ngưỡng</button></div>';
+  $('tierTable').innerHTML = s.tiers.map((x) => `<tr><td>${esc(x.label)}</td><td>${x.tier === 'vip' ? 'VIP' : 'Tắt Eleven'}</td></tr>`).join('') || '<tr><td class="mute">Chưa có hạng đặc biệt nào</td></tr>';
+}
+async function loadSettings() {
+  $('setErr').textContent = '';
+  const { ok, d } = await api('/api/admin/settings').catch(() => ({ ok: false, d: {} }));
+  if (!ok) { $('setErr').textContent = 'Lỗi: ' + (d.error || ''); return; }
+  renderSettings(d);
+}
+const ERR = { locked: 'Đang bị khoá: cần đặt ADMIN_PASS khác mặc định.', key_rejected: 'Key bị nhà cung cấp từ chối', duplicate: 'Key này đã có rồi', bad_key: 'Key không hợp lệ', user_not_found: 'Không tìm thấy username' };
+async function post(body, msgEl) {
+  const { ok, d } = await api('/api/admin/settings', { method: 'POST', body: JSON.stringify(body) });
+  if (!ok) { msgEl.textContent = (ERR[d.error] || d.error || 'Lỗi') + (d.note ? ': ' + d.note : '') + (d.message ? ' ' + d.message : ''); return false; }
+  renderSettings(d);
+  msgEl.textContent = d.note ? 'Đã lưu. ' + d.note : 'Đã lưu.';
+  return true;
+}
+$('keyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('kMsg').textContent = 'Đang kiểm tra key…';
+  if (await post({ action: 'add_key', provider: $('kProv').value, label: $('kLabel').value, api_key: $('kKey').value }, $('kMsg'))) { $('kKey').value = ''; $('kLabel').value = ''; }
+});
+$('keyTable').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-a]');
+  if (!b) return;
+  if (b.dataset.a === 'delete_key' && !confirm('Xoá key này?')) return;
+  await post({ action: b.dataset.a, id: b.dataset.id, enabled: b.dataset.en === '1' }, $('kMsg'));
+});
+$('polForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const policy = {};
+  $('polForm').querySelectorAll('[data-k]').forEach((el) => {
+    policy[el.dataset.k] = el.tagName === 'SELECT' ? el.value === '1' : el.dataset.t === 'num' ? Number(el.value) : el.value.trim();
+  });
+  await post({ action: 'set_policy', policy }, $('pMsg'));
+});
+$('tierForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (await post({ action: 'set_tier', username: $('tUser').value, tier: $('tTier').value }, $('pMsg'))) $('tUser').value = '';
+});
 
 if (token) { show(true); load(); } else { show(false); }
 </script>
