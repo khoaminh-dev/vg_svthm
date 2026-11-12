@@ -61,3 +61,20 @@ Storage:
 | Rời phòng, đổi tên, đuổi thành viên | `room_members.role` (`owner` / `member`) |
 | Gửi ảnh trong chat | Bucket mới, cột `messages.image_path` |
 | `seed.sql` | Tài khoản và phòng mẫu cho demo |
+
+## bp_readings (migration 0007) — theo dõi huyết áp
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid → auth.users | mặc định `auth.uid()`, xoá user thì xoá theo |
+| systolic / diastolic | smallint | 50–300 / 30–200, ràng buộc systolic > diastolic |
+| pulse | smallint null | 20–250 |
+| measured_at | timestamptz | mặc định now() |
+| source | text | `ocr_ai` \| `ocr_local` \| `manual` |
+| ocr_record_id | uuid null → ocr_records | xoá bản ghi OCR thì để null |
+| note | text null | ≤ 500 ký tự |
+| category | text (generated) | `normal/elevated/stage1/stage2/crisis` theo AHA 2017, tính bởi `bp_category()` |
+
+RLS: người dùng chỉ đọc/thêm/sửa/xoá dòng của mình. Index `(user_id, measured_at desc)` cho biểu đồ, `(measured_at desc)` cho thống kê admin.
+Luồng: chụp máy đo → OCR → màn "Kết quả OCR" tự nhận SYS/DIA/PULSE và hiện công tắc "Lưu vào theo dõi huyết áp" → bấm Lưu thì ghi `ocr_records` + `bp_readings`.

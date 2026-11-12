@@ -9,7 +9,9 @@ import '../../../../core/errors/app_failure.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
+import '../../../bp/domain/bp_models.dart';
 import '../../domain/ocr_models.dart';
+import '../providers/ocr_providers.dart';
 import '../providers/ocr_controller.dart';
 import '../widgets/ocr_value_row.dart';
 import '../../../../core/analytics/analytics.dart';
@@ -27,6 +29,7 @@ class OcrEditorScreen extends ConsumerStatefulWidget {
 class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
   final _title = TextEditingController();
   late final List<EditableOcrRow> _rows;
+  bool _saveBp = true;
 
   @override
   void initState() {
@@ -43,13 +46,21 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
     super.dispose();
   }
 
+  /// Lần đo huyết áp suy ra từ các dòng đang hiển thị (null nếu không phải kết quả huyết áp).
+  BpReading? _currentReading() => BpExtractor.fromValues(
+    _rows.where((r) => !r.isEmpty).map((r) => r.toValue()).toList(),
+    source: ref.read(ocrUseAiProvider) ? 'ocr_ai' : 'ocr_local',
+  );
+
   Future<void> _save() async {
     final values = _rows.where((r) => !r.isEmpty).map((r) => r.toValue()).toList();
+    final reading = _saveBp ? _currentReading() : null;
     final ok = await ref
         .read(ocrControllerProvider.notifier)
-        .save(widget.draft, _title.text, values);
+        .save(widget.draft, _title.text, values, reading: reading);
     if (!mounted) return;
     if (ok) {
+      Analytics.track('ocr_save', {'bp': reading != null, 'rows': values.length});
       showAppSnackBar(context, 'Đã lưu kết quả');
       context.pop();
     } else {
@@ -106,6 +117,25 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
                   row.dispose();
                 }),
               ),
+            ListenableBuilder(
+              listenable: Listenable.merge([for (final r in _rows) ...[r.label, r.value]]),
+              builder: (context, _) {
+                final r = _currentReading();
+                if (r == null) return const SizedBox.shrink();
+                return Card(
+                  child: SwitchListTile(
+                    value: _saveBp,
+                    onChanged: (v) => setState(() => _saveBp = v),
+                    title: const Text('Lưu vào theo dõi huyết áp'),
+                    subtitle: Text(
+                      '${r.systolic}/${r.diastolic}'
+                      '${r.pulse != null ? ' · mạch ${r.pulse}' : ''} mmHg · ${r.category.label}',
+                      style: TextStyle(color: r.category.color, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: AppSpacing.sm),
             ExpansionTile(
               title: const Text('Văn bản gốc'),

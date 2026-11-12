@@ -16,6 +16,7 @@ import '../../features/ocr/presentation/screens/ocr_editor_screen.dart';
 import '../../features/ocr/presentation/screens/ocr_screen.dart';
 import 'routes.dart';
 import '../analytics/analytics.dart';
+import '../../features/bp/presentation/screens/bp_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
@@ -57,6 +58,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             ChatScreen(roomId: state.pathParameters['id']!, room: state.extra as Room?),
       ),
+      GoRoute(path: Routes.bp, builder: (_, _) => const BpScreen()),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
       GoRoute(
         path: Routes.ocrEdit,

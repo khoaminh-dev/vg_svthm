@@ -67,6 +67,14 @@ class HomeScreen extends ConsumerWidget {
                         context.push(Routes.ocr);
                       },
                     ),
+                    FeatureCard(
+                      icon: Icons.monitor_heart_outlined,
+                      label: 'Huyết áp',
+                      onTap: () {
+                        Analytics.track('tap_feature', {'feature': 'bp'});
+                        context.push(Routes.bp);
+                      },
+                    ),
                     const FeatureCard(icon: Icons.mic_none, label: 'Giọng nói'),
                   ],
                 ),

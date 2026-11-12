@@ -79,6 +79,15 @@
       <div class="card"><h2>Tính năng được mở (trang chủ)</h2><div id="byFeature"></div></div>
       <div class="card"><h2>Người dùng hoạt động nhiều nhất</h2><div id="topUsers"></div></div>
     </div>
+    <h2 style="margin:28px 0 12px;font-size:17px">Huyết áp (OCR máy đo)</h2>
+    <div class="grid kpis" id="bpKpis"></div>
+    <div class="card" style="margin-top:16px"><h2>Số lần đo theo ngày</h2><div class="chart" id="bpDaily"></div><div class="axis" id="bpAxis"></div></div>
+    <div class="grid two">
+      <div class="card"><h2>Phân loại kết quả</h2><div id="bpCat"></div></div>
+      <div class="card"><h2>Nguồn đo</h2><div id="bpSrc"></div></div>
+      <div class="card"><h2>Người đo nhiều nhất</h2><div id="bpUsers"></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Lần đo gần đây</h2><div class="scroll"><table id="bpRecent"></table></div></div>
     <div class="card" style="margin-top:16px"><h2>Thao tác gần đây</h2><div class="scroll"><table id="recent"></table></div></div>
     <div class="card" style="margin-top:16px"><h2>Người dùng</h2><div class="scroll"><table id="users"></table></div></div>
   </main>
@@ -93,6 +102,9 @@ const LABELS = {
   tap_invite_member:'Mời thành viên', send_message:'Gửi tin nhắn', ocr_scan:'Quét OCR', toggle_ai_ocr:'Bật/tắt OCR AI',
   open_ocr_record:'Mở kết quả OCR', ocr_copy:'Sao chép OCR', tap_ocr_delete:'Xoá kết quả OCR', ocr_add_row:'Thêm dòng OCR'
 };
+const CAT = { normal:'Bình thường', elevated:'Hơi cao', stage1:'Tăng HA độ 1', stage2:'Tăng HA độ 2', crisis:'Cấp cứu' };
+const CAT_COLOR = { normal:'#2e7d32', elevated:'#9e9d24', stage1:'#ef6c00', stage2:'#d84315', crisis:'#b71c1c' };
+const SRC = { ocr_ai:'OCR bằng AI', ocr_local:'OCR trên máy', manual:'Nhập tay' };
 let token = sessionStorage.getItem('adm');
 
 function show(logged) {
@@ -129,6 +141,23 @@ async function load() {
   $('daily').innerHTML = d.daily.map((x) =>
     `<div title="${x.day}: ${x.count}" style="height:${(x.count / max) * 100}%"></div>`).join('');
   $('axis').innerHTML = `<span>${d.daily[0]?.day ?? ''}</span><span>${d.daily.at(-1)?.day ?? ''}</span>`;
+
+  const b = d.bp;
+  $('bpKpis').innerHTML = [
+    ['Lần đo', b.total], ['Người đo', b.users], ['TB tâm thu', b.avgSys ?? '—'], ['TB tâm trương', b.avgDia ?? '—'],
+    ['TB mạch', b.avgPulse ?? '—'], ['Mức cao (độ 2+)', b.abnormal],
+  ].map(([k, v]) => `<div class="card kpi"><b>${v}</b><span>${k}</span></div>`).join('');
+  const bmax = Math.max(1, ...b.daily.map((x) => x.count));
+  $('bpDaily').innerHTML = b.daily.map((x) =>
+    `<div title="${x.day}: ${x.count} lần${x.avgSys ? ', TB tâm thu ' + x.avgSys : ''}" style="height:${(x.count / bmax) * 100}%"></div>`).join('');
+  $('bpAxis').innerHTML = `<span>${b.daily[0]?.day ?? ''}</span><span>${b.daily.at(-1)?.day ?? ''}</span>`;
+  bars($('bpCat'), b.byCategory, (k) => CAT[k] || k);
+  bars($('bpSrc'), b.bySource, (k) => SRC[k] || k);
+  bars($('bpUsers'), b.topUsers);
+  $('bpRecent').innerHTML = '<tr><th>Thời gian</th><th>Người dùng</th><th>Huyết áp</th><th>Mạch</th><th>Mức</th><th>Nguồn</th></tr>' +
+    b.recent.map((r) => `<tr><td>${fmt(r.at)}</td><td>${esc(r.user)}</td><td><b>${r.sys}/${r.dia}</b></td><td>${r.pulse ?? '—'}</td>` +
+      `<td style="color:${CAT_COLOR[r.category] || 'inherit'};font-weight:600">${esc(CAT[r.category] || r.category)}</td><td>${esc(SRC[r.source] || r.source)}</td></tr>`).join('') ||
+    '<tr><td class="mute">Chưa có lần đo nào</td></tr>';
 
   bars($('byName'), d.byName, (k) => LABELS[k] || k);
   bars($('byScreen'), d.byScreen);

@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../bp/domain/bp_models.dart';
+import '../../../bp/presentation/providers/bp_providers.dart';
 import '../../domain/ocr_models.dart';
 import 'ocr_providers.dart';
 
@@ -27,10 +29,17 @@ class OcrController extends AsyncNotifier<void> {
     return draft;
   }
 
-  Future<bool> save(OcrDraft draft, String title, List<OcrValue> values) async {
+  /// Lưu kết quả OCR; nếu có [reading] thì lưu luôn lần đo huyết áp liên kết với bản ghi đó.
+  /// Lưu kết quả OCR; nếu có [reading] thì lưu luôn lần đo huyết áp liên kết với bản ghi đó.
+  Future<bool> save(
+    OcrDraft draft,
+    String title,
+    List<OcrValue> values, {
+    BpReading? reading,
+  }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref
+      final record = await ref
           .read(ocrRepositoryProvider)
           .save(
             title: title,
@@ -38,8 +47,25 @@ class OcrController extends AsyncNotifier<void> {
             values: values,
             localImagePath: draft.imagePath,
           );
+      if (reading != null) {
+        await ref
+            .read(bpRepositoryProvider)
+            .add(
+              BpReading(
+                systolic: reading.systolic,
+                diastolic: reading.diastolic,
+                pulse: reading.pulse,
+                measuredAt: reading.measuredAt,
+                source: reading.source,
+                ocrRecordId: record.id,
+              ),
+            );
+      }
     });
-    if (!state.hasError) ref.invalidate(ocrRecordsProvider);
+    if (!state.hasError) {
+      ref.invalidate(ocrRecordsProvider);
+      ref.invalidate(bpReadingsProvider);
+    }
     return !state.hasError;
   }
 

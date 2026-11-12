@@ -9,6 +9,7 @@ abstract final class Routes {
   static const ocr = '/ocr';
   static const ocrEdit = '/ocr/edit';
   static const ocrDetail = '/ocr/detail';
+  static const bp = '/bp';
   static const home = '/';
 
   /// Các trang không cần đăng nhập.

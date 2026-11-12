@@ -73,3 +73,11 @@ Trạng thái: ✅ xong · 🚧 đang làm · ⬜ chưa làm · ➖ tạm bỏ
 - ✅ App ghi sự kiện (xem màn hình, bấm nút/tính năng, gửi tin nhắn, quét OCR...) vào bảng `events` (migration 0006)
 - ✅ Web admin tại `/admin` (đăng nhập, KPI, biểu đồ theo ngày, thao tác phổ biến, người dùng, log gần đây)
 - Cần biến `SUPABASE_SERVICE_ROLE_KEY` trên Vercel; `ADMIN_USER`/`ADMIN_PASS` mặc định admin/123.
+
+## Theo dõi huyết áp
+
+- ✅ Bảng `bp_readings` (0007), phân loại AHA, RLS
+- ✅ Tự nhận SYS/DIA/PULSE sau OCR, lưu kèm kết quả OCR
+- ✅ Màn Huyết áp: lần đo gần nhất, biểu đồ đường, lịch sử, xoá
+- ✅ Tracking sự kiện + thống kê huyết áp trên web admin
+- ⏳ Nhập tay, sửa giờ đo, xuất báo cáo, nhắc đo
