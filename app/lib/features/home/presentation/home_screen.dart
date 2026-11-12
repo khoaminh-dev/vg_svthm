@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -44,10 +46,14 @@ class HomeScreen extends ConsumerWidget {
                   mainAxisSpacing: AppSpacing.md,
                   crossAxisSpacing: AppSpacing.md,
                   childAspectRatio: 1.2,
-                  children: const [
-                    FeatureCard(icon: Icons.chat_bubble_outline, label: 'Chat'),
-                    FeatureCard(icon: Icons.document_scanner_outlined, label: 'OCR số liệu'),
-                    FeatureCard(icon: Icons.mic_none, label: 'Giọng nói'),
+                  children: [
+                    FeatureCard(
+                      icon: Icons.chat_bubble_outline,
+                      label: 'Chat',
+                      onTap: () => context.push(Routes.rooms),
+                    ),
+                    const FeatureCard(icon: Icons.document_scanner_outlined, label: 'OCR số liệu'),
+                    const FeatureCard(icon: Icons.mic_none, label: 'Giọng nói'),
                   ],
                 ),
               ],

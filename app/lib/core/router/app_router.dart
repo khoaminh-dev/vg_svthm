@@ -6,6 +6,9 @@ import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/complete_profile_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/chat/domain/room.dart';
+import '../../features/chat/presentation/screens/chat_screen.dart';
+import '../../features/chat/presentation/screens/room_list_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import 'routes.dart';
 
@@ -42,6 +45,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
+      GoRoute(path: Routes.rooms, builder: (_, _) => const RoomListScreen()),
+      GoRoute(
+        path: Routes.room,
+        builder: (_, state) => ChatScreen(
+          roomId: state.pathParameters['id']!,
+          roomName: (state.extra as Room?)?.name,
+        ),
+      ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
       GoRoute(
