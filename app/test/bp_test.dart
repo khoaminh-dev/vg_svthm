@@ -33,7 +33,10 @@ void main() {
   });
 
   test('bỏ qua khi thiếu hoặc số vô lý', () {
-    expect(BpExtractor.fromValues(const [OcrValue(label: 'SYS', value: '118')], source: 'x'), isNull);
+    expect(
+      BpExtractor.fromValues(const [OcrValue(label: 'SYS', value: '118')], source: 'x'),
+      isNull,
+    );
     expect(
       BpExtractor.fromValues(const [
         OcrValue(label: 'SYS', value: '70'),

@@ -30,8 +30,7 @@ class FakeAuthRepository implements AuthRepository {
       _set(const AuthUser(id: '1', email: 'a@b.co', fullName: 'An', username: 'an'));
 
   /// Mô phỏng tài khoản Google mới: chưa có username.
-  void signInGoogleNoProfile() =>
-      _set(const AuthUser(id: '2', email: 'g@b.co', fullName: 'Gee'));
+  void signInGoogleNoProfile() => _set(const AuthUser(id: '2', email: 'g@b.co', fullName: 'Gee'));
 
   @override
   Future<bool> isUsernameAvailable(String username) async => true;
@@ -42,17 +41,13 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
     required String fullName,
     required String username,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<bool> signInWithGoogle() async => true;
 
   @override
-  Future<void> completeProfile({
-    required String username,
-    required String displayName,
-  }) async =>
+  Future<void> completeProfile({required String username, required String displayName}) async =>
       _set(AuthUser(id: '2', email: 'g@b.co', fullName: displayName, username: username));
 
   @override
