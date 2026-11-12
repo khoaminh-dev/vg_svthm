@@ -23,7 +23,5 @@ abstract interface class AuthRepository {
   /// Lưu username và tên hiển thị cho tài khoản chưa có hồ sơ.
   Future<void> completeProfile({required String username, required String displayName});
 
-  Future<void> sendPasswordReset(String email);
-  Future<void> updatePassword(String newPassword);
   Future<void> signOut();
 }

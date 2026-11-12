@@ -79,14 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               enabled: !loading,
               onSubmitted: (_) => _submit(),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: loading ? null : () => context.push(Routes.forgotPassword),
-                child: const Text('Quên mật khẩu?'),
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
             AppButton(label: 'Đăng nhập', loading: loading, onPressed: _submit),
             const SizedBox(height: 16),
             const GoogleSignInSection(),

@@ -16,10 +16,7 @@ class AuthUser {
 
 /// Một thay đổi trạng thái xác thực.
 class AuthChange {
-  const AuthChange({this.user, this.passwordRecovery = false});
+  const AuthChange({this.user});
 
   final AuthUser? user;
-
-  /// `true` khi người dùng vừa mở link đặt lại mật khẩu từ email.
-  final bool passwordRecovery;
 }

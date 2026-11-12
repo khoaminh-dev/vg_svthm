@@ -22,7 +22,6 @@ class SupabaseAuthRepository implements AuthRepository {
   Stream<AuthChange> get changes => _auth.onAuthStateChange.map(
         (s) => AuthChange(
           user: _toUser(s.session?.user),
-          passwordRecovery: s.event == sb.AuthChangeEvent.passwordRecovery,
         ),
       );
 
@@ -50,8 +49,13 @@ class SupabaseAuthRepository implements AuthRepository {
         final res = await _auth.signUp(
           email: email.trim(),
           password: password,
+          emailRedirectTo: Env.authCallbackRedirect,
           data: {'full_name': fullName.trim(), 'username': username.trim().toLowerCase()},
         );
+        // Email đã đăng ký: Supabase không báo lỗi mà trả về user không có identity.
+        if (res.user?.identities?.isEmpty ?? false) {
+          throw const AppFailure('Email này đã được đăng ký, hãy đăng nhập');
+        }
         return res.session == null;
       });
 
@@ -99,18 +103,6 @@ class SupabaseAuthRepository implements AuthRepository {
           sb.UserAttributes(data: {'username': name, 'full_name': displayName.trim()}),
         );
       });
-
-  @override
-  Future<void> sendPasswordReset(String email) => _guard(
-        () => _auth.resetPasswordForEmail(
-          email.trim(),
-          redirectTo: Env.resetPasswordRedirect,
-        ),
-      );
-
-  @override
-  Future<void> updatePassword(String newPassword) =>
-      _guard(() => _auth.updateUser(sb.UserAttributes(password: newPassword)));
 
   @override
   Future<void> signOut() => _guard(_auth.signOut);

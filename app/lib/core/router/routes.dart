@@ -2,11 +2,9 @@
 abstract final class Routes {
   static const login = '/login';
   static const register = '/register';
-  static const forgotPassword = '/forgot-password';
-  static const resetPassword = '/reset-password';
   static const completeProfile = '/complete-profile';
   static const home = '/';
 
   /// Các trang không cần đăng nhập.
-  static const publicRoutes = {login, register, forgotPassword};
+  static const publicRoutes = {login, register};
 }

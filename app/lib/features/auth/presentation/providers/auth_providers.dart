@@ -19,14 +19,3 @@ final currentUserProvider = Provider<AuthUser?>((ref) {
   ref.watch(authChangesProvider);
   return ref.watch(authRepositoryProvider).currentUser;
 });
-
-/// `true` khi đang trong phiên đặt lại mật khẩu (đã mở link từ email).
-class PasswordRecoveryNotifier extends Notifier<bool> {
-  @override
-  bool build() => false;
-
-  void set(bool value) => state = value;
-}
-
-final passwordRecoveryProvider =
-    NotifierProvider<PasswordRecoveryNotifier, bool>(PasswordRecoveryNotifier.new);

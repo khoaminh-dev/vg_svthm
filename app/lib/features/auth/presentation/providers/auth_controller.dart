@@ -52,18 +52,7 @@ class AuthController extends AsyncNotifier<void> {
         await repo.completeProfile(username: username, displayName: displayName);
       });
 
-  Future<bool> sendPasswordReset(String email) =>
-      _run(() => ref.read(authRepositoryProvider).sendPasswordReset(email));
-
-  Future<bool> updatePassword(String password) => _run(() async {
-        await ref.read(authRepositoryProvider).updatePassword(password);
-        ref.read(passwordRecoveryProvider.notifier).set(false);
-      });
-
-  Future<bool> signOut() => _run(() async {
-        await ref.read(authRepositoryProvider).signOut();
-        ref.read(passwordRecoveryProvider.notifier).set(false);
-      });
+  Future<bool> signOut() => _run(() => ref.read(authRepositoryProvider).signOut());
 
   Future<bool> _run(Future<void> Function() action) async {
     state = const AsyncLoading();

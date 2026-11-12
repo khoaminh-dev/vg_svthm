@@ -13,7 +13,7 @@ Toàn bộ chạy trên gói free. Không có server tự quản lý (không VM,
 | 5 | **GitHub** | Mã nguồn + CI (`.github/workflows/ci.yml`) | Free | Có | |
 | 6 | **Domain + DNS** | `api.<domain>` trỏ về Vercel | Đã có | Có | Subdomain không giới hạn |
 | 7 | **Gemini** | LLM dự phòng khi Groq hết key | Free | Tuỳ chọn | Chỉ dùng khi tất cả key Groq lỗi |
-| 8 | **SMTP (Resend/Brevo)** | Gửi email xác nhận, quên mật khẩu | Free | Nên có | Email mặc định của Supabase chỉ vài email/giờ |
+| 8 | **SMTP (Resend/Brevo)** | Gửi email xác nhận đăng ký (nếu bật Confirm email) | Free | Nên có | Email mặc định của Supabase chỉ vài email/giờ |
 
 ## Chạy trên máy người dùng (không phải server)
 

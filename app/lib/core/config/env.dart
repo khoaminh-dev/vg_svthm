@@ -11,8 +11,8 @@ abstract final class Env {
 
   static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
 
-  /// Deep link mà email "quên mật khẩu" sẽ mở lại app.
-  static const resetPasswordRedirect = 'viegrand://reset-password';
+  /// Deep link mà email xác nhận đăng ký sẽ mở lại app.
+  static const authCallbackRedirect = 'viegrand://auth-callback';
 
   static bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;

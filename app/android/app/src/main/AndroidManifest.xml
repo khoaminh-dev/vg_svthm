@@ -24,12 +24,12 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep link: viegrand://reset-password (email đặt lại mật khẩu) -->
+            <!-- Deep link viegrand://... (email xác nhận đăng ký) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="viegrand" android:host="reset-password"/>
+                <data android:scheme="viegrand"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
