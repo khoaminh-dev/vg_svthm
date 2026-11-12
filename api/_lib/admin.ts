@@ -49,9 +49,10 @@ export async function dbGet<T>(path: string): Promise<T> {
   const base = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key) throw new Error('service_key_missing');
-  const r = await fetch(`${base}/rest/v1/${path}`, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
-  });
+  // Key mới `sb_secret_...` không phải JWT: chỉ gửi qua `apikey`. Key legacy (JWT) gửi cả Bearer.
+  const headers: Record<string, string> = { apikey: key };
+  if (!key.startsWith('sb_')) headers.Authorization = `Bearer ${key}`;
+  const r = await fetch(`${base}/rest/v1/${path}`, { headers });
   if (!r.ok) throw new Error(`db_${r.status}`);
   return (await r.json()) as T;
 }
