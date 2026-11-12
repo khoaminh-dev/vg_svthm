@@ -7,9 +7,20 @@ export async function requireUser(req: VercelRequest, res: VercelResponse): Prom
     res.status(401).json({ error: 'missing_token' });
     return null;
   }
-  const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
-    headers: { Authorization: auth, apikey: process.env.SUPABASE_ANON_KEY ?? '' },
-  });
+  const base = process.env.SUPABASE_URL;
+  if (!base) {
+    res.status(500).json({ error: 'server_not_configured' });
+    return null;
+  }
+  let r: Response;
+  try {
+    r = await fetch(`${base}/auth/v1/user`, {
+      headers: { Authorization: auth, apikey: process.env.SUPABASE_ANON_KEY ?? '' },
+    });
+  } catch {
+    res.status(502).json({ error: 'auth_unreachable' });
+    return null;
+  }
   if (!r.ok) {
     res.status(401).json({ error: 'invalid_token' });
     return null;

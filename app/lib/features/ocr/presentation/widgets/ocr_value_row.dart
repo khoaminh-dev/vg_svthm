@@ -5,19 +5,16 @@ import '../../domain/ocr_models.dart';
 /// Ba ô nhập của một dòng số liệu đang được sửa.
 class EditableOcrRow {
   EditableOcrRow([OcrValue? v])
-      : label = TextEditingController(text: v?.label ?? ''),
-        value = TextEditingController(text: v?.value ?? ''),
-        unit = TextEditingController(text: v?.unit ?? '');
+    : label = TextEditingController(text: v?.label ?? ''),
+      value = TextEditingController(text: v?.value ?? ''),
+      unit = TextEditingController(text: v?.unit ?? '');
 
   final TextEditingController label;
   final TextEditingController value;
   final TextEditingController unit;
 
-  OcrValue toValue() => OcrValue(
-        label: label.text.trim(),
-        value: value.text.trim(),
-        unit: unit.text.trim(),
-      );
+  OcrValue toValue() =>
+      OcrValue(label: label.text.trim(), value: value.text.trim(), unit: unit.text.trim());
 
   bool get isEmpty => label.text.trim().isEmpty && value.text.trim().isEmpty;
 
@@ -66,11 +63,7 @@ class OcrValueRow extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'ĐV', isDense: true),
             ),
           ),
-          IconButton(
-            tooltip: 'Xoá dòng',
-            icon: const Icon(Icons.close),
-            onPressed: onDelete,
-          ),
+          IconButton(tooltip: 'Xoá dòng', icon: const Icon(Icons.close), onPressed: onDelete),
         ],
       ),
     );

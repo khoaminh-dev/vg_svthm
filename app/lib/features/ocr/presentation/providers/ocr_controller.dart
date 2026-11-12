@@ -11,11 +11,9 @@ class OcrController extends AsyncNotifier<void> {
 
   /// Chụp hoặc chọn ảnh rồi đọc chữ. Trả về `null` nếu người dùng huỷ hoặc lỗi (lỗi nằm trong state).
   Future<OcrDraft?> scan(ImageSource source) async {
-    final file = await ref.read(imagePickerProvider).pickImage(
-          source: source,
-          maxWidth: 1800,
-          imageQuality: 85,
-        );
+    final file = await ref
+        .read(imagePickerProvider)
+        .pickImage(source: source, maxWidth: 1800, imageQuality: 85);
     if (file == null) return null;
 
     state = const AsyncLoading();
@@ -32,7 +30,9 @@ class OcrController extends AsyncNotifier<void> {
   Future<bool> save(OcrDraft draft, String title, List<OcrValue> values) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(ocrRepositoryProvider).save(
+      await ref
+          .read(ocrRepositoryProvider)
+          .save(
             title: title,
             rawText: draft.rawText,
             values: values,
@@ -51,5 +51,4 @@ class OcrController extends AsyncNotifier<void> {
   }
 }
 
-final ocrControllerProvider =
-    AsyncNotifierProvider<OcrController, void>(OcrController.new);
+final ocrControllerProvider = AsyncNotifierProvider<OcrController, void>(OcrController.new);

@@ -4,12 +4,7 @@ import '../../../../core/theme/app_spacing.dart';
 
 /// Ô tính năng trên trang chủ. `onTap == null` nghĩa là chưa có, hiện nhãn "Sắp có".
 class FeatureCard extends StatelessWidget {
-  const FeatureCard({
-    super.key,
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const FeatureCard({super.key, required this.icon, required this.label, this.onTap});
 
   final IconData icon;
   final String label;
@@ -41,10 +36,7 @@ class FeatureCard extends StatelessWidget {
               if (!enabled)
                 Text(
                   'Sắp có',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: scheme.outline),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: scheme.outline),
                 ),
             ],
           ),

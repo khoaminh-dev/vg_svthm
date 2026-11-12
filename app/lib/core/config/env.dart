@@ -5,6 +5,7 @@
 abstract final class Env {
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
   /// Web client ID của Google (dùng làm serverClientId, Supabase kiểm tra token bằng ID này).
   static const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
   static const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
@@ -14,6 +15,5 @@ abstract final class Env {
   /// Deep link mà email xác nhận đăng ký sẽ mở lại app.
   static const authCallbackRedirect = 'viegrand://auth-callback';
 
-  static bool get isConfigured =>
-      supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+  static bool get isConfigured => supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

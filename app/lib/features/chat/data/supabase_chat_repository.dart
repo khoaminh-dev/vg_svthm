@@ -22,26 +22,26 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<List<Room>> fetchRooms() => _guard(() async {
-        final rows = await _client.rpc('my_rooms') as List<dynamic>;
-        return rows.map((r) => Room.fromMap(r as Map<String, dynamic>)).toList();
-      });
+    final rows = await _client.rpc('my_rooms') as List<dynamic>;
+    return rows.map((r) => Room.fromMap(r as Map<String, dynamic>)).toList();
+  });
 
   @override
   Future<Room> createRoom(String name) => _guard(() async {
-        final uid = _uid;
-        final row = await _client
-            .from('rooms')
-            .insert({'name': name.trim(), 'created_by': uid})
-            .select()
-            .single();
-        await _client.from('room_members').insert({'room_id': row['id'], 'user_id': uid});
-        return Room(
-          id: row['id'] as String,
-          name: row['name'] as String,
-          type: RoomType.group,
-          createdAt: DateTime.parse(row['created_at'] as String),
-        );
-      });
+    final uid = _uid;
+    final row = await _client
+        .from('rooms')
+        .insert({'name': name.trim(), 'created_by': uid})
+        .select()
+        .single();
+    await _client.from('room_members').insert({'room_id': row['id'], 'user_id': uid});
+    return Room(
+      id: row['id'] as String,
+      name: row['name'] as String,
+      type: RoomType.group,
+      createdAt: DateTime.parse(row['created_at'] as String),
+    );
+  });
 
   @override
   Future<Room> openDirectRoom(String username) async {
@@ -89,23 +89,17 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<void> addMember(String roomId, String username) => _guard(
-        () => _client.rpc(
-          'add_member_by_username',
-          params: {'p_room': roomId, 'p_username': username},
-        ),
-      );
+    () => _client.rpc('add_member_by_username', params: {'p_room': roomId, 'p_username': username}),
+  );
 
   @override
   Future<List<Profile>> fetchMembers(String roomId) => _guard(() async {
-        final members = await _client
-            .from('room_members')
-            .select('user_id')
-            .eq('room_id', roomId);
-        final ids = members.map((m) => m['user_id'] as String).toList();
-        if (ids.isEmpty) return <Profile>[];
-        final rows = await _client.from('profiles').select().inFilter('id', ids);
-        return rows.map(Profile.fromMap).toList();
-      });
+    final members = await _client.from('room_members').select('user_id').eq('room_id', roomId);
+    final ids = members.map((m) => m['user_id'] as String).toList();
+    if (ids.isEmpty) return <Profile>[];
+    final rows = await _client.from('profiles').select().inFilter('id', ids);
+    return rows.map(Profile.fromMap).toList();
+  });
 
   @override
   Stream<List<Message>> watchMessages(String roomId) => _client
@@ -117,12 +111,12 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<void> sendMessage(String roomId, String content) => _guard(
-        () => _client.from('messages').insert({
-          'room_id': roomId,
-          'user_id': _uid,
-          'content': content.trim(),
-        }),
-      );
+    () => _client.from('messages').insert({
+      'room_id': roomId,
+      'user_id': _uid,
+      'content': content.trim(),
+    }),
+  );
 
   @override
   Stream<Set<String>> watchOnline(String roomId) {
@@ -131,10 +125,7 @@ class SupabaseChatRepository implements ChatRepository {
 
     controller = StreamController<Set<String>>(
       onListen: () {
-        final ch = _client.channel(
-          'presence:room:$roomId',
-          opts: RealtimeChannelConfig(key: _uid),
-        );
+        final ch = _client.channel('presence:room:$roomId', opts: RealtimeChannelConfig(key: _uid));
         channel = ch;
         ch
             .onPresenceSync((_) {

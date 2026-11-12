@@ -11,6 +11,7 @@ import '../providers/chat_providers.dart';
 import '../widgets/members_sheet.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
+import '../../../../core/analytics/analytics.dart';
 
 /// Màn hình chat của một phòng, tin nhắn cập nhật realtime.
 class ChatScreen extends ConsumerWidget {
@@ -22,9 +23,7 @@ class ChatScreen extends ConsumerWidget {
   final Room? room;
 
   Future<bool> _send(BuildContext context, WidgetRef ref, String text) async {
-    final ok = await ref
-        .read(chatControllerProvider.notifier)
-        .send(roomId, text);
+    final ok = await ref.read(chatControllerProvider.notifier).send(roomId, text);
     if (!ok && context.mounted) {
       final error = ref.read(chatControllerProvider).error;
       showAppSnackBar(context, errorMessage(error!), error: true);
@@ -36,8 +35,7 @@ class ChatScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final myId = ref.watch(currentUserProvider)?.id;
     final messages = ref.watch(messagesProvider(roomId));
-    final members =
-        ref.watch(membersProvider(roomId)).value ?? const <Profile>[];
+    final members = ref.watch(membersProvider(roomId)).value ?? const <Profile>[];
     final online = ref.watch(onlineProvider(roomId)).value ?? const <String>{};
     final byId = {for (final p in members) p.id: p};
 
@@ -49,9 +47,7 @@ class ChatScreen extends ConsumerWidget {
             Text(room?.displayName ?? 'Phòng chat'),
             Text(
               room?.isDirect ?? false
-                  ? (online.contains(room!.peer?.id)
-                        ? 'Đang online'
-                        : 'Offline')
+                  ? (online.contains(room!.peer?.id) ? 'Đang online' : 'Offline')
                   : '${online.length} đang online',
               style: Theme.of(context).textTheme.labelSmall,
             ),
@@ -62,11 +58,14 @@ class ChatScreen extends ConsumerWidget {
             IconButton(
               tooltip: 'Thành viên',
               icon: const Icon(Icons.group_outlined),
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => MembersSheet(roomId: roomId),
-              ),
+              onPressed: () {
+                Analytics.track('open_members');
+                showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => MembersSheet(roomId: roomId),
+                );
+              },
             ),
         ],
       ),
@@ -78,9 +77,7 @@ class ChatScreen extends ConsumerWidget {
               error: (e, _) => Center(child: Text(errorMessage(e))),
               data: (list) {
                 if (list.isEmpty) {
-                  return const Center(
-                    child: Text('Chưa có tin nhắn, hãy nói gì đó!'),
-                  );
+                  return const Center(child: Text('Chưa có tin nhắn, hãy nói gì đó!'));
                 }
                 final reversed = list.reversed.toList();
                 return ListView.builder(

@@ -30,10 +30,9 @@ abstract final class Validators {
     return null;
   }
 
-  static String? Function(String?) confirmPassword(String Function() original) =>
-      (v) {
-        if (v == null || v.isEmpty) return 'Vui lòng nhập lại mật khẩu';
-        if (v != original()) return 'Mật khẩu nhập lại không khớp';
-        return null;
-      };
+  static String? Function(String?) confirmPassword(String Function() original) => (v) {
+    if (v == null || v.isEmpty) return 'Vui lòng nhập lại mật khẩu';
+    if (v != original()) return 'Mật khẩu nhập lại không khớp';
+    return null;
+  };
 }

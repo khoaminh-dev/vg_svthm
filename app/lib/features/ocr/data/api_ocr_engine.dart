@@ -11,8 +11,8 @@ import '../domain/ocr_repositories.dart';
 /// Đọc ảnh bằng AI (Groq vision) qua endpoint `/api/ocr` trên Vercel.
 class ApiOcrEngine implements OcrEngine {
   ApiOcrEngine({required this.accessToken, http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? Env.apiBaseUrl;
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? Env.apiBaseUrl;
 
   /// Lấy token đăng nhập hiện tại (Supabase) để API xác thực người dùng.
   final String? Function() accessToken;
@@ -35,10 +35,7 @@ class ApiOcrEngine implements OcrEngine {
       res = await _client
           .post(
             Uri.parse('$_baseUrl/api/ocr'),
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-            },
+            headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
             body: jsonEncode({'image': base64Encode(bytes), 'mime': mime}),
           )
           .timeout(const Duration(seconds: 60));
@@ -60,9 +57,9 @@ class ApiOcrEngine implements OcrEngine {
   }
 
   AppFailure _failure(int status) => switch (status) {
-        401 => const AppFailure('Phiên đăng nhập đã hết hạn, hãy đăng nhập lại'),
-        413 => const AppFailure('Ảnh quá lớn, hãy chụp lại ở độ phân giải thấp hơn'),
-        429 => const AppFailure('Thao tác quá nhanh, vui lòng thử lại sau ít phút'),
-        _ => const AppFailure('Dịch vụ AI đang bận, vui lòng thử lại sau'),
-      };
+    401 => const AppFailure('Phiên đăng nhập đã hết hạn, hãy đăng nhập lại'),
+    413 => const AppFailure('Ảnh quá lớn, hãy chụp lại ở độ phân giải thấp hơn'),
+    429 => const AppFailure('Thao tác quá nhanh, vui lòng thử lại sau ít phút'),
+    _ => const AppFailure('Dịch vụ AI đang bận, vui lòng thử lại sau'),
+  };
 }

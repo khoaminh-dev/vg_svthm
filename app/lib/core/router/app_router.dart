@@ -15,6 +15,7 @@ import '../../features/ocr/presentation/screens/ocr_detail_screen.dart';
 import '../../features/ocr/presentation/screens/ocr_editor_screen.dart';
 import '../../features/ocr/presentation/screens/ocr_screen.dart';
 import 'routes.dart';
+import '../analytics/analytics.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
@@ -26,6 +27,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: Routes.login,
     refreshListenable: refresh,
+    observers: [AnalyticsObserver()],
     // Deep link (viegrand://...) không khớp route nào: về trang chủ, redirect lo phần còn lại.
     onException: (_, _, router) => router.go(Routes.home),
     redirect: (context, state) {
@@ -52,10 +54,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.rooms, builder: (_, _) => const RoomListScreen()),
       GoRoute(
         path: Routes.room,
-        builder: (_, state) => ChatScreen(
-          roomId: state.pathParameters['id']!,
-          room: state.extra as Room?,
-        ),
+        builder: (_, state) =>
+            ChatScreen(roomId: state.pathParameters['id']!, room: state.extra as Room?),
       ),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
       GoRoute(
@@ -68,10 +68,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
-      GoRoute(
-        path: Routes.completeProfile,
-        builder: (_, _) => const CompleteProfileScreen(),
-      ),
+      GoRoute(path: Routes.completeProfile, builder: (_, _) => const CompleteProfileScreen()),
     ],
   );
 });

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/analytics/analytics.dart';
+
 /// Ô nhập tin nhắn và nút gửi.
 class MessageInput extends StatefulWidget {
   const MessageInput({super.key, required this.onSend});
@@ -23,6 +25,7 @@ class _MessageInputState extends State<MessageInput> {
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _sending) return;
+    Analytics.track('send_message');
     setState(() => _sending = true);
     final ok = await widget.onSend(text);
     if (!mounted) return;
@@ -46,10 +49,7 @@ class _MessageInputState extends State<MessageInput> {
                 maxLength: 2000,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
-                decoration: const InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
-                  counterText: '',
-                ),
+                decoration: const InputDecoration(hintText: 'Nhập tin nhắn...', counterText: ''),
               ),
             ),
             const SizedBox(width: 4),

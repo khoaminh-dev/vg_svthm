@@ -3,10 +3,10 @@ class OcrValue {
   const OcrValue({required this.label, required this.value, this.unit = ''});
 
   factory OcrValue.fromJson(Map<String, dynamic> j) => OcrValue(
-        label: (j['label'] ?? '') as String,
-        value: (j['value'] ?? '') as String,
-        unit: (j['unit'] ?? '') as String,
-      );
+    label: (j['label'] ?? '') as String,
+    value: (j['value'] ?? '') as String,
+    unit: (j['unit'] ?? '') as String,
+  );
 
   final String label;
   final String value;
@@ -28,11 +28,7 @@ class OcrScan {
 
 /// Kết quả OCR chưa lưu: ảnh trên máy, văn bản thô và các dòng số liệu.
 class OcrDraft {
-  const OcrDraft({
-    required this.imagePath,
-    required this.rawText,
-    required this.values,
-  });
+  const OcrDraft({required this.imagePath, required this.rawText, required this.values});
 
   final String imagePath;
   final String rawText;
@@ -51,15 +47,15 @@ class OcrRecord {
   });
 
   factory OcrRecord.fromMap(Map<String, dynamic> m) => OcrRecord(
-        id: m['id'] as String,
-        title: (m['title'] as String?) ?? '',
-        rawText: (m['raw_text'] as String?) ?? '',
-        values: ((m['values'] as List<dynamic>?) ?? const [])
-            .map((e) => OcrValue.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        imagePath: m['image_path'] as String?,
-        createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
-      );
+    id: m['id'] as String,
+    title: (m['title'] as String?) ?? '',
+    rawText: (m['raw_text'] as String?) ?? '',
+    values: ((m['values'] as List<dynamic>?) ?? const [])
+        .map((e) => OcrValue.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    imagePath: m['image_path'] as String?,
+    createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
+  );
 
   final String id;
   final String title;
@@ -91,9 +87,7 @@ double? parseNumber(String input) {
   if (hasDot && hasComma) {
     // Dấu xuất hiện sau cùng là dấu thập phân.
     final decimalIsComma = s.lastIndexOf(',') > s.lastIndexOf('.');
-    s = decimalIsComma
-        ? s.replaceAll('.', '').replaceAll(',', '.')
-        : s.replaceAll(',', '');
+    s = decimalIsComma ? s.replaceAll('.', '').replaceAll(',', '.') : s.replaceAll(',', '');
   } else if (hasComma) {
     s = _thousandsComma.hasMatch(s) ? s.replaceAll(',', '') : s.replaceAll(',', '.');
   } else if (hasDot) {

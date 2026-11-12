@@ -10,6 +10,7 @@ import '../../../../shared/widgets/user_avatar.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
 import '../widgets/text_prompt_dialog.dart';
+import '../../../../core/analytics/analytics.dart';
 
 /// Danh sách phòng chat của người dùng.
 class RoomListScreen extends ConsumerWidget {
@@ -22,7 +23,11 @@ class RoomListScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _SheetTile(value: 'direct', icon: Icons.person_outline, label: 'Chat riêng với @username'),
+            _SheetTile(
+              value: 'direct',
+              icon: Icons.person_outline,
+              label: 'Chat riêng với @username',
+            ),
             _SheetTile(value: 'group', icon: Icons.group_add_outlined, label: 'Tạo phòng nhóm'),
           ],
         ),
@@ -91,7 +96,10 @@ class RoomListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Chat')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _newChat(context, ref),
+        onPressed: () {
+          Analytics.track('tap_new_chat');
+          _newChat(context, ref);
+        },
         icon: const Icon(Icons.add),
         label: const Text('Chat mới'),
       ),
@@ -133,13 +141,14 @@ class RoomListScreen extends ConsumerWidget {
                               imageUrl: room.peer?.avatarUrl,
                               radius: 20,
                             )
-                          : CircleAvatar(
-                              child: Text(room.name.characters.first.toUpperCase()),
-                            ),
+                          : CircleAvatar(child: Text(room.name.characters.first.toUpperCase())),
                       title: Text(room.displayName),
                       subtitle: Text(room.isDirect ? 'Chat riêng' : 'Nhóm'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push(Routes.roomPath(room.id), extra: room),
+                      onTap: () {
+                        Analytics.track('open_room');
+                        context.push(Routes.roomPath(room.id), extra: room);
+                      },
                     );
                   },
                 ),
@@ -158,8 +167,8 @@ class _SheetTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        leading: Icon(icon),
-        title: Text(label),
-        onTap: () => Navigator.of(context).pop(value),
-      );
+    leading: Icon(icon),
+    title: Text(label),
+    onTap: () => Navigator.of(context).pop(value),
+  );
 }

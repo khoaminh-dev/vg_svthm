@@ -35,8 +35,7 @@ class MessageBubble extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isMine)
-            Text(senderName, style: text.labelSmall?.copyWith(color: scheme.primary)),
+          if (!isMine) Text(senderName, style: text.labelSmall?.copyWith(color: scheme.primary)),
           Text(message.content, style: TextStyle(color: fg)),
           const SizedBox(height: 2),
           Text(

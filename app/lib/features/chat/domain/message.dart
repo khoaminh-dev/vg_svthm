@@ -8,12 +8,12 @@ class Message {
   });
 
   factory Message.fromMap(Map<String, dynamic> m) => Message(
-        id: m['id'] as int,
-        roomId: m['room_id'] as String,
-        userId: m['user_id'] as String,
-        content: m['content'] as String,
-        createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
-      );
+    id: m['id'] as int,
+    roomId: m['room_id'] as String,
+    userId: m['user_id'] as String,
+    content: m['content'] as String,
+    createdAt: DateTime.parse(m['created_at'] as String).toLocal(),
+  );
 
   final int id;
   final String roomId;

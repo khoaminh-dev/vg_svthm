@@ -10,12 +10,14 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../providers/ocr_controller.dart';
 import '../providers/ocr_providers.dart';
 import '../widgets/ocr_record_tile.dart';
+import '../../../../core/analytics/analytics.dart';
 
 /// Chụp hoặc chọn ảnh để đọc số liệu, kèm lịch sử các lần đã lưu.
 class OcrScreen extends ConsumerWidget {
   const OcrScreen({super.key});
 
   Future<void> _scan(BuildContext context, WidgetRef ref, ImageSource source) async {
+    Analytics.track('ocr_scan', {'source': source.name, 'ai': ref.read(ocrUseAiProvider)});
     final draft = await ref.read(ocrControllerProvider.notifier).scan(source);
     if (!context.mounted) return;
     if (draft == null) {
@@ -50,7 +52,12 @@ class OcrScreen extends ConsumerWidget {
                         : 'Đọc ngay trên máy, miễn phí, phù hợp chữ in rõ',
                   ),
                   value: useAi,
-                  onChanged: scanning ? null : ref.read(ocrUseAiProvider.notifier).set,
+                  onChanged: scanning
+                      ? null
+                      : (v) {
+                          Analytics.track('toggle_ai_ocr', {'on': v});
+                          ref.read(ocrUseAiProvider.notifier).set(v);
+                        },
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
@@ -100,7 +107,10 @@ class OcrScreen extends ConsumerWidget {
                             for (final r in list)
                               OcrRecordTile(
                                 record: r,
-                                onTap: () => context.push(Routes.ocrDetail, extra: r),
+                                onTap: () {
+                                  Analytics.track('open_ocr_record');
+                                  context.push(Routes.ocrDetail, extra: r);
+                                },
                               ),
                           ],
                         ),

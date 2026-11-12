@@ -8,6 +8,7 @@ import '../../../../shared/widgets/user_avatar.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
 import 'text_prompt_dialog.dart';
+import '../../../../core/analytics/analytics.dart';
 
 /// Danh sách thành viên của phòng, kèm trạng thái online và nút mời thêm người.
 class MembersSheet extends ConsumerWidget {
@@ -48,21 +49,20 @@ class MembersSheet extends ConsumerWidget {
           ListTile(
             title: const Text('Thành viên'),
             trailing: TextButton.icon(
-              onPressed: () => _invite(context, ref),
+              onPressed: () {
+                Analytics.track('tap_invite_member');
+                _invite(context, ref);
+              },
               icon: const Icon(Icons.person_add_alt_1),
               label: const Text('Thêm'),
             ),
           ),
           Flexible(
             child: members.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(),
-              ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(errorMessage(e)),
-              ),
+              loading: () =>
+                  const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
+              error: (e, _) =>
+                  Padding(padding: const EdgeInsets.all(24), child: Text(errorMessage(e))),
               data: (list) => ListView(
                 shrinkWrap: true,
                 children: [

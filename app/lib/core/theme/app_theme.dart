@@ -10,9 +10,7 @@ abstract final class AppTheme {
 
   static ThemeData _build(Brightness brightness) {
     final scheme = ColorScheme.fromSeed(seedColor: _seed, brightness: brightness);
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppSpacing.radius),
-    );
+    final border = OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radius));
 
     return ThemeData(
       useMaterial3: true,
@@ -20,20 +18,13 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         border: border,
         enabledBorder: border,
-        focusedBorder: border.copyWith(
-          borderSide: BorderSide(color: scheme.primary, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: 14,
-        ),
+        focusedBorder: border.copyWith(borderSide: BorderSide(color: scheme.primary, width: 2)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 14),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radius),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radius)),
         ),
       ),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),

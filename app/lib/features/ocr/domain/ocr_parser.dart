@@ -20,10 +20,7 @@ abstract final class OcrParser {
     String? pendingLabel;
 
     for (final original in raw.split(RegExp(r'\r?\n'))) {
-      final line = original
-          .replaceAll(_date, ' ')
-          .replaceAll(_time, ' ')
-          .trim();
+      final line = original.replaceAll(_date, ' ').replaceAll(_time, ' ').trim();
       if (line.isEmpty) continue;
 
       final matches = _number.allMatches(line).toList();
@@ -50,11 +47,13 @@ abstract final class OcrParser {
       }
 
       for (var i = 0; i < found.length; i++) {
-        result.add(OcrValue(
-          label: found.length > 1 && label.isNotEmpty ? '$label #${i + 1}' : label,
-          value: found[i].$1,
-          unit: found[i].$2,
-        ));
+        result.add(
+          OcrValue(
+            label: found.length > 1 && label.isNotEmpty ? '$label #${i + 1}' : label,
+            value: found[i].$1,
+            unit: found[i].$2,
+          ),
+        );
       }
       pendingLabel = null;
     }

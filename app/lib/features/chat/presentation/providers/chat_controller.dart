@@ -48,5 +48,4 @@ class ChatController extends AsyncNotifier<void> {
   }
 }
 
-final chatControllerProvider =
-    AsyncNotifierProvider<ChatController, void>(ChatController.new);
+final chatControllerProvider = AsyncNotifierProvider<ChatController, void>(ChatController.new);

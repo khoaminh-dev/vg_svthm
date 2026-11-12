@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Viegrand Admin</title>
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --ink:#1b1f2a; --mute:#6b7280; --pri:#385f90; --line:#e5e7eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--card); border-bottom:1px solid var(--line); }
+  header h1 { font-size:18px; margin:0; }
+  main { max-width:1100px; margin:0 auto; padding:24px; }
+  .grid { display:grid; gap:16px; }
+  .kpis { grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); }
+  .two { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); margin-top:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .kpi b { display:block; font-size:28px; }
+  .kpi span, .mute { color:var(--mute); font-size:13px; }
+  h2 { font-size:15px; margin:0 0 12px; }
+  button, select, input { font:inherit; }
+  button { background:var(--pri); color:#fff; border:0; border-radius:8px; padding:8px 14px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--pri); border:1px solid var(--line); }
+  input, select { padding:8px 10px; border:1px solid var(--line); border-radius:8px; width:100%; }
+  .login { max-width:340px; margin:12vh auto; }
+  .login .card { display:grid; gap:12px; }
+  .err { color:#b42318; font-size:13px; min-height:18px; }
+  .row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:13px; }
+  .row .k { flex:0 0 38%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar { flex:1; background:#eef1f7; border-radius:4px; height:14px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--pri); }
+  .row .n { flex:0 0 44px; text-align:right; color:var(--mute); }
+  .chart { display:flex; align-items:flex-end; gap:3px; height:140px; }
+  .chart div { flex:1; background:var(--pri); border-radius:3px 3px 0 0; min-height:2px; position:relative; }
+  .axis { display:flex; justify-content:space-between; color:var(--mute); font-size:12px; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:500; }
+  code { background:#eef1f7; padding:1px 5px; border-radius:4px; font-size:12px; }
+  .scroll { max-height:420px; overflow:auto; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login hidden">
+  <form class="card" id="loginForm">
+    <h1 style="margin:0">Viegrand Admin</h1>
+    <input id="u" placeholder="Tài khoản" autocomplete="username" required>
+    <input id="p" type="password" placeholder="Mật khẩu" autocomplete="current-password" required>
+    <div class="err" id="loginErr"></div>
+    <button type="submit">Đăng nhập</button>
+  </form>
+</div>
+
+<div id="appView" class="hidden">
+  <header>
+    <h1>Viegrand Admin — thống kê thao tác</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="days" style="width:auto">
+        <option value="1">24 giờ</option>
+        <option value="7">7 ngày</option>
+        <option value="14" selected>14 ngày</option>
+        <option value="30">30 ngày</option>
+        <option value="90">90 ngày</option>
+      </select>
+      <button class="ghost" id="refresh">Làm mới</button>
+      <button class="ghost" id="logout">Đăng xuất</button>
+    </div>
+  </header>
+  <main>
+    <div class="err" id="appErr"></div>
+    <div class="grid kpis" id="kpis"></div>
+    <div class="card" style="margin-top:16px"><h2>Số thao tác theo ngày</h2><div class="chart" id="daily"></div><div class="axis" id="axis"></div></div>
+    <div class="grid two">
+      <div class="card"><h2>Thao tác phổ biến</h2><div id="byName"></div></div>
+      <div class="card"><h2>Màn hình được xem</h2><div id="byScreen"></div></div>
+      <div class="card"><h2>Tính năng được mở (trang chủ)</h2><div id="byFeature"></div></div>
+      <div class="card"><h2>Người dùng hoạt động nhiều nhất</h2><div id="topUsers"></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Thao tác gần đây</h2><div class="scroll"><table id="recent"></table></div></div>
+    <div class="card" style="margin-top:16px"><h2>Người dùng</h2><div class="scroll"><table id="users"></table></div></div>
+  </main>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const LABELS = {
+  screen_view:'Xem màn hình', tap_button:'Bấm nút', tap_feature:'Mở tính năng', tap_sign_out:'Đăng xuất',
+  tap_go_register:'Đến trang đăng ký', tap_new_chat:'Chat mới', open_room:'Mở phòng chat', open_members:'Xem thành viên',
+  tap_invite_member:'Mời thành viên', send_message:'Gửi tin nhắn', ocr_scan:'Quét OCR', toggle_ai_ocr:'Bật/tắt OCR AI',
+  open_ocr_record:'Mở kết quả OCR', ocr_copy:'Sao chép OCR', tap_ocr_delete:'Xoá kết quả OCR', ocr_add_row:'Thêm dòng OCR'
+};
+let token = sessionStorage.getItem('adm');
+
+function show(logged) {
+  $('loginView').classList.toggle('hidden', logged);
+  $('appView').classList.toggle('hidden', !logged);
+}
+function bars(el, list, label) {
+  const max = Math.max(1, ...list.map((x) => x.count));
+  el.innerHTML = list.length ? list.map((x) =>
+    `<div class="row"><div class="k" title="${esc(x.key)}">${esc(label ? label(x.key) : x.key)}</div>` +
+    `<div class="bar"><i style="width:${(x.count / max) * 100}%"></i></div><div class="n">${x.count}</div></div>`).join('')
+    : '<span class="mute">Chưa có dữ liệu</span>';
+}
+function fmt(t) { return t ? new Date(t).toLocaleString('vi-VN') : '—'; }
+
+async function load() {
+  $('appErr').textContent = '';
+  const r = await fetch('/api/admin/stats?days=' + $('days').value, { headers: { Authorization: 'Bearer ' + token } });
+  if (r.status === 401) { sessionStorage.removeItem('adm'); token = null; show(false); return; }
+  const d = await r.json();
+  if (!r.ok) {
+    $('appErr').textContent = d.error === 'service_key_missing'
+      ? 'Server chưa có biến SUPABASE_SERVICE_ROLE_KEY (thêm trong Vercel rồi redeploy).'
+      : 'Lỗi: ' + (d.error || r.status);
+    return;
+  }
+  const t = d.totals;
+  $('kpis').innerHTML = [
+    ['Người dùng', t.users], ['Hoạt động 24h', t.activeUsers24h], ['Hoạt động 7 ngày', t.activeUsers7d],
+    ['Thao tác 24h', t.events24h], ['Thao tác (' + d.days + ' ngày)', t.events],
+  ].map(([k, v]) => `<div class="card kpi"><b>${v}</b><span>${k}</span></div>`).join('');
+
+  const max = Math.max(1, ...d.daily.map((x) => x.count));
+  $('daily').innerHTML = d.daily.map((x) =>
+    `<div title="${x.day}: ${x.count}" style="height:${(x.count / max) * 100}%"></div>`).join('');
+  $('axis').innerHTML = `<span>${d.daily[0]?.day ?? ''}</span><span>${d.daily.at(-1)?.day ?? ''}</span>`;
+
+  bars($('byName'), d.byName, (k) => LABELS[k] || k);
+  bars($('byScreen'), d.byScreen);
+  bars($('byFeature'), d.byFeature);
+  bars($('topUsers'), d.topUsers);
+
+  $('recent').innerHTML = '<tr><th>Thời gian</th><th>Người dùng</th><th>Thao tác</th><th>Màn hình</th><th>Chi tiết</th></tr>' +
+    d.recent.map((e) => `<tr><td>${fmt(e.at)}</td><td>${esc(e.user)}</td><td>${esc(LABELS[e.name] || e.name)}</td>` +
+      `<td>${esc(e.screen)}</td><td>${Object.keys(e.props || {}).length ? '<code>' + esc(JSON.stringify(e.props)) + '</code>' : ''}</td></tr>`).join('');
+  $('users').innerHTML = '<tr><th>Username</th><th>Tên</th><th>Tham gia</th><th>Hoạt động gần nhất</th></tr>' +
+    d.users.map((u) => `<tr><td>${u.username ? '@' + esc(u.username) : '—'}</td><td>${esc(u.name)}</td><td>${fmt(u.joined)}</td><td>${fmt(u.lastSeen)}</td></tr>`).join('');
+}
+
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('loginErr').textContent = '';
+  const r = await fetch('/api/admin/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: $('u').value, password: $('p').value }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    $('loginErr').textContent = r.status === 429 ? 'Sai quá nhiều lần, thử lại sau ít phút'
+      : r.status === 401 ? 'Sai tài khoản hoặc mật khẩu' : 'Server chưa cấu hình xong (' + (d.error || r.status) + ')';
+    return;
+  }
+  token = d.token; sessionStorage.setItem('adm', token); $('p').value = '';
+  show(true); load();
+});
+$('refresh').onclick = load;
+$('days').onchange = load;
+$('logout').onclick = () => { sessionStorage.removeItem('adm'); token = null; show(false); };
+
+if (token) { show(true); load(); } else { show(false); }
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import 'widgets/feature_card.dart';
 import 'widgets/profile_header.dart';
+import '../../../core/analytics/analytics.dart';
 
 /// Trang chủ: thông tin người dùng và lối vào các tính năng.
 class HomeScreen extends ConsumerWidget {
@@ -24,7 +25,10 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Đăng xuất',
             icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
+            onPressed: () {
+              Analytics.track('tap_sign_out');
+              ref.read(authControllerProvider.notifier).signOut();
+            },
           ),
         ],
       ),
@@ -50,12 +54,18 @@ class HomeScreen extends ConsumerWidget {
                     FeatureCard(
                       icon: Icons.chat_bubble_outline,
                       label: 'Chat',
-                      onTap: () => context.push(Routes.rooms),
+                      onTap: () {
+                        Analytics.track('tap_feature', {'feature': 'chat'});
+                        context.push(Routes.rooms);
+                      },
                     ),
                     FeatureCard(
                       icon: Icons.document_scanner_outlined,
                       label: 'OCR số liệu',
-                      onTap: () => context.push(Routes.ocr),
+                      onTap: () {
+                        Analytics.track('tap_feature', {'feature': 'ocr'});
+                        context.push(Routes.ocr);
+                      },
                     ),
                     const FeatureCard(icon: Icons.mic_none, label: 'Giọng nói'),
                   ],

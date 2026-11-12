@@ -9,7 +9,8 @@ import '../domain/ocr_repositories.dart';
 class MlKitOcrEngine implements OcrEngine {
   @override
   Future<OcrScan> scan(String imagePath) async {
-    final supported = !kIsWeb &&
+    final supported =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
     if (!supported) {

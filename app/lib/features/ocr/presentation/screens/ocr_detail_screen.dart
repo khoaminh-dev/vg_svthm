@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/ocr_models.dart';
 import '../providers/ocr_controller.dart';
 import '../providers/ocr_providers.dart';
+import '../../../../core/analytics/analytics.dart';
 
 /// Chi tiết một kết quả OCR đã lưu.
 class OcrDetailScreen extends ConsumerWidget {
@@ -56,6 +57,7 @@ class OcrDetailScreen extends ConsumerWidget {
             tooltip: 'Sao chép',
             icon: const Icon(Icons.copy),
             onPressed: () async {
+              Analytics.track('ocr_copy');
               await Clipboard.setData(ClipboardData(text: _asText));
               if (context.mounted) showAppSnackBar(context, 'Đã sao chép số liệu');
             },
@@ -63,7 +65,10 @@ class OcrDetailScreen extends ConsumerWidget {
           IconButton(
             tooltip: 'Xoá',
             icon: const Icon(Icons.delete_outline),
-            onPressed: () => _delete(context, ref),
+            onPressed: () {
+              Analytics.track('tap_ocr_delete');
+              _delete(context, ref);
+            },
           ),
         ],
       ),
@@ -72,10 +77,8 @@ class OcrDetailScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             image.when(
-              loading: () => const SizedBox(
-                height: 160,
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () =>
+                  const SizedBox(height: 160, child: Center(child: CircularProgressIndicator())),
               error: (_, _) => const SizedBox.shrink(),
               data: (url) => url == null
                   ? const SizedBox.shrink()

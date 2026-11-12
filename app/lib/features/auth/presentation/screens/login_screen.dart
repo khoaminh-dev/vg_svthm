@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_scaffold.dart';
 import '../../../../shared/widgets/password_field.dart';
 import '../providers/auth_controller.dart';
+import '../../../../core/analytics/analytics.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -52,7 +53,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           const Text('Chưa có tài khoản?'),
           TextButton(
-            onPressed: loading ? null : () => context.push(Routes.register),
+            onPressed: loading
+                ? null
+                : () {
+                    Analytics.track('tap_go_register');
+                    context.push(Routes.register);
+                  },
             child: const Text('Đăng ký'),
           ),
         ],

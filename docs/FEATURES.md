@@ -66,3 +66,10 @@ Trạng thái: ✅ xong · 🚧 đang làm · ⬜ chưa làm · ➖ tạm bỏ
 | Push code lên GitHub | ⬜ |
 | SMTP riêng (Resend/Brevo) khi bật xác nhận email | ⬜ |
 | Build APK bản demo cho khách | ⬜ |
+
+
+## Web admin & thống kê thao tác
+
+- ✅ App ghi sự kiện (xem màn hình, bấm nút/tính năng, gửi tin nhắn, quét OCR...) vào bảng `events` (migration 0006)
+- ✅ Web admin tại `/admin` (đăng nhập, KPI, biểu đồ theo ngày, thao tác phổ biến, người dùng, log gần đây)
+- Cần biến `SUPABASE_SERVICE_ROLE_KEY` trên Vercel; `ADMIN_USER`/`ADMIN_PASS` mặc định admin/123.

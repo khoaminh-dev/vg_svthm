@@ -12,6 +12,7 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/ocr_models.dart';
 import '../providers/ocr_controller.dart';
 import '../widgets/ocr_value_row.dart';
+import '../../../../core/analytics/analytics.dart';
 
 /// Xem lại và sửa tay kết quả OCR trước khi lưu.
 class OcrEditorScreen extends ConsumerStatefulWidget {
@@ -70,11 +71,7 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
             if (!kIsWeb)
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radius),
-                child: Image.file(
-                  File(widget.draft.imagePath),
-                  height: 160,
-                  fit: BoxFit.cover,
-                ),
+                child: Image.file(File(widget.draft.imagePath), height: 160, fit: BoxFit.cover),
               ),
             const SizedBox(height: AppSpacing.md),
             TextField(
@@ -84,11 +81,12 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                Expanded(
-                  child: Text('Số liệu', style: Theme.of(context).textTheme.titleMedium),
-                ),
+                Expanded(child: Text('Số liệu', style: Theme.of(context).textTheme.titleMedium)),
                 TextButton.icon(
-                  onPressed: () => setState(() => _rows.add(EditableOcrRow())),
+                  onPressed: () {
+                    Analytics.track('ocr_add_row');
+                    setState(() => _rows.add(EditableOcrRow()));
+                  },
                   icon: const Icon(Icons.add),
                   label: const Text('Thêm dòng'),
                 ),
@@ -115,7 +113,9 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: SelectableText(
-                    widget.draft.rawText.isEmpty ? '(không đọc được chữ nào)' : widget.draft.rawText,
+                    widget.draft.rawText.isEmpty
+                        ? '(không đọc được chữ nào)'
+                        : widget.draft.rawText,
                   ),
                 ),
               ],

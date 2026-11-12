@@ -19,20 +19,17 @@ class SupabaseAuthRepository implements AuthRepository {
   AuthUser? get currentUser => _toUser(_auth.currentUser);
 
   @override
-  Stream<AuthChange> get changes => _auth.onAuthStateChange.map(
-        (s) => AuthChange(
-          user: _toUser(s.session?.user),
-        ),
-      );
+  Stream<AuthChange> get changes =>
+      _auth.onAuthStateChange.map((s) => AuthChange(user: _toUser(s.session?.user)));
 
   @override
   Future<bool> isUsernameAvailable(String username) => _guard(() async {
-        final res = await _client.rpc(
-          'is_username_available',
-          params: {'p_username': username.trim().toLowerCase()},
-        );
-        return res as bool;
-      });
+    final res = await _client.rpc(
+      'is_username_available',
+      params: {'p_username': username.trim().toLowerCase()},
+    );
+    return res as bool;
+  });
 
   @override
   Future<void> signIn({required String email, required String password}) =>
@@ -44,23 +41,22 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
     required String fullName,
     required String username,
-  }) =>
-      _guard(() async {
-        final res = await _auth.signUp(
-          email: email.trim(),
-          password: password,
-          emailRedirectTo: Env.authCallbackRedirect,
-          data: {'full_name': fullName.trim(), 'username': username.trim().toLowerCase()},
-        );
-        // Email đã đăng ký: Supabase không báo lỗi mà trả về user không có identity.
-        if (res.user?.identities?.isEmpty ?? false) {
-          throw const AppFailure('Email này đã được đăng ký, hãy đăng nhập');
-        }
-        final needsConfirm = res.session == null;
-        // Đăng ký xong phải đăng nhập lại: bỏ phiên tự tạo để app quay về màn đăng nhập.
-        if (!needsConfirm) await _auth.signOut();
-        return needsConfirm;
-      });
+  }) => _guard(() async {
+    final res = await _auth.signUp(
+      email: email.trim(),
+      password: password,
+      emailRedirectTo: Env.authCallbackRedirect,
+      data: {'full_name': fullName.trim(), 'username': username.trim().toLowerCase()},
+    );
+    // Email đã đăng ký: Supabase không báo lỗi mà trả về user không có identity.
+    if (res.user?.identities?.isEmpty ?? false) {
+      throw const AppFailure('Email này đã được đăng ký, hãy đăng nhập');
+    }
+    final needsConfirm = res.session == null;
+    // Đăng ký xong phải đăng nhập lại: bỏ phiên tự tạo để app quay về màn đăng nhập.
+    if (!needsConfirm) await _auth.signOut();
+    return needsConfirm;
+  });
 
   @override
   Future<bool> signInWithGoogle() async {
@@ -89,10 +85,7 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> completeProfile({
-    required String username,
-    required String displayName,
-  }) =>
+  Future<void> completeProfile({required String username, required String displayName}) =>
       _guard(() async {
         final uid = _auth.currentUser?.id;
         if (uid == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');

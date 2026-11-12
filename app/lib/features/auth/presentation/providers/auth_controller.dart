@@ -8,17 +8,11 @@ class AuthController extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<bool> signIn(String email, String password) => _run(
-        () => ref.read(authRepositoryProvider).signIn(email: email, password: password),
-      );
+  Future<bool> signIn(String email, String password) =>
+      _run(() => ref.read(authRepositoryProvider).signIn(email: email, password: password));
 
   /// Trả về `true` nếu đăng ký xong nhưng cần xác nhận email. `null` nếu lỗi.
-  Future<bool?> signUp(
-    String email,
-    String password,
-    String fullName,
-    String username,
-  ) async {
+  Future<bool?> signUp(String email, String password, String fullName, String username) async {
     bool? needsConfirm;
     final ok = await _run(() async {
       final repo = ref.read(authRepositoryProvider);
@@ -45,12 +39,12 @@ class AuthController extends AsyncNotifier<void> {
   }
 
   Future<bool> completeProfile(String username, String displayName) => _run(() async {
-        final repo = ref.read(authRepositoryProvider);
-        if (!await repo.isUsernameAvailable(username)) {
-          throw const AppFailure('Tên người dùng đã được sử dụng');
-        }
-        await repo.completeProfile(username: username, displayName: displayName);
-      });
+    final repo = ref.read(authRepositoryProvider);
+    if (!await repo.isUsernameAvailable(username)) {
+      throw const AppFailure('Tên người dùng đã được sử dụng');
+    }
+    await repo.completeProfile(username: username, displayName: displayName);
+  });
 
   Future<bool> signOut() => _run(() => ref.read(authRepositoryProvider).signOut());
 
@@ -61,5 +55,4 @@ class AuthController extends AsyncNotifier<void> {
   }
 }
 
-final authControllerProvider =
-    AsyncNotifierProvider<AuthController, void>(AuthController.new);
+final authControllerProvider = AsyncNotifierProvider<AuthController, void>(AuthController.new);
