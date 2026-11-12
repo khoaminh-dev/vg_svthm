@@ -12,9 +12,6 @@ class SupabaseOcrRepository implements OcrRepository {
 
   static const _bucket = 'ocr-images';
 
-  /// Số bản ghi mới nhất được tải cho lịch sử (không tải toàn bộ).
-  static const listLimit = 50;
-
   /// Nhận dạng định dạng ảnh theo nội dung file (không tin vào đuôi file).
   static ({String ext, String mime}) sniff(List<int> b) {
     bool at(int i, List<int> sig) {
@@ -42,12 +39,10 @@ class SupabaseOcrRepository implements OcrRepository {
   }
 
   @override
-  Future<List<OcrRecord>> list() => _guard(() async {
-    final rows = await _client
-        .from('ocr_records')
-        .select()
-        .order('created_at', ascending: false)
-        .limit(listLimit);
+  Future<List<OcrRecord>> list({DateTime? before, int limit = 20}) => _guard(() async {
+    var q = _client.from('ocr_records').select();
+    if (before != null) q = q.lt('created_at', before.toUtc().toIso8601String());
+    final rows = await q.order('created_at', ascending: false).limit(limit);
     return rows.map(OcrRecord.fromMap).toList();
   });
 

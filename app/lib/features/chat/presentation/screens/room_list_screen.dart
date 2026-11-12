@@ -28,11 +28,7 @@ class RoomListScreen extends ConsumerWidget {
               icon: Icons.person_outline,
               label: 'Chat riêng với @username',
             ),
-            _SheetTile(
-              value: 'group',
-              icon: Icons.group_add_outlined,
-              label: 'Tạo phòng nhóm',
-            ),
+            _SheetTile(value: 'group', icon: Icons.group_add_outlined, label: 'Tạo phòng nhóm'),
           ],
         ),
       ),
@@ -56,9 +52,7 @@ class RoomListScreen extends ConsumerWidget {
     );
     if (username == null || !context.mounted) return;
 
-    final room = await ref
-        .read(chatControllerProvider.notifier)
-        .openDirectRoom(username);
+    final room = await ref.read(chatControllerProvider.notifier).openDirectRoom(username);
     if (!context.mounted) return;
     if (room == null) {
       final error = ref.read(chatControllerProvider).error;
@@ -83,9 +77,7 @@ class RoomListScreen extends ConsumerWidget {
     );
     if (name == null || !context.mounted) return;
 
-    final room = await ref
-        .read(chatControllerProvider.notifier)
-        .createRoom(name);
+    final room = await ref.read(chatControllerProvider.notifier).createRoom(name);
     if (!context.mounted) return;
     if (room == null) {
       final error = ref.read(chatControllerProvider).error;
@@ -149,9 +141,7 @@ class RoomListScreen extends ConsumerWidget {
                               width: 82,
                               height: 82,
                               decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer,
+                                color: Theme.of(context).colorScheme.primaryContainer,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -170,9 +160,7 @@ class RoomListScreen extends ConsumerWidget {
                               'Tạo phòng hoặc tìm người thân bằng tên người dùng.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -189,10 +177,7 @@ class RoomListScreen extends ConsumerWidget {
                     final room = list[i];
                     return Card(
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         leading: room.isDirect
                             ? UserAvatar(
                                 name: room.displayName,
@@ -200,9 +185,7 @@ class RoomListScreen extends ConsumerWidget {
                                 radius: 22,
                               )
                             : CircleAvatar(
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
+                                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
                                 child: Icon(
                                   Icons.group_outlined,
                                   color: Theme.of(context).colorScheme.primary,
@@ -212,9 +195,7 @@ class RoomListScreen extends ConsumerWidget {
                           room.displayName,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        subtitle: Text(
-                          room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm',
-                        ),
+                        subtitle: Text(room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm'),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () {
                           Analytics.track('open_room');
@@ -231,11 +212,7 @@ class RoomListScreen extends ConsumerWidget {
 }
 
 class _SheetTile extends StatelessWidget {
-  const _SheetTile({
-    required this.value,
-    required this.icon,
-    required this.label,
-  });
+  const _SheetTile({required this.value, required this.icon, required this.label});
 
   final String value;
   final IconData icon;

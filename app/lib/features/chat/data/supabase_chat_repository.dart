@@ -98,7 +98,7 @@ class SupabaseChatRepository implements ChatRepository {
   });
 
   /// Số tin nhắn mới nhất được nạp cho mỗi phòng (không tải toàn bộ lịch sử).
-  static const messageWindow = 200;
+  static const messageWindow = 50;
 
   @override
   Stream<List<Message>> watchMessages(String roomId) => _client
@@ -108,6 +108,22 @@ class SupabaseChatRepository implements ChatRepository {
       .order('created_at', ascending: false)
       .limit(messageWindow)
       .map((rows) => rows.map(Message.fromMap).toList().reversed.toList());
+
+  @override
+  Future<List<Message>> fetchOlderMessages(
+    String roomId, {
+    required DateTime before,
+    int limit = 50,
+  }) => _guard(() async {
+    final rows = await _client
+        .from('messages')
+        .select()
+        .eq('room_id', roomId)
+        .lt('created_at', before.toUtc().toIso8601String())
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return rows.map(Message.fromMap).toList().reversed.toList();
+  });
 
   @override
   Stream<void> watchMembers(String roomId) {

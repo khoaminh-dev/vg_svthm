@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
   const uid = await requireUser(req, res);
   if (!uid) return;
-  if (!rateLimit(uid)) return res.status(429).json({ error: 'rate_limited' });
+  if (!(await rateLimit(uid, 'llm', 20, Number(process.env.LLM_DAILY_LIMIT ?? 300)))) return res.status(429).json({ error: 'rate_limited' });
 
   const body = bodyObject(req);
   const messages = parseMessages(body?.messages);

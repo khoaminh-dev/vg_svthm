@@ -36,6 +36,13 @@ class _FakeChat implements ChatRepository {
   Stream<void> watchMembers(String roomId) => const Stream.empty();
 
   @override
+  Future<List<Message>> fetchOlderMessages(
+    String roomId, {
+    required DateTime before,
+    int limit = 50,
+  }) async => const [];
+
+  @override
   Future<void> sendMessage(String roomId, String content) async {
     _sent.add(
       Message(
