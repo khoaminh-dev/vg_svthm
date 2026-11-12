@@ -35,21 +35,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     // Đăng nhập thành công: router tự chuyển sang trang chủ.
-    await ref.read(authControllerProvider.notifier).signIn(_email.text, _password.text);
+    await ref
+        .read(authControllerProvider.notifier)
+        .signIn(_email.text, _password.text);
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(authControllerProvider, (_, next) {
-      if (next.hasError) showAppSnackBar(context, errorMessage(next.error!), error: true);
+      if (next.hasError) {
+        showAppSnackBar(context, errorMessage(next.error!), error: true);
+      }
     });
     final loading = ref.watch(authControllerProvider).isLoading;
 
     return AuthScaffold(
       title: 'Đăng nhập',
       subtitle: 'Chào mừng bạn quay lại',
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      footer: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           const Text('Chưa có tài khoản?'),
           TextButton(

@@ -12,14 +12,33 @@ class OcrRecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = record.createdAt;
-    final date = '${_two(d.day)}/${_two(d.month)}/${d.year} ${_two(d.hour)}:${_two(d.minute)}';
+    final date =
+        '${_two(d.day)}/${_two(d.month)}/${d.year} ${_two(d.hour)}:${_two(d.minute)}';
 
-    return ListTile(
-      leading: const CircleAvatar(child: Icon(Icons.document_scanner_outlined)),
-      title: Text(record.displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text('${record.values.length} số liệu · $date'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 8,
+          ),
+          leading: CircleAvatar(
+            backgroundColor: scheme.primaryContainer,
+            child: Icon(Icons.document_scanner_outlined, color: scheme.primary),
+          ),
+          title: Text(
+            record.displayTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text('${record.values.length} số liệu · $date'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: onTap,
+        ),
+      ),
     );
   }
 

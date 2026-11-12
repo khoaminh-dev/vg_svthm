@@ -35,8 +35,15 @@ class AuthScaffold extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: dark
-                      ? [scheme.surface, scheme.primaryContainer.withValues(alpha: 0.2)]
-                      : [const Color(0xFFEAF4F2), const Color(0xFFF8F4EE), scheme.surface],
+                      ? [
+                          scheme.surface,
+                          scheme.primaryContainer.withValues(alpha: 0.2),
+                        ]
+                      : [
+                          const Color(0xFFEAF4F2),
+                          const Color(0xFFF8F4EE),
+                          scheme.surface,
+                        ],
                   stops: const [0, 0.55, 1],
                 ),
               ),
@@ -45,12 +52,18 @@ class AuthScaffold extends StatelessWidget {
           Positioned(
             right: -72,
             top: -62,
-            child: _GlowCircle(size: 220, color: scheme.primary.withValues(alpha: 0.1)),
+            child: _GlowCircle(
+              size: 220,
+              color: scheme.primary.withValues(alpha: 0.1),
+            ),
           ),
           Positioned(
             left: -54,
             bottom: 56,
-            child: _GlowCircle(size: 160, color: scheme.tertiary.withValues(alpha: 0.08)),
+            child: _GlowCircle(
+              size: 160,
+              color: scheme.tertiary.withValues(alpha: 0.08),
+            ),
           ),
           SafeArea(
             child: Column(
@@ -77,24 +90,53 @@ class AuthScaffold extends StatelessWidget {
                         AppSpacing.xl,
                       ),
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: AppSpacing.maxFormWidth),
+                        constraints: const BoxConstraints(
+                          maxWidth: AppSpacing.maxFormWidth,
+                        ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const _ViegrandMark(),
+                            Container(
+                              height: 78,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                                vertical: AppSpacing.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radius + 6,
+                                ),
+                                border: Border.all(
+                                  color: const Color(0xFFE7ECF2),
+                                ),
+                              ),
+                              child: Image.asset(
+                                'assets/branding/viegrand_logo_full.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                             const SizedBox(height: AppSpacing.xl),
                             Container(
                               padding: const EdgeInsets.all(AppSpacing.lg),
                               decoration: BoxDecoration(
-                                color: scheme.surfaceContainerLowest.withValues(alpha: 0.94),
-                                borderRadius: BorderRadius.circular(AppSpacing.radius + 10),
+                                color: scheme.surfaceContainerLowest.withValues(
+                                  alpha: 0.94,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radius + 10,
+                                ),
                                 border: Border.all(
-                                  color: scheme.outlineVariant.withValues(alpha: 0.7),
+                                  color: scheme.outlineVariant.withValues(
+                                    alpha: 0.7,
+                                  ),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: dark ? 0.18 : 0.06),
+                                    color: Colors.black.withValues(
+                                      alpha: dark ? 0.18 : 0.06,
+                                    ),
                                     blurRadius: 30,
                                     offset: const Offset(0, 14),
                                   ),
@@ -133,60 +175,6 @@ class AuthScaffold extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ViegrandMark extends StatelessWidget {
-  const _ViegrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 54,
-          height: 54,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [scheme.primary, scheme.secondary],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.22),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Icon(Icons.favorite_rounded, color: scheme.onPrimary, size: 28),
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'VIEGRAND',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: scheme.primary,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.6,
-              ),
-            ),
-            Text(
-              'Sống khỏe, sống vui mỗi ngày',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

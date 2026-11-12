@@ -16,13 +16,22 @@ import '../../../../core/analytics/analytics.dart';
 class OcrScreen extends ConsumerWidget {
   const OcrScreen({super.key});
 
-  Future<void> _scan(BuildContext context, WidgetRef ref, ImageSource source) async {
-    Analytics.track('ocr_scan', {'source': source.name, 'ai': ref.read(ocrUseAiProvider)});
+  Future<void> _scan(
+    BuildContext context,
+    WidgetRef ref,
+    ImageSource source,
+  ) async {
+    Analytics.track('ocr_scan', {
+      'source': source.name,
+      'ai': ref.read(ocrUseAiProvider),
+    });
     final draft = await ref.read(ocrControllerProvider.notifier).scan(source);
     if (!context.mounted) return;
     if (draft == null) {
       final error = ref.read(ocrControllerProvider).error;
-      if (error != null) showAppSnackBar(context, errorMessage(error), error: true);
+      if (error != null) {
+        showAppSnackBar(context, errorMessage(error), error: true);
+      }
       return;
     }
     context.push(Routes.ocrEdit, extra: draft);
@@ -43,42 +52,99 @@ class OcrScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Đọc bằng AI'),
-                  subtitle: Text(
-                    useAi
-                        ? 'Chính xác hơn với màn hình LCD, hoá đơn, bảng biểu (cần mạng)'
-                        : 'Đọc ngay trên máy, miễn phí, phù hợp chữ in rõ',
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
+                              child: Icon(
+                                Icons.document_scanner_outlined,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Đọc số liệu từ ảnh',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
+                                  ),
+                                  Text(
+                                    'Chụp rõ màn hình hoặc giấy tờ cần đọc.',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Đọc bằng AI'),
+                          subtitle: Text(
+                            useAi
+                                ? 'Phù hợp màn hình LCD, hoá đơn và bảng biểu (cần mạng)'
+                                : 'Đọc ngay trên máy, phù hợp chữ in rõ',
+                          ),
+                          value: useAi,
+                          onChanged: scanning
+                              ? null
+                              : (v) {
+                                  Analytics.track('toggle_ai_ocr', {'on': v});
+                                  ref.read(ocrUseAiProvider.notifier).set(v);
+                                },
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: scanning
+                                    ? null
+                                    : () => _scan(
+                                        context,
+                                        ref,
+                                        ImageSource.camera,
+                                      ),
+                                icon: const Icon(Icons.photo_camera_outlined),
+                                label: const Text('Chụp ảnh'),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: scanning
+                                    ? null
+                                    : () => _scan(
+                                        context,
+                                        ref,
+                                        ImageSource.gallery,
+                                      ),
+                                icon: const Icon(Icons.photo_library_outlined),
+                                label: const Text('Thư viện'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  value: useAi,
-                  onChanged: scanning
-                      ? null
-                      : (v) {
-                          Analytics.track('toggle_ai_ocr', {'on': v});
-                          ref.read(ocrUseAiProvider.notifier).set(v);
-                        },
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: scanning ? null : () => _scan(context, ref, ImageSource.camera),
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: const Text('Chụp ảnh'),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                        onPressed: scanning ? null : () => _scan(context, ref, ImageSource.gallery),
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: const Text('Chọn ảnh'),
-                      ),
-                    ),
-                  ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text('Lịch sử', style: Theme.of(context).textTheme.titleMedium),

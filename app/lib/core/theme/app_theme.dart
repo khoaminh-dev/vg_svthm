@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'app_spacing.dart';
 
 abstract final class AppTheme {
-  static const primary = Color(0xFF285B84);
-  static const secondary = Color(0xFF2C8C7B);
+  static const primary = Color(0xFF0F4C81);
+  static const secondary = Color(0xFF55CCD5);
   static const accent = Color(0xFFE0785F);
-  static const warmSurface = Color(0xFFF6F8F5);
+  static const warmSurface = Color(0xFFFCFCFD);
 
   static ThemeData get light => _build(Brightness.light);
   static ThemeData get dark => _build(Brightness.dark);
@@ -19,7 +19,10 @@ abstract final class AppTheme {
       tertiary: accent,
     );
     final scheme = brightness == Brightness.light
-        ? base.copyWith(surface: warmSurface, surfaceContainerLowest: Colors.white)
+        ? base.copyWith(
+            surface: warmSurface,
+            surfaceContainerLowest: Colors.white,
+          )
         : base;
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppSpacing.radius + 2),
@@ -38,9 +41,11 @@ abstract final class AppTheme {
           letterSpacing: -0.8,
         ),
         titleLarge: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-        titleMedium: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        bodyLarge: textTheme.bodyLarge?.copyWith(height: 1.45),
-        bodyMedium: textTheme.bodyMedium?.copyWith(height: 1.45),
+        titleMedium: textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+        bodyLarge: textTheme.bodyLarge?.copyWith(fontSize: 18, height: 1.45),
+        bodyMedium: textTheme.bodyMedium?.copyWith(fontSize: 16, height: 1.45),
       ),
       appBarTheme: AppBarTheme(
         elevation: 0,
@@ -60,7 +65,9 @@ abstract final class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radius + 4),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.65)),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.65),
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -68,18 +75,27 @@ abstract final class AppTheme {
         fillColor: scheme.surfaceContainerLowest,
         border: border,
         enabledBorder: border,
-        focusedBorder: border.copyWith(borderSide: BorderSide(color: scheme.primary, width: 1.8)),
-        errorBorder: border.copyWith(borderSide: BorderSide(color: scheme.error)),
+        focusedBorder: border.copyWith(
+          borderSide: BorderSide(color: scheme.primary, width: 1.8),
+        ),
+        errorBorder: border.copyWith(
+          borderSide: BorderSide(color: scheme.error),
+        ),
         focusedErrorBorder: border.copyWith(
           borderSide: BorderSide(color: scheme.error, width: 1.8),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 16,
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(52),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radius + 2)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radius + 2),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -87,7 +103,9 @@ abstract final class AppTheme {
           minimumSize: const Size.fromHeight(52),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           side: BorderSide(color: scheme.outlineVariant),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radius + 2)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radius + 2),
+          ),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -95,12 +113,18 @@ abstract final class AppTheme {
         highlightElevation: 4,
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radius + 4)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radius + 4),
+        ),
       ),
-      dividerTheme: DividerThemeData(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant.withValues(alpha: 0.7),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radius)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radius),
+        ),
       ),
     );
   }
