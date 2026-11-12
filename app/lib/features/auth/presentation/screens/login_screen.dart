@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_scaffold.dart';
 import '../../../../shared/widgets/password_field.dart';
 import '../providers/auth_controller.dart';
+import '../widgets/google_sign_in_section.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -87,6 +88,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             const SizedBox(height: 8),
             AppButton(label: 'Đăng nhập', loading: loading, onPressed: _submit),
+            const SizedBox(height: 16),
+            const GoogleSignInSection(),
           ],
         ),
       ),

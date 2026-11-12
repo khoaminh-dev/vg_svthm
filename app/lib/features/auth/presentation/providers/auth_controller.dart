@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/errors/app_failure.dart';
 import 'auth_providers.dart';
 
 /// Thực hiện các hành động xác thực; state là trạng thái loading/lỗi của hành động gần nhất.
@@ -12,17 +13,44 @@ class AuthController extends AsyncNotifier<void> {
       );
 
   /// Trả về `true` nếu đăng ký xong nhưng cần xác nhận email. `null` nếu lỗi.
-  Future<bool?> signUp(String email, String password, String fullName) async {
+  Future<bool?> signUp(
+    String email,
+    String password,
+    String fullName,
+    String username,
+  ) async {
     bool? needsConfirm;
     final ok = await _run(() async {
-      needsConfirm = await ref.read(authRepositoryProvider).signUp(
-            email: email,
-            password: password,
-            fullName: fullName,
-          );
+      final repo = ref.read(authRepositoryProvider);
+      if (!await repo.isUsernameAvailable(username)) {
+        throw const AppFailure('Tên người dùng đã được sử dụng');
+      }
+      needsConfirm = await repo.signUp(
+        email: email,
+        password: password,
+        fullName: fullName,
+        username: username,
+      );
     });
     return ok ? needsConfirm : null;
   }
+
+  /// `true` nếu đăng nhập xong; `false` nếu huỷ hoặc lỗi (lỗi nằm trong state).
+  Future<bool> signInWithGoogle() async {
+    var signedIn = false;
+    await _run(() async {
+      signedIn = await ref.read(authRepositoryProvider).signInWithGoogle();
+    });
+    return signedIn;
+  }
+
+  Future<bool> completeProfile(String username, String displayName) => _run(() async {
+        final repo = ref.read(authRepositoryProvider);
+        if (!await repo.isUsernameAvailable(username)) {
+          throw const AppFailure('Tên người dùng đã được sử dụng');
+        }
+        await repo.completeProfile(username: username, displayName: displayName);
+      });
 
   Future<bool> sendPasswordReset(String email) =>
       _run(() => ref.read(authRepositoryProvider).sendPasswordReset(email));

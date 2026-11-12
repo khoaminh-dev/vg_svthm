@@ -1,20 +1,53 @@
--- Profiles (1-1 với auth.users)
+-- Profiles (1-1 với auth.users). id (uuid) chính là user id.
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  username text unique                -- null với người dùng Google cho tới khi hoàn tất hồ sơ
+    check (username ~ '^[a-z0-9_]{3,20}$'),
   display_name text,
+  avatar_url text,
+  last_seen_at timestamptz,          -- trạng thái online thời gian thực dùng Realtime Presence; cột này lưu lần cuối thấy
   created_at timestamptz not null default now()
 );
+
+-- Kiểm tra username còn trống (gọi được khi chưa đăng nhập, để form đăng ký báo lỗi sớm)
+create function public.is_username_available(p_username text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select not exists (select 1 from public.profiles where username = lower(p_username));
+$$;
+grant execute on function public.is_username_available(text) to anon, authenticated;
 
 create function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  insert into public.profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
+  insert into public.profiles (id, username, display_name, avatar_url)
+  values (
+    new.id,
+    lower(new.raw_user_meta_data->>'username'),
+    coalesce(
+      new.raw_user_meta_data->>'full_name',
+      new.raw_user_meta_data->>'name',
+      split_part(new.email, '@', 1)
+    ),
+    coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture')
+  );
   return new;
 end $$;
 
 create trigger on_auth_user_created after insert on auth.users
 for each row execute function public.handle_new_user();
+
+-- Ảnh đại diện: bucket công khai, mỗi user chỉ ghi vào thư mục mang id của mình
+insert into storage.buckets (id, name, public) values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "avatars read" on storage.objects for select
+  using (bucket_id = 'avatars');
+create policy "avatars write own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars update own" on storage.objects for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 
 -- Phòng chat
 create table public.rooms (
@@ -62,7 +95,7 @@ language sql security definer set search_path = public stable as $$
 $$;
 
 create policy "profiles read" on public.profiles for select to authenticated using (true);
-create policy "profiles update own" on public.profiles for update to authenticated using (id = auth.uid());
+create policy "profiles update own" on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 create policy "rooms read member" on public.rooms for select to authenticated using (public.is_room_member(id) or created_by = auth.uid());
 create policy "rooms create" on public.rooms for insert to authenticated with check (created_by = auth.uid());

@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_scaffold.dart';
 import '../../../../shared/widgets/password_field.dart';
 import '../providers/auth_controller.dart';
+import '../widgets/google_sign_in_section.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -21,6 +22,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
@@ -28,6 +30,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void dispose() {
     _name.dispose();
+    _username.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
@@ -38,7 +41,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     final needsConfirm = await ref
         .read(authControllerProvider.notifier)
-        .signUp(_email.text, _password.text, _name.text);
+        .signUp(_email.text, _password.text, _name.text, _username.text);
     if (!mounted || needsConfirm == null) return;
 
     // Không cần xác nhận email: đã đăng nhập, router tự chuyển trang.
@@ -74,6 +77,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             const SizedBox(height: 16),
             AppTextField(
+              controller: _username,
+              label: 'Tên người dùng',
+              icon: Icons.alternate_email,
+              autofillHints: const [AutofillHints.newUsername],
+              validator: Validators.username,
+              enabled: !loading,
+            ),
+            const SizedBox(height: 16),
+            AppTextField(
               controller: _email,
               label: 'Email',
               icon: Icons.email_outlined,
@@ -101,6 +113,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
             const SizedBox(height: 24),
             AppButton(label: 'Đăng ký', loading: loading, onPressed: _submit),
+            const SizedBox(height: 16),
+            const GoogleSignInSection(),
           ],
         ),
       ),

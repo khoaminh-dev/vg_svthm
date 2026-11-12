@@ -5,6 +5,10 @@
 abstract final class Env {
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  /// Web client ID của Google (dùng làm serverClientId, Supabase kiểm tra token bằng ID này).
+  static const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  static const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+
   static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   /// Deep link mà email "quên mật khẩu" sẽ mở lại app.

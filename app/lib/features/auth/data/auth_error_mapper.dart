@@ -28,5 +28,8 @@ AppFailure mapAuthError(Object error) {
     }
     return AppFailure(error.message);
   }
+  if (error is PostgrestException && error.code == '23505') {
+    return const AppFailure('Tên người dùng đã được sử dụng');
+  }
   return const AppFailure('Không kết nối được máy chủ, hãy kiểm tra mạng');
 }

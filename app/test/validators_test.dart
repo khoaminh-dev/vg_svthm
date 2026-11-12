@@ -18,4 +18,10 @@ void main() {
     expect(v('abcdefgx'), isNotNull);
     expect(v('abcdefgh'), isNull);
   });
+
+  test('username', () {
+    expect(Validators.username('ab'), isNotNull);
+    expect(Validators.username('Khoa Minh'), isNotNull);
+    expect(Validators.username('khoa_minh1'), isNull);
+  });
 }

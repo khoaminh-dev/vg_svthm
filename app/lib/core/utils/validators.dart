@@ -12,6 +12,17 @@ abstract final class Validators {
     return null;
   }
 
+  static final _username = RegExp(r'^[a-z0-9_]{3,20}$');
+
+  static String? username(String? v) {
+    final value = v?.trim() ?? '';
+    if (value.isEmpty) return 'Vui lòng nhập tên người dùng';
+    if (!_username.hasMatch(value)) {
+      return 'Dùng 3-20 ký tự: chữ thường, số hoặc dấu gạch dưới';
+    }
+    return null;
+  }
+
   static String? password(String? v) {
     final value = v ?? '';
     if (value.isEmpty) return 'Vui lòng nhập mật khẩu';
