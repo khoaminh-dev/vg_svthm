@@ -101,6 +101,7 @@ class VoiceController extends Notifier<VoiceState> {
     'open_feature',
     'measure_bp',
     'play_video',
+    'video_control',
     'show_bp',
     'go_home',
     'go_back',
@@ -390,9 +391,35 @@ class VoiceController extends Notifier<VoiceState> {
       return 'Dạ, con tìm được mấy video rồi, $_honorific chọn một video nhé.';
     }
     final first = found.first;
+    ref.read(videoQueueProvider.notifier).set(found);
     router.push(Routes.player, extra: first);
     final title = first.title.length > 70 ? '${first.title.substring(0, 70)}…' : first.title;
     return 'Dạ, con mở $title ạ.';
+  }
+
+  /// Điều khiển video đang phát bằng giọng nói.
+  String? _controlVideo(String? action) {
+    if (!ref.read(playerOpenProvider)) return 'Dạ, hiện chưa có video nào đang phát ạ.';
+    final a = switch (action?.toLowerCase()) {
+      'pause' => PlayerAction.pause,
+      'play' => PlayerAction.play,
+      'next' => PlayerAction.next,
+      'previous' => PlayerAction.previous,
+      'louder' => PlayerAction.louder,
+      'quieter' => PlayerAction.quieter,
+      _ => null,
+    };
+    if (a == null) return null;
+    ref.read(playerCommandProvider.notifier).send(a);
+    Analytics.track('voice_video_control', {'action': action});
+    return switch (a) {
+      PlayerAction.pause => 'Dạ, con dừng rồi ạ.',
+      PlayerAction.play => 'Dạ, con phát tiếp ạ.',
+      PlayerAction.next => 'Dạ, con chuyển bài ạ.',
+      PlayerAction.previous => 'Dạ, con mở lại bài trước ạ.',
+      PlayerAction.louder => 'Dạ, con tăng âm lượng rồi ạ. Nếu chưa đủ to, $_honorific bấm nút to bên hông máy giúp con nhé.',
+      PlayerAction.quieter => 'Dạ, con giảm âm lượng rồi ạ.',
+    };
   }
 
   /// Chạy lệnh trên app. Trả về câu nói thay thế (khi cần báo kết quả/lỗi), hoặc null để dùng câu của server.
@@ -430,6 +457,8 @@ class VoiceController extends Notifier<VoiceState> {
         return null;
       case 'play_video':
         return await _playVideo(s['content'], router);
+      case 'video_control':
+        return _controlVideo(s['content']);
       case 'measure_bp':
         router.go(Routes.measure);
         return 'Dạ, $_honorific chụp màn hình máy đo huyết áp giúp con nhé.';
