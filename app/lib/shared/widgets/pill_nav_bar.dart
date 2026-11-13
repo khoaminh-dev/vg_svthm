@@ -31,7 +31,6 @@ class PillNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final half = (items.length / 2).ceil();
     Widget tile(int i) => Expanded(
       child: _NavTile(
@@ -51,12 +50,10 @@ class PillNavBar extends StatelessWidget {
           AppSpacing.sm,
         ),
         child: Material(
-          color: scheme.surfaceContainerLowest,
-          elevation: 6,
-          shadowColor: scheme.primary.withValues(alpha: 0.25),
-          shape: StadiumBorder(
-            side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
-          ),
+          color: Colors.white.withValues(alpha: 0.96),
+          elevation: 10,
+          shadowColor: Colors.black.withValues(alpha: 0.18),
+          shape: const StadiumBorder(),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             child: Row(
@@ -103,10 +100,6 @@ class _NavTile extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(minHeight: AppSpacing.tapTarget),
           padding: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            color: selected ? scheme.primaryContainer : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -121,8 +114,8 @@ class _NavTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  fontSize: 12.5,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                   color: color,
                 ),
               ),

@@ -35,7 +35,7 @@ class MessageBubble extends StatelessWidget {
           : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: isMine ? scheme.primary : scheme.surfaceContainerLowest,
-        border: isMine ? null : Border.all(color: scheme.outlineVariant),
+        border: null,
         // Góc phía người gửi nhọn hơn để nhận ra ai nói.
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(AppSpacing.radiusLg),

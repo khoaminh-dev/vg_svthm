@@ -153,7 +153,6 @@ abstract final class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.8)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

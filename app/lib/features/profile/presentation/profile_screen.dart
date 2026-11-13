@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/analytics/analytics.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -44,51 +45,56 @@ class ProfileScreen extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
+    Widget row(IconData icon, String label, String value) => ListTile(
+      minTileHeight: 64,
+      leading: Icon(icon, color: scheme.primary),
+      title: Text(label, style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+      subtitle: Text(value, style: text.titleMedium),
+    );
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Hồ sơ')),
       body: SafeArea(
+        bottom: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.only(bottom: 120),
               children: [
-                if (user != null)
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Column(
-                        children: [
-                          UserAvatar(name: user.displayName, imageUrl: user.avatarUrl, radius: 44),
-                          const SizedBox(height: AppSpacing.md),
-                          Text(user.displayName, style: text.headlineSmall, textAlign: TextAlign.center),
-                          const SizedBox(height: 4),
-                          Text(
-                            user.username != null ? '@${user.username}' : (user.email ?? ''),
-                            style: text.bodyLarge?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                          if (user.username != null && user.email != null) ...[
-                            const SizedBox(height: 2),
-                            Text(user.email!, style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-                          ],
-                        ],
+                const LargeTitle('Hồ sơ'),
+                if (user != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Center(child: UserAvatar(name: user.displayName, imageUrl: user.avatarUrl, radius: 52)),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(user.displayName, style: text.headlineSmall, textAlign: TextAlign.center),
+                  const SizedBox(height: AppSpacing.lg),
+                  InsetGroup(
+                    dividerIndent: 56,
+                    children: [
+                      if (user.username != null) row(Icons.alternate_email_rounded, 'Tên người dùng', user.username!),
+                      if (user.email != null) row(Icons.mail_outline_rounded, 'Email', user.email!),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.lg),
+                InsetGroup(
+                  dividerIndent: 0,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: 'Đăng xuất',
+                      excludeSemantics: true,
+                      child: ListTile(
+                        minTileHeight: 60,
+                        onTap: () => _confirmSignOut(context, ref),
+                        title: const Text(
+                          'Đăng xuất',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.levelDanger, fontWeight: FontWeight.w700, fontSize: 18),
+                        ),
                       ),
                     ),
-                  ),
-                const SizedBox(height: AppSpacing.lg),
-                Semantics(
-                  button: true,
-                  label: 'Đăng xuất',
-                  excludeSemantics: true,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _confirmSignOut(context, ref),
-                    icon: const Icon(Icons.logout_rounded),
-                    label: const Text('Đăng xuất'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.levelDanger,
-                      side: BorderSide(color: AppColors.levelDanger.withValues(alpha: 0.5), width: 1.5),
-                    ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 FutureBuilder<PackageInfo>(

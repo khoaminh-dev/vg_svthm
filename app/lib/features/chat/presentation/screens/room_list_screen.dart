@@ -7,8 +7,10 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/user_avatar.dart';
+import '../../../community/presentation/community_providers.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
+import '../../../../shared/widgets/ios_style.dart';
 import '../widgets/text_prompt_dialog.dart';
 import '../../../../core/analytics/analytics.dart';
 
@@ -94,118 +96,108 @@ class RoomListScreen extends ConsumerWidget {
     ref.watch(joinedRoomsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tin nhắn')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Analytics.track('tap_new_chat');
-          _newChat(context, ref);
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Chat mới'),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(roomsProvider.future),
-        child: rooms.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            LargeTitle(
+              'Tin nhắn',
+              actions: [
+                if (ref.watch(communityEnabledProvider).value == true)
+                  SoftIconButton(
+                    icon: Icons.person_search_outlined,
+                    label: 'Tìm người dùng khác',
+                    onPressed: () {
+                      Analytics.track('tap_feature', {'feature': 'community'});
+                      context.push(Routes.community);
+                    },
+                  ),
+                SoftIconButton(
+                  icon: Icons.add_rounded,
+                  label: 'Chat mới',
+                  filled: true,
+                  onPressed: () {
+                    Analytics.track('tap_new_chat');
+                    _newChat(context, ref);
+                  },
+                ),
+              ],
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async => ref.refresh(roomsProvider.future),
+                child: rooms.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => ListView(
+                    padding: const EdgeInsets.all(24),
                     children: [
-                      Icon(
-                        Icons.cloud_off_outlined,
-                        size: 44,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                      const SizedBox(height: 48),
+                      Icon(Icons.cloud_off_outlined, size: 44, color: Theme.of(context).colorScheme.outline),
                       const SizedBox(height: 12),
                       Text(errorMessage(e), textAlign: TextAlign.center),
                     ],
                   ),
-                ),
-              ),
-            ],
-          ),
-          data: (list) => list.isEmpty
-              ? ListView(
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 72),
-                      child: Center(
-                        child: Column(
+                  data: (list) => list.isEmpty
+                      ? ListView(
+                          padding: const EdgeInsets.all(24),
                           children: [
-                            Container(
-                              width: 82,
-                              height: 82,
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primaryContainer,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.forum_outlined,
-                                size: 38,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
+                            const SizedBox(height: 72),
+                            Icon(Icons.forum_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
                             const SizedBox(height: 20),
                             Text(
                               'Bắt đầu trò chuyện',
+                              textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Tạo phòng hoặc tìm người thân bằng tên người dùng.',
+                              'Bấm dấu cộng để tạo phòng hoặc tìm người thân bằng tên người dùng.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.only(top: 4, bottom: 120),
+                          children: [
+                            InsetGroup(
+                              children: [
+                                for (final room in list)
+                                  ListTile(
+                                    minTileHeight: 80,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    leading: room.isDirect
+                                        ? UserAvatar(
+                                            name: room.displayName,
+                                            imageUrl: room.peer?.avatarUrl,
+                                            radius: 26,
+                                          )
+                                        : CircleAvatar(
+                                            radius: 26,
+                                            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                                            child: Icon(
+                                              Icons.group_outlined,
+                                              color: Theme.of(context).colorScheme.primary,
+                                            ),
+                                          ),
+                                    title: Text(
+                                      room.displayName,
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                                    ),
+                                    subtitle: Text(room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm'),
+                                    onTap: () {
+                                      Analytics.track('open_room');
+                                      context.push(Routes.roomPath(room.id), extra: room);
+                                    },
+                                  ),
+                              ],
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ],
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                  itemCount: list.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) {
-                    final room = list[i];
-                    return Card(
-                      child: ListTile(
-                        minTileHeight: 76,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        leading: room.isDirect
-                            ? UserAvatar(
-                                name: room.displayName,
-                                imageUrl: room.peer?.avatarUrl,
-                                radius: 26,
-                              )
-                            : CircleAvatar(
-                                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                                child: Icon(
-                                  Icons.group_outlined,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                        title: Text(
-                          room.displayName,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-                        ),
-                        subtitle: Text(room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {
-                          Analytics.track('open_room');
-                          context.push(Routes.roomPath(room.id), extra: room);
-                        },
-                      ),
-                    );
-                  },
                 ),
+              ),
+            ),
+          ],
         ),
       ),
     );
