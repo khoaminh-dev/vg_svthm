@@ -146,7 +146,7 @@ export async function groqWhisper(audio: Buffer, mime: string, hint: string): Pr
   const lp = segs.length ? segs.reduce((a, s) => a + (s.avg_logprob ?? -0.5), 0) / segs.length : undefined;
   const ns = segs.length ? Math.max(...segs.map((s) => s.no_speech_prob ?? 0)) : 0;
   // Whisper hay "bịa" chữ khi chỉ có tiếng ồn: coi là không có tiếng nói.
-  const text = ns > 0.85 ? '' : value.text.trim();
+  const text = ns > 0.6 ? '' : value.text.trim();
   return { text, provider: 'groq-whisper', failovers, confidence: lp === undefined ? undefined : Math.max(0, Math.min(1, 1 + lp)) };
 }
 

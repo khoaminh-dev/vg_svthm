@@ -5,6 +5,7 @@ import { dbInsert } from '../_lib/db.js';
 import { deepseekChat, elevenScribe, groqJsonChat, groqWhisper, type Msg, type SttResult } from '../_lib/voice/providers.js';
 import { INTENT_LIST, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
 import { getPolicy } from '../_lib/voice/gate.js';
+import { isReliable } from '../_lib/voice/stt_guard.js';
 
 const MAX_AUDIO_B64 = 4_000_000; // ~3MB, dưới giới hạn body của Vercel
 const MAX_TEXT = 500;
@@ -158,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let sttFail = 0;
   let audioMs = 0;
   let outcome = 'ok';
+  let lowQuality = false;
   let error: string | undefined;
 
   try {
@@ -172,6 +174,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         text = r.text;
         sttFail = r.failovers;
         stt = { provider: r.provider, confidence: r.confidence, ms: Date.now() - s0 };
+        // Nghe không rõ hoặc chữ "bịa" từ tiếng ồn: coi như không nghe thấy để Vy hỏi lại, không hành động.
+        if (!isReliable(text, r.confidence)) {
+          text = '';
+          lowQuality = true;
+        }
       } catch (e) {
         outcome = 'error';
         error = `stt:${(e as Error).message}`.slice(0, 120);
@@ -185,7 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       decision = await step({ text: '', state, ui }, async () => { throw new Error('x'); });
       decision = { ...decision, say: `Con đang nghe chưa được, ${honorificOf(ui.honorific)} thử lại giúp con nhé.`, sayClass: 'other' as const };
     } else {
-      if (!norm(text)) outcome = 'no_speech';
+      if (!norm(text)) outcome = lowQuality ? 'low_confidence' : 'no_speech';
       const model = pol.deepseek_model || 'deepseek-flash';
       decision = await step({ text, state, ui, lowConfidence: (stt?.confidence ?? 1) < 0.45 }, makeNlu(model, meter));
       if (decision.intent === 'error') { outcome = 'error'; error = 'nlu'; }
