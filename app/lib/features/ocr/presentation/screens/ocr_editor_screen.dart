@@ -11,7 +11,6 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../bp/domain/bp_models.dart';
 import '../../domain/ocr_models.dart';
-import '../providers/ocr_providers.dart';
 import '../providers/ocr_controller.dart';
 import '../widgets/ocr_value_row.dart';
 import '../../../../core/analytics/analytics.dart';
@@ -49,7 +48,7 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
   /// Lần đo huyết áp suy ra từ các dòng đang hiển thị (null nếu không phải kết quả huyết áp).
   BpReading? _currentReading() => BpExtractor.fromValues(
     _rows.where((r) => !r.isEmpty).map((r) => r.toValue()).toList(),
-    source: ref.read(ocrUseAiProvider) ? 'ocr_ai' : 'ocr_local',
+    source: 'ocr_ai',
   );
 
   Future<void> _save() async {

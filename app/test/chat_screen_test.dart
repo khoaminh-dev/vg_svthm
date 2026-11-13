@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,12 @@ class _FakeChat implements ChatRepository {
     );
     _messages.add(List.of(_sent));
   }
+
+  @override
+  Future<void> sendImage(String roomId, Uint8List bytes, {String caption = ''}) async {}
+
+  @override
+  Future<String?> imageUrl(String imagePath) async => null;
 
   void receive(String userId, String content) {
     _sent.add(

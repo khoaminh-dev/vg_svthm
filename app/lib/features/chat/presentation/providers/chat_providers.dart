@@ -29,6 +29,11 @@ final messagesProvider = StreamProvider.autoDispose.family<List<Message>, String
   (ref, roomId) => ref.watch(chatRepositoryProvider).watchMessages(roomId),
 );
 
+/// Đường dẫn tạm để xem ảnh trong chat (giữ trong bộ nhớ để cuộn danh sách không tải lại).
+final chatImageUrlProvider = FutureProvider.family<String?, String>(
+  (ref, path) => ref.watch(chatRepositoryProvider).imageUrl(path),
+);
+
 /// Thành viên của một phòng.
 final membersProvider = FutureProvider.autoDispose.family<List<Profile>, String>((ref, roomId) {
   final repo = ref.watch(chatRepositoryProvider);

@@ -7,6 +7,7 @@ import '../../../../core/errors/app_failure.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
+import '../../../../shared/widgets/status_chip.dart';
 import '../../domain/bp_models.dart';
 import '../providers/bp_providers.dart';
 import '../widgets/bp_chart.dart';
@@ -27,8 +28,14 @@ class BpScreen extends ConsumerWidget {
         title: const Text('Xoá lần đo này?'),
         content: Text('${r.systolic}/${r.diastolic} lúc ${_fmt(r.measuredAt)}'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Huỷ')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Xoá')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Xoá'),
+          ),
         ],
       ),
     );
@@ -38,7 +45,8 @@ class BpScreen extends ConsumerWidget {
       await ref.read(bpRepositoryProvider).delete(r.id!);
       ref.invalidate(bpReadingsProvider);
     } catch (e) {
-      if (context.mounted) showAppSnackBar(context, errorMessage(e), error: true);
+      if (context.mounted)
+        showAppSnackBar(context, errorMessage(e), error: true);
     }
   }
 
@@ -48,11 +56,11 @@ class BpScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Huyết áp')),
+      appBar: AppBar(title: const Text('Sức khoẻ')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Analytics.track('bp_tap_measure');
-          context.push(Routes.ocr);
+          context.push(Routes.measure);
         },
         icon: const Icon(Icons.photo_camera_outlined),
         label: const Text('Chụp máy đo'),
@@ -88,46 +96,75 @@ class BpScreen extends ConsumerWidget {
             final latest = list.first;
             final chartData = list.take(30).toList().reversed.toList();
             return ListView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 96),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                96,
+              ),
               children: [
+                Text('Huyết áp', style: theme.textTheme.titleLarge),
+                const SizedBox(height: AppSpacing.sm),
                 Card(
-                  color: latest.category.color.withValues(alpha: 0.12),
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.md + 4),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Lần đo gần nhất · ${_fmt(latest.measuredAt)}',
-                          style: theme.textTheme.labelLarge,
+                          'Lần đo gần nhất',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
                               '${latest.systolic}/${latest.diastolic}',
-                              style: theme.textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
+                              style: theme.textTheme.displayMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
                                 color: latest.category.color,
+                                height: 1,
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Padding(padding: EdgeInsets.only(bottom: 6), child: Text('mmHg')),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Text(
+                                'mmHg',
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ),
                             const Spacer(),
                             if (latest.pulse != null)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 6),
-                                child: Text('♥ ${latest.pulse} /phút'),
+                                child: Text(
+                                  '♥ ${latest.pulse} /phút',
+                                  style: theme.textTheme.titleMedium,
+                                ),
                               ),
                           ],
                         ),
-                        Text(
-                          latest.category.label,
-                          style: TextStyle(
-                            color: latest.category.color,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            StatusChip(
+                              label: latest.category.label,
+                              color: latest.category.color,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _fmt(latest.measuredAt),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -149,7 +186,10 @@ class BpScreen extends ConsumerWidget {
                           spacing: 16,
                           children: [
                             _Legend(color: BpChart.sysColor, label: 'Tâm thu'),
-                            _Legend(color: BpChart.diaColor, label: 'Tâm trương'),
+                            _Legend(
+                              color: BpChart.diaColor,
+                              label: 'Tâm trương',
+                            ),
                             _Legend(color: BpChart.pulseColor, label: 'Mạch'),
                           ],
                         ),
@@ -166,19 +206,30 @@ class BpScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('Lịch sử', style: theme.textTheme.titleMedium),
+                Text('Lịch sử', style: theme.textTheme.titleLarge),
                 for (final r in list)
                   ListTile(
+                    minTileHeight: 72,
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
+                      radius: 24,
                       backgroundColor: r.category.color.withValues(alpha: 0.15),
-                      child: Icon(Icons.monitor_heart_outlined, color: r.category.color),
+                      child: Icon(
+                        Icons.monitor_heart_outlined,
+                        color: r.category.color,
+                      ),
                     ),
                     title: Text(
                       '${r.systolic}/${r.diastolic} mmHg'
                       '${r.pulse != null ? ' · ♥ ${r.pulse}' : ''}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
                     ),
-                    subtitle: Text('${_fmt(r.measuredAt)} · ${r.category.label}'),
+                    subtitle: Text(
+                      '${_fmt(r.measuredAt)} · ${r.category.label}',
+                    ),
                     trailing: IconButton(
                       tooltip: 'Xoá',
                       icon: const Icon(Icons.delete_outline),

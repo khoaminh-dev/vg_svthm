@@ -17,6 +17,9 @@ import '../../features/ocr/presentation/screens/ocr_screen.dart';
 import 'routes.dart';
 import '../analytics/analytics.dart';
 import '../../features/bp/presentation/screens/bp_screen.dart';
+import '../../features/bp/presentation/screens/measure_screen.dart';
+import '../../features/home/presentation/main_shell.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
@@ -51,14 +54,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
-      GoRoute(path: Routes.rooms, builder: (_, _) => const RoomListScreen()),
+      // Bốn tab chính nằm trong khung có thanh điều hướng dưới.
+      ShellRoute(
+        builder: (_, state, child) => MainShell(path: state.uri.path, child: child),
+        routes: [
+          GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
+          GoRoute(path: Routes.rooms, builder: (_, _) => const RoomListScreen()),
+          GoRoute(path: Routes.bp, builder: (_, _) => const BpScreen()),
+          GoRoute(path: Routes.profile, builder: (_, _) => const ProfileScreen()),
+        ],
+      ),
+      // Các màn còn lại phủ lên toàn màn hình (không có thanh điều hướng).
       GoRoute(
         path: Routes.room,
         builder: (_, state) =>
             ChatScreen(roomId: state.pathParameters['id']!, room: state.extra as Room?),
       ),
-      GoRoute(path: Routes.bp, builder: (_, _) => const BpScreen()),
+      GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
       GoRoute(
         path: Routes.ocrEdit,
@@ -74,3 +86,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Đường dẫn đang hiển thị. `routeInformationProvider` có thể còn giữ `/login` sau lần chuyển hướng
+/// đầu tiên (đã đăng nhập sẵn), nên khi đó lấy từ cấu hình thật của router.
+String currentPath(GoRouter router) {
+  final reported = router.routeInformationProvider.value.uri.path;
+  if (!Routes.publicRoutes.contains(reported)) return reported;
+  return router.routerDelegate.currentConfiguration.uri.path;
+}

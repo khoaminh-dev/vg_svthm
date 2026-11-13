@@ -94,7 +94,7 @@ class RoomListScreen extends ConsumerWidget {
     ref.watch(joinedRoomsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat')),
+      appBar: AppBar(title: const Text('Tin nhắn')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Analytics.track('tap_new_chat');
@@ -108,47 +108,101 @@ class RoomListScreen extends ConsumerWidget {
         child: rooms.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Center(child: Text(errorMessage(e))),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 44,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(errorMessage(e), textAlign: TextAlign.center),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
           data: (list) => list.isEmpty
               ? ListView(
-                  children: const [
+                  padding: const EdgeInsets.all(24),
+                  children: [
                     Padding(
-                      padding: EdgeInsets.all(48),
+                      padding: const EdgeInsets.only(top: 72),
                       child: Center(
-                        child: Text(
-                          'Chưa có phòng nào.\nBấm "Chat mới" để bắt đầu.',
-                          textAlign: TextAlign.center,
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 82,
+                              height: 82,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.forum_outlined,
+                                size: 38,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'Bắt đầu trò chuyện',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tạo phòng hoặc tìm người thân bằng tên người dùng.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ],
                 )
               : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
                   itemCount: list.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final room = list[i];
-                    return ListTile(
-                      leading: room.isDirect
-                          ? UserAvatar(
-                              name: room.displayName,
-                              imageUrl: room.peer?.avatarUrl,
-                              radius: 20,
-                            )
-                          : CircleAvatar(child: Text(room.name.characters.first.toUpperCase())),
-                      title: Text(room.displayName),
-                      subtitle: Text(room.isDirect ? 'Chat riêng' : 'Nhóm'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Analytics.track('open_room');
-                        context.push(Routes.roomPath(room.id), extra: room);
-                      },
+                    return Card(
+                      child: ListTile(
+                        minTileHeight: 76,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: room.isDirect
+                            ? UserAvatar(
+                                name: room.displayName,
+                                imageUrl: room.peer?.avatarUrl,
+                                radius: 26,
+                              )
+                            : CircleAvatar(
+                                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                                child: Icon(
+                                  Icons.group_outlined,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                        title: Text(
+                          room.displayName,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                        ),
+                        subtitle: Text(room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Analytics.track('open_room');
+                          context.push(Routes.roomPath(room.id), extra: room);
+                        },
+                      ),
                     );
                   },
                 ),

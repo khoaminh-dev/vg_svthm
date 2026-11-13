@@ -79,5 +79,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Viegrand dùng micro để bạn điều khiển ứng dụng bằng giọng nói.</string>
 </dict>
 </plist>

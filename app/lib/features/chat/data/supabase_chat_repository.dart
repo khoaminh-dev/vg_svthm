@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -163,6 +165,64 @@ class SupabaseChatRepository implements ChatRepository {
       'content': content.trim(),
     }),
   );
+
+  static const _imageBucket = 'chat-images';
+  static const maxImageBytes = 5 * 1024 * 1024;
+
+  /// Nhận dạng định dạng theo nội dung file (không tin đuôi file). Null nếu không hỗ trợ.
+  static ({String ext, String mime})? imageKind(Uint8List b) {
+    bool at(int i, List<int> sig) {
+      if (b.length < i + sig.length) return false;
+      for (var k = 0; k < sig.length; k++) {
+        if (b[i + k] != sig[k]) return false;
+      }
+      return true;
+    }
+
+    if (at(0, [0xFF, 0xD8, 0xFF])) return (ext: 'jpg', mime: 'image/jpeg');
+    if (at(0, [0x89, 0x50, 0x4E, 0x47])) return (ext: 'png', mime: 'image/png');
+    if (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) {
+      return (ext: 'webp', mime: 'image/webp');
+    }
+    return null;
+  }
+
+  @override
+  Future<void> sendImage(String roomId, Uint8List bytes, {String caption = ''}) => _guard(() async {
+    final uid = _uid;
+    if (bytes.length > maxImageBytes) throw const AppFailure('Ảnh quá lớn (tối đa 5 MB)');
+    final kind = imageKind(bytes);
+    if (kind == null) throw const AppFailure('Chỉ gửi được ảnh JPG, PNG hoặc WebP');
+    final name = '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 32)}.${kind.ext}';
+    final path = '$roomId/$uid/$name';
+
+    await _client.storage
+        .from(_imageBucket)
+        .uploadBinary(path, bytes, fileOptions: FileOptions(contentType: kind.mime));
+    try {
+      await _client.from('messages').insert({
+        'room_id': roomId,
+        'user_id': uid,
+        'content': caption.trim(),
+        'image_path': path,
+      });
+    } catch (e) {
+      // Không để lại ảnh mồ côi nếu tạo tin nhắn thất bại.
+      try {
+        await _client.storage.from(_imageBucket).remove([path]);
+      } catch (_) {}
+      rethrow;
+    }
+  });
+
+  @override
+  Future<String?> imageUrl(String imagePath) async {
+    try {
+      return await _client.storage.from(_imageBucket).createSignedUrl(imagePath, 3600);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Stream<Set<String>> watchOnline(String roomId) {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../../../core/errors/app_failure.dart';
 import '../../../../shared/models/profile.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../voice/presentation/voice_controller.dart';
 import '../../domain/room.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
@@ -24,6 +27,15 @@ class ChatScreen extends ConsumerWidget {
 
   Future<bool> _send(BuildContext context, WidgetRef ref, String text) async {
     final ok = await ref.read(chatControllerProvider.notifier).send(roomId, text);
+    if (!ok && context.mounted) {
+      final error = ref.read(chatControllerProvider).error;
+      showAppSnackBar(context, errorMessage(error!), error: true);
+    }
+    return ok;
+  }
+
+  Future<bool> _sendImage(BuildContext context, WidgetRef ref, Uint8List bytes, String caption) async {
+    final ok = await ref.read(chatControllerProvider.notifier).sendImage(roomId, bytes, caption);
     if (!ok && context.mounted) {
       final error = ref.read(chatControllerProvider).error;
       showAppSnackBar(context, errorMessage(error!), error: true);
@@ -57,6 +69,14 @@ class ChatScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Nói chuyện với Vy',
+            icon: const Icon(Icons.mic_none_rounded),
+            onPressed: () {
+              Analytics.track('open_vy_from_chat');
+              ref.read(voiceControllerProvider.notifier).toggle();
+            },
+          ),
           if (room != null && !room.isDirect)
             IconButton(
               tooltip: 'Thành viên',
@@ -80,7 +100,7 @@ class ChatScreen extends ConsumerWidget {
               error: (e, _) => Center(child: Text(errorMessage(e))),
               data: (list) {
                 if (list.isEmpty) {
-                  return const Center(child: Text('Chưa có tin nhắn, hãy nói gì đó!'));
+                  return const _EmptyChat();
                 }
                 final older = ref.watch(olderMessagesProvider(roomId));
                 final liveIds = {for (final m in list) m.id};
@@ -129,8 +149,74 @@ class ChatScreen extends ConsumerWidget {
               },
             ),
           ),
-          MessageInput(onSend: (text) => _send(context, ref, text)),
+          _QuickReplies(onPick: (text) => _send(context, ref, text)),
+          MessageInput(
+            onSend: (text) => _send(context, ref, text),
+            onSendImage: (bytes, caption) => _sendImage(context, ref, bytes, caption),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Hàng câu trả lời nhanh: bấm một lần là gửi, người lớn tuổi không phải gõ.
+class _QuickReplies extends StatelessWidget {
+  const _QuickReplies({required this.onPick});
+
+  final Future<bool> Function(String text) onPick;
+
+  static const replies = ['Dạ', 'Cảm ơn', 'Đã ăn cơm rồi', 'Gọi lại giúp nhé'];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: replies.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => ActionChip(
+          label: Text(replies[i]),
+          onPressed: () {
+            Analytics.track('chat_quick_reply');
+            onPick(replies[i]);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyChat extends StatelessWidget {
+  const _EmptyChat();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(color: scheme.primaryContainer, shape: BoxShape.circle),
+              child: Icon(Icons.waving_hand_outlined, size: 40, color: scheme.primary),
+            ),
+            const SizedBox(height: 16),
+            Text('Chưa có tin nhắn', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 6),
+            Text(
+              'Gửi lời chào đầu tiên, hoặc bấm một câu trả lời nhanh bên dưới.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
+            ),
+          ],
+        ),
       ),
     );
   }

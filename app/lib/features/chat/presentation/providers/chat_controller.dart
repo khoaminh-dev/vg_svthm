@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/room.dart';
@@ -43,6 +45,14 @@ class ChatController extends AsyncNotifier<void> {
   Future<bool> send(String roomId, String content) async {
     state = await AsyncValue.guard(
       () => ref.read(chatRepositoryProvider).sendMessage(roomId, content),
+    );
+    return !state.hasError;
+  }
+
+  /// Gửi ảnh kèm chú thích tùy chọn. Lỗi nằm trong state; tin mới tới qua stream realtime.
+  Future<bool> sendImage(String roomId, Uint8List bytes, String caption) async {
+    state = await AsyncValue.guard(
+      () => ref.read(chatRepositoryProvider).sendImage(roomId, bytes, caption: caption),
     );
     return !state.hasError;
   }

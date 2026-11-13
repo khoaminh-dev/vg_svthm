@@ -18,7 +18,7 @@ class OcrController extends AsyncNotifier<void> {
     try {
       file = await ref
           .read(imagePickerProvider)
-          .pickImage(source: source, maxWidth: 1800, imageQuality: 85);
+          .pickImage(source: source, maxWidth: 1600, imageQuality: 80);
     } catch (e, st) {
       // Lỗi quyền camera / plugin: đưa vào state để UI báo, không để thoát ra thành exception.
       state = AsyncError(
@@ -37,8 +37,7 @@ class OcrController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     OcrDraft? draft;
     state = await AsyncValue.guard(() async {
-      final useAi = ref.read(ocrUseAiProvider);
-      final engine = ref.read(useAi ? aiOcrEngineProvider : ocrEngineProvider);
+      final engine = ref.read(aiOcrEngineProvider);
       final scan = await engine.scan(path);
       draft = OcrDraft(imagePath: path, rawText: scan.rawText, values: scan.values);
     });

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../shared/models/profile.dart';
 import 'message.dart';
 import 'room.dart';
@@ -33,6 +35,12 @@ abstract interface class ChatRepository {
   });
 
   Future<void> sendMessage(String roomId, String content);
+
+  /// Gửi một ảnh (đã nén) kèm chú thích tùy chọn. Ném [AppFailure] nếu ảnh không hợp lệ hoặc gửi lỗi.
+  Future<void> sendImage(String roomId, Uint8List bytes, {String caption = ''});
+
+  /// Đường dẫn tạm (có hạn) để xem ảnh trong chat; null nếu không lấy được.
+  Future<String?> imageUrl(String imagePath);
 
   /// Tập user id đang online trong phòng (Realtime Presence).
   Stream<Set<String>> watchOnline(String roomId);
