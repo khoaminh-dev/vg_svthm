@@ -13,6 +13,7 @@ abstract final class Routes {
   static const bp = '/bp';
   static const home = '/';
   static const profile = '/profile';
+  static const community = '/community';
 
   /// Bốn tab chính (có thanh điều hướng dưới). Màn "Sức khoẻ" dùng đường dẫn `/bp`.
   static const tabs = [home, rooms, bp, profile];

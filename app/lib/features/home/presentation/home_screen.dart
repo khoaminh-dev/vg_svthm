@@ -14,6 +14,7 @@ import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/domain/bp_models.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
+import '../../community/presentation/community_providers.dart';
 import '../../voice/presentation/voice_controller.dart';
 
 /// Trang chủ: lời chào, trợ lý Vy, chỉ số sức khoẻ gần nhất và các việc hay làm.
@@ -107,6 +108,19 @@ class HomeScreen extends ConsumerWidget {
                     context.go(Routes.bp);
                   },
                 ),
+                if (ref.watch(communityEnabledProvider).value == true) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  BigTile(
+                    icon: Icons.groups_outlined,
+                    title: 'Cộng đồng',
+                    subtitle: 'Tìm người dùng khác để kết bạn và nhắn tin',
+                    accent: AppColors.warm,
+                    onTap: () {
+                      Analytics.track('tap_feature', {'feature': 'community'});
+                      context.push(Routes.community);
+                    },
+                  ),
+                ],
               ],
             ),
           ),

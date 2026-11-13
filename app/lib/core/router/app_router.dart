@@ -20,6 +20,7 @@ import '../../features/bp/presentation/screens/bp_screen.dart';
 import '../../features/bp/presentation/screens/measure_screen.dart';
 import '../../features/home/presentation/main_shell.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/community/presentation/community_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
@@ -70,6 +71,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             ChatScreen(roomId: state.pathParameters['id']!, room: state.extra as Room?),
       ),
+      GoRoute(path: Routes.community, builder: (_, _) => const CommunityScreen()),
       GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
       GoRoute(
