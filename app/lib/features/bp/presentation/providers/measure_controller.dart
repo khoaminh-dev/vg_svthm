@@ -18,6 +18,7 @@ class MeasureState {
     this.reading,
     this.advice,
     this.error,
+    this.saving = false,
   });
 
   final MeasureStep step;
@@ -25,73 +26,69 @@ class MeasureState {
   final BpReading? reading;
   final String? advice;
   final String? error;
+
+  /// Đã có kết quả nhưng đang lưu ngầm.
+  final bool saving;
 }
 
-/// Chụp một lần: đọc số, tự phân loại, tự lưu, rồi nhận xét.
+/// Chụp một lần: đọc số, hiện kết quả và nhận xét ngay, việc lưu chạy ngầm.
 class MeasureController extends Notifier<MeasureState> {
   @override
   MeasureState build() => const MeasureState();
 
   void reset() => state = const MeasureState();
 
+  MeasureState _failed(String imagePath, String error) =>
+      MeasureState(step: MeasureStep.failed, imagePath: imagePath, error: error);
+
   Future<void> process(String imagePath) async {
     state = MeasureState(step: MeasureStep.analyzing, imagePath: imagePath);
     try {
-      final scan = await ref.read(aiOcrEngineProvider).scan(imagePath);
+      // Tải lịch sử song song với lúc đọc ảnh để không phải chờ thêm.
+      final historyF = ref
+          .read(bpReadingsProvider.future)
+          .then<List<BpReading>>((l) => l, onError: (_) => <BpReading>[]);
+      final scan = await ref.read(bpOcrEngineProvider).scan(imagePath);
       final reading = BpExtractor.fromValues(scan.values, source: 'ocr_ai');
       if (reading == null || !reading.isValid) {
         Analytics.track('measure', {'ok': false});
-        state = MeasureState(
-          step: MeasureStep.failed,
-          imagePath: imagePath,
-          error: 'Chưa đọc được số',
-        );
+        state = _failed(imagePath, 'Chưa đọc được số');
         return;
       }
-      List<BpReading> history = const [];
-      try {
-        history = await ref.read(bpReadingsProvider.future);
-      } catch (_) {}
-      final previous = history.isEmpty ? null : history.first;
+      final history = await historyF;
+      final advice = bpAdvice(reading, previous: history.isEmpty ? null : history.first);
 
-      final draft = OcrDraft(
+      // Hiện kết quả ngay, việc lưu chạy ngầm.
+      state = MeasureState(
+        step: MeasureStep.done,
         imagePath: imagePath,
-        rawText: scan.rawText,
-        values: scan.values,
+        reading: reading,
+        advice: advice,
+        saving: true,
       );
+
+      final draft = OcrDraft(imagePath: imagePath, rawText: scan.rawText, values: scan.values);
       final ok = await ref
           .read(ocrControllerProvider.notifier)
           .save(draft, 'Huyết áp', scan.values, reading: reading);
       if (!ok) {
         final e = ref.read(ocrControllerProvider).error;
-        state = MeasureState(
-          step: MeasureStep.failed,
-          imagePath: imagePath,
-          error: e == null
-              ? 'Chưa lưu được'
-              : errorMessage(e),
-        );
+        state = _failed(imagePath, e == null ? 'Chưa lưu được' : errorMessage(e));
         return;
       }
-      Analytics.track('measure', {
-        'ok': true,
-        'category': reading.category.code,
-      });
+      Analytics.track('measure', {'ok': true, 'category': reading.category.code});
       state = MeasureState(
         step: MeasureStep.done,
         imagePath: imagePath,
         reading: reading,
-        advice: bpAdvice(reading, previous: previous),
+        advice: advice,
       );
     } catch (e) {
-      state = MeasureState(
-        step: MeasureStep.failed,
-        imagePath: imagePath,
-        error: errorMessage(e),
-      );
+      state = _failed(imagePath, errorMessage(e));
     }
   }
 }
 
-final measureControllerProvider =
-    NotifierProvider<MeasureController, MeasureState>(MeasureController.new);
+final measureControllerProvider = NotifierProvider<MeasureController, MeasureState>(
+  MeasureController.new,
+);

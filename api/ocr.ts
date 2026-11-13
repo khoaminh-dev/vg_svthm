@@ -14,6 +14,12 @@ Extract every measurement or number that matters as a list of rows.
 Ignore decorative text, brand names and model numbers. For blood pressure monitors use labels SYS, DIA and PULSE.
 Reply ONLY with JSON: {"values":[{"label":"","value":"","unit":""}],"raw_text":"all text you can read, line by line"}`;
 
+// Chế độ huyết áp: chỉ đọc 3 số nên câu trả lời rất ngắn (nhanh hơn nhiều so với đọc cả văn bản).
+const BP_PROMPT = `This is a photo of a blood pressure monitor display.
+Read only: SYS (systolic, top number), DIA (diastolic, middle number), PULSE (heart rate, bottom number).
+Reply ONLY with JSON: {"values":[{"label":"SYS","value":"","unit":"mmHg"},{"label":"DIA","value":"","unit":"mmHg"},{"label":"PULSE","value":"","unit":"/min"}]}
+Use an empty value if a number is not visible. Do not guess.`;
+
 type Row = { label: string; value: string; unit: string };
 
 function clean(parsed: unknown): { values: Row[]; raw_text: string } {
@@ -38,13 +44,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!uid) return;
   if (!(await rateLimit(uid, 'ocr', 6, Number(process.env.OCR_DAILY_LIMIT ?? 30)))) return res.status(429).json({ error: 'rate_limited' });
 
-  const { image, mime } = (bodyObject(req) ?? {}) as { image?: string; mime?: string };
+  const { image, mime, mode } = (bodyObject(req) ?? {}) as { image?: string; mime?: string; mode?: string };
   if (typeof image !== 'string' || image.length === 0) return res.status(400).json({ error: 'bad_request' });
   if (image.length > MAX_BASE64_CHARS) return res.status(413).json({ error: 'image_too_large' });
   const type = mime === 'image/png' ? 'image/png' : 'image/jpeg';
 
   try {
-    const text = await groqVision(`data:${type};base64,${image}`, PROMPT);
+    const bp = mode === 'bp';
+    const text = await groqVision(`data:${type};base64,${image}`, bp ? BP_PROMPT : PROMPT, {
+      maxTokens: bp ? 800 : undefined,
+      model: bp ? process.env.GROQ_VISION_MODEL_BP : undefined,
+    });
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
