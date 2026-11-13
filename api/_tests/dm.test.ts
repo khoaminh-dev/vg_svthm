@@ -117,3 +117,19 @@ test('"mở giải trí" mở mục giải trí', async () => {
   assert.equal(d.action, 'execute');
   assert.equal(d.task?.slots.feature, 'fun');
 });
+
+test('điều khiển video: dừng, bài khác, nhỏ đi', async () => {
+  const { videoControl } = await import('../_lib/voice/dm.ts');
+  assert.equal(videoControl('dung lai'), 'pause');
+  assert.equal(videoControl('tam dung a'), 'pause');
+  assert.equal(videoControl('tiep tuc'), 'play');
+  assert.equal(videoControl('bai khac'), 'next');
+  assert.equal(videoControl('bai truoc'), 'previous');
+  assert.equal(videoControl('to len chut'), 'louder');
+  assert.equal(videoControl('nho di'), 'quieter');
+  assert.equal(videoControl('mo bai noi vong tay lon'), null);
+  const d = await step({ text: 'bài khác', state: {}, ui }, noNlu);
+  assert.equal(d.action, 'execute');
+  assert.equal(d.intent, 'video_control');
+  assert.equal(d.task?.slots.content?.toLowerCase(), 'next');
+});

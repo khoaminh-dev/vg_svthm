@@ -162,6 +162,21 @@ export function videoQuery(t: string): string | null {
   return rest.length >= 2 ? rest : null;
 }
 
+/** Lệnh điều khiển video đang phát: "dừng", "bài khác", "nhỏ đi"... (t đã bỏ dấu); trả về tên hành động hoặc null. */
+export function videoControl(t: string): string | null {
+  const tail = '( a| nhe| di| chut| giup con| giup toi)*';
+  const rules: [RegExp, string][] = [
+    [new RegExp(`^(tam dung|dung lai|dung|ngung|tat nhac|tat video)${tail}$`), 'pause'],
+    [new RegExp(`^(tiep tuc|phat tiep|phat lai|bat lai)${tail}$`), 'play'],
+    [new RegExp(`^(bai khac|bai tiep theo|bai tiep|bai ke tiep|video khac|video tiep theo|chuyen bai|qua bai|bai sau)${tail}$`), 'next'],
+    [new RegExp(`^(bai truoc|bai vua roi|video truoc)${tail}$`), 'previous'],
+    [new RegExp(`^(to len|to hon|lon len|lon hon|tang am luong|tang tieng|nghe khong ro)${tail}$`), 'louder'],
+    [new RegExp(`^(nho di|nho lai|nho hon|giam am luong|giam tieng)${tail}$`), 'quieter'],
+  ];
+  for (const [re, action] of rules) if (re.test(t)) return action;
+  return null;
+}
+
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
 function fastIntent(t: string): { intent: string; feature?: string; content?: string } | null {
   if (/^(ve )?(trang chu|man hinh chinh)$/.test(t) || /^ve trang chu/.test(t)) return { intent: 'go_home' };
@@ -172,6 +187,8 @@ function fastIntent(t: string): { intent: string; feature?: string; content?: st
   if (/^(mo|vao|xem) (tin nhan|chat|tro chuyen)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'chat' };
   if (/^(mo|vao|chup|quet) (ocr|doc so lieu|so lieu)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'ocr' };
   if (/^(mo|vao) (giai tri|youtube)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'fun' };
+  const ctl = videoControl(t);
+  if (ctl) return { intent: 'video_control', content: ctl };
   const video = videoQuery(t);
   if (video) return { intent: 'play_video', content: video };
   if (/(giup|lam duoc gi|huong dan|biet lam gi|co the lam)/.test(t) && t.split(' ').length <= 8) return { intent: 'help' };
@@ -235,6 +252,7 @@ const REQUIRED: Record<string, string[]> = {
   open_chat: ['recipient'],
   open_feature: ['feature'],
   play_video: ['content'],
+  video_control: ['content'],
   measure_bp: [], show_bp: [], read_bp: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message']);

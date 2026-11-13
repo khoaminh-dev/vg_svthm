@@ -109,7 +109,7 @@ double dockBottomFor(String path) => 24;
 /// còn trong phòng chat Vy nằm ở thanh trên.
 bool hidesVyButton(String path) =>
     Routes.tabs.contains(path) ||
-    path == Routes.measure || path == Routes.player ||
+    path == Routes.measure ||
     path.startsWith('${Routes.rooms}/');
 
 /// Màn hội thoại toàn màn hình với Vy.

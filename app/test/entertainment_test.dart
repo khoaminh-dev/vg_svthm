@@ -42,11 +42,28 @@ void main() {
       ),
     );
     expect(find.text('Giải trí'), findsOneWidget);
+    await t.scrollUntilVisible(find.byKey(const Key('video-search')), 300, scrollable: find.byType(Scrollable).first);
     await t.enterText(find.byKey(const Key('video-search')), 'nối vòng tay lớn');
     await t.testTextInput.receiveAction(TextInputAction.search);
     await t.pumpAndSettle();
     expect(fake.queries, ['nối vòng tay lớn']);
     expect(find.text('Nối vòng tay lớn'), findsOneWidget);
     expect(find.text('4:05'), findsOneWidget);
+  });
+
+  testWidgets('chạm một mục gợi ý là tìm ngay, có nút chọn mục khác', (t) async {
+    final fake = FakeSearch();
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [videoSearchProvider.overrideWithValue(fake)],
+        child: MaterialApp(theme: AppTheme.light, home: const EntertainmentScreen()),
+      ),
+    );
+    await t.tap(find.text('Cải lương'));
+    await t.pumpAndSettle();
+    expect(fake.queries, ['cải lương']);
+    await t.tap(find.bySemanticsLabel('Chọn mục khác'));
+    await t.pumpAndSettle();
+    expect(find.text('Nhạc xưa'), findsOneWidget);
   });
 }
