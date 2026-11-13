@@ -93,3 +93,27 @@ test('LLM lỗi → thông báo trục trặc, không văng', async () => {
   const d = await step({ text: 'abc xyz lạ lắm', state: {}, ui }, async () => { throw new Error('down'); });
   assert.equal(d.action, 'answer');
 });
+
+test('videoQuery: mở bài / nghe nhạc / phát video', async () => {
+  const { videoQuery } = await import('../_lib/voice/dm.ts');
+  assert.equal(videoQuery('mo bai noi vong tay lon'), 'noi vong tay lon');
+  assert.equal(videoQuery('cho nghe nhac xua'), 'nhac xua');
+  assert.equal(videoQuery('phat video con meo'), 'con meo');
+  assert.equal(videoQuery('xem video cai luong tren youtube'), 'cai luong');
+  assert.equal(videoQuery('mo huyet ap'), null);
+  assert.equal(videoQuery('mo tin nhan cho con'), null);
+  assert.equal(videoQuery('xem con meo'), null);
+});
+
+test('nói "nghe nhạc xưa" → play_video với từ khoá có dấu', async () => {
+  const d = await step({ text: 'cho nghe nhạc xưa', state: {}, ui }, noNlu);
+  assert.equal(d.action, 'execute');
+  assert.equal(d.intent, 'play_video');
+  assert.equal(d.task?.slots.content?.toLowerCase(), 'nhạc xưa');
+});
+
+test('"mở giải trí" mở mục giải trí', async () => {
+  const d = await step({ text: 'mở giải trí', state: {}, ui }, noNlu);
+  assert.equal(d.action, 'execute');
+  assert.equal(d.task?.slots.feature, 'fun');
+});

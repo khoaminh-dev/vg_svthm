@@ -232,67 +232,38 @@ class HomeScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          Semantics(
-                            button: true,
-                            label: 'Đo huyết áp',
-                            excludeSemantics: true,
-                            child: GestureDetector(
-                              key: const Key('home-measure'),
-                              onTap: () {
-                                Analytics.track('tap_feature', {
-                                  'feature': 'measure',
-                                });
-                                context.push(Routes.measure);
-                              },
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  AppSpacing.radiusPill,
-                                ),
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 18,
-                                    sigmaY: 18,
-                                  ),
-                                  child: Container(
-                                    height: AppSpacing.tapTarget + 4,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 28,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      border: Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.35,
-                                        ),
-                                      ),
-                                      borderRadius: BorderRadius.circular(
-                                        AppSpacing.radiusPill,
-                                      ),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.photo_camera_outlined,
-                                          color: Colors.white,
-                                        ),
-                                        SizedBox(width: 10),
-                                        Text(
-                                          'Đo huyết áp',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: _GlassPill(
+                                  key: const Key('home-measure'),
+                                  icon: Icons.photo_camera_outlined,
+                                  label: 'Đo huyết áp',
+                                  onTap: () {
+                                    Analytics.track('tap_feature', {
+                                      'feature': 'measure',
+                                    });
+                                    context.push(Routes.measure);
+                                  },
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                flex: 4,
+                                child: _GlassPill(
+                                  key: const Key('home-fun'),
+                                  icon: Icons.smart_display_outlined,
+                                  label: 'Giải trí',
+                                  onTap: () {
+                                    Analytics.track('tap_feature', {
+                                      'feature': 'fun',
+                                    });
+                                    context.push(Routes.entertainment);
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: AppSpacing.lg),
                         ],
@@ -304,6 +275,66 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Nút viên thuốc kính mờ trên nền ảnh.
+class _GlassPill extends StatelessWidget {
+  const _GlassPill({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              height: AppSpacing.tapTarget + 4,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

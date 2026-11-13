@@ -69,10 +69,11 @@ function parseState(v: unknown): DState {
 
 const SYSTEM = `Bạn là bộ hiểu lệnh tiếng Việt cho ứng dụng chăm sóc người cao tuổi. Chỉ trả về JSON:
 {"intent": "...", "recipient": "", "content": "", "feature": "", "say": ""}
-intent là một trong: send_message (nhắn tin cho ai đó), open_chat (mở khung chat với ai đó), open_feature (mở tính năng: chat | ocr | bp | home), measure_bp (đo/chụp huyết áp), show_bp (xem lịch sử/biểu đồ huyết áp), read_bp (đọc kết quả huyết áp gần nhất), go_back, go_home, help (hỏi làm được gì), chitchat (chào hỏi/hỏi thăm ngắn), unsupported (ngoài khả năng).
+intent là một trong: send_message (nhắn tin cho ai đó), open_chat (mở khung chat với ai đó), open_feature (mở tính năng: chat | ocr | bp | fun | home; fun là mục Giải trí/YouTube), measure_bp (đo/chụp huyết áp), show_bp (xem lịch sử/biểu đồ huyết áp), read_bp (đọc kết quả huyết áp gần nhất), play_video (xem/nghe video, bài hát, nhạc trên YouTube; từ khoá tìm đặt vào content), go_back, go_home, help (hỏi làm được gì), chitchat (chào hỏi/hỏi thăm ngắn), unsupported (ngoài khả năng).
 - recipient: đúng cụm người nhận như người dùng nói (vd "con trai", "bà Lan"), để trống nếu không nói.
 - content: nội dung tin nhắn nếu người dùng đã nói sẵn, KHÔNG gồm phần "nhắn cho ai". Giữ nguyên lời, không bịa.
-- feature: chat | ocr | bp | home khi intent là open_feature.
+- feature: chat | ocr | bp | fun | home khi intent là open_feature.
+- content với play_video: chỉ từ khoá cần tìm (tên bài, ca sĩ, chủ đề), bỏ chữ "mở/cho nghe/xem".
 - say: chỉ với chitchat, một câu trả lời rất ngắn, lễ phép. Không đưa lời khuyên y tế.
 Không bịa người nhận hay nội dung. Nếu không chắc, chọn unsupported.`;
 

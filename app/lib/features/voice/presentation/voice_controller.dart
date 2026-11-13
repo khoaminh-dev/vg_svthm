@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/router/app_router.dart';
@@ -10,6 +11,8 @@ import '../../bp/domain/bp_models.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../chat/domain/room.dart';
 import '../../chat/presentation/providers/chat_providers.dart';
+import '../../entertainment/data/youtube_service.dart';
+import '../../entertainment/presentation/entertainment_providers.dart';
 import '../data/speech_player.dart';
 import '../data/thinking_sound.dart';
 import '../data/voice_api.dart';
@@ -97,6 +100,7 @@ class VoiceController extends Notifier<VoiceState> {
     'open_chat',
     'open_feature',
     'measure_bp',
+    'play_video',
     'show_bp',
     'go_home',
     'go_back',
@@ -368,6 +372,29 @@ class VoiceController extends Notifier<VoiceState> {
 
   // ---------- Thực hiện lệnh ----------
 
+  /// Tìm video theo lời nói: từ khoá cụ thể thì phát kết quả đầu tiên, chung chung thì hiện danh sách để chọn.
+  Future<String?> _playVideo(String? query, GoRouter router) async {
+    final q = query?.trim() ?? '';
+    if (q.isEmpty) return null;
+    Analytics.track('voice_play_video', {'len': q.length});
+    final List<VideoItem> found;
+    try {
+      found = await ref.read(videoSearchProvider).search(q, limit: 10);
+    } catch (_) {
+      return 'Con tìm video chưa được, $_honorific kiểm tra mạng rồi thử lại nhé.';
+    }
+    if (found.isEmpty) return 'Con không tìm thấy video nào về "$q" ạ.';
+    ref.read(videoQueryProvider.notifier).set(q);
+    router.go(Routes.entertainment);
+    if (isVagueVideoQuery(q)) {
+      return 'Dạ, con tìm được mấy video rồi, $_honorific chọn một video nhé.';
+    }
+    final first = found.first;
+    router.push(Routes.player, extra: first);
+    final title = first.title.length > 70 ? '${first.title.substring(0, 70)}…' : first.title;
+    return 'Dạ, con mở $title ạ.';
+  }
+
   /// Chạy lệnh trên app. Trả về câu nói thay thế (khi cần báo kết quả/lỗi), hoặc null để dùng câu của server.
   Future<String?> _execute(VoiceTask t, List<VoiceContact> contacts) async {
     final router = ref.read(routerProvider);
@@ -395,10 +422,14 @@ class VoiceController extends Notifier<VoiceState> {
             router.go(Routes.measure);
           case 'bp':
             router.go(Routes.bp);
+          case 'fun':
+            router.go(Routes.entertainment);
           default:
             router.go(Routes.home);
         }
         return null;
+      case 'play_video':
+        return await _playVideo(s['content'], router);
       case 'measure_bp':
         router.go(Routes.measure);
         return 'Dạ, $_honorific chụp màn hình máy đo huyết áp giúp con nhé.';
