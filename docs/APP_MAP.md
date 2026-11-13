@@ -35,6 +35,7 @@ Mã hành động ở cột "Hành động" ghi theo dạng `màn.việc`. Ô "A
 | `ocr` | `/ocr` | Chụp/chọn ảnh máy đo, danh sách bản ghi OCR | `ocr.scan_camera`, `ocr.scan_gallery`, `ocr.open_record(record)` | Mở màn và hướng dẫn chụp: **có** (`measure_bp`). Tự bấm chụp: **chưa** |
 | `ocr.edit` | `/ocr/edit` (extra: bản nháp) | Sửa các chỉ số vừa đọc, lưu | `ocr_edit.change_value(field, value)`, `ocr_edit.save` | **Chưa** |
 | `ocr.detail` | `/ocr/detail` (extra: bản ghi) | Xem một bản ghi | `ocr_detail.copy`, `ocr_detail.delete` | **Chưa** |
+| `community` | `/community` (toàn màn hình; lối vào là ô "Cộng đồng" trên `home`, chỉ hiện khi cờ `community` bật) | **Chỉ dùng cho đợt thử nghiệm.** Danh sách mọi người dùng (RPC `community_users`), tìm theo tên/@username, bấm "Nhắn tin" để mở chat riêng (kết bạn) | `home.open_community`, `community.search(query)`, `community.start_chat(username)` | **Chưa** |
 | `login` | `/login` | Đăng nhập email/Google | (chưa đăng nhập, Vy tắt) | Không áp dụng |
 | `register` | `/register` | Đăng ký | (Vy tắt) | Không áp dụng |
 | `complete_profile` | `/complete-profile` | Hoàn tất hồ sơ sau đăng nhập Google | (Vy tắt) | Không áp dụng |
@@ -125,3 +126,4 @@ Chưa làm; sẽ chốt khi xong thiết kế toàn bộ màn hình.
 - Chế độ tối (để sau).
 | 13/11/2026 | **OCR:** bỏ công tắc "Đọc bằng AI"; luôn đọc bằng AI (`ocr_ai`). Bỏ action tương ứng, không còn `toggle_ai_ocr` | Agent không cần bật/tắt AI |
 | 13/11/2026 | **Đo một chạm:** thêm màn `measure` (`/measure`, gói `camera`, quyền CAMERA). Home, tab Sức khoẻ và intent `measure_bp` giờ mở `measure` thay vì `ocr`; `ocr` (bản ghi tổng quát) hiện không còn lối vào từ UI | Quyết định có giữ `ocr` cho hoá đơn/bảng biểu |
+| 13/11/2026 | **Cộng đồng (thử nghiệm):** bảng `app_flags` (khoá `community`), RPC `community_users`, màn `/community`, ô "Cộng đồng" ở trang chủ. Tắt sau đợt test bằng `update app_flags set enabled=false where key='community'` | Thêm màn `community` và hành động `community.start_chat`; agent có thể dùng làm cách tìm người để nhắn khi còn bật |
