@@ -490,7 +490,7 @@ class _ResultPanel extends ConsumerWidget {
                 color: AppColors.levelGood,
               ),
               const SizedBox(width: 4),
-              Text('Đã tự lưu', style: text.bodyMedium),
+              Text(m.saving ? 'Đang lưu…' : 'Đã tự lưu', style: text.bodyMedium),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

@@ -42,15 +42,15 @@ export function groqTranscribe(audio: Buffer, filename: string, language?: strin
 }
 
 /** Đọc ảnh bằng mô hình vision của Groq. `imageDataUrl` dạng `data:image/jpeg;base64,...`. */
-export function groqVision(imageDataUrl: string, prompt: string) {
+export function groqVision(imageDataUrl: string, prompt: string, opts: { maxTokens?: number; model?: string } = {}) {
   return withKeyFailover(pool, async (key) => {
     const r = await fetch(`${BASE}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: process.env.GROQ_VISION_MODEL ?? 'qwen/qwen3.8-27b',
+        model: opts.model || process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b',
         temperature: 0,
-        max_tokens: 1500,
+        max_tokens: opts.maxTokens ?? 1500,
         response_format: { type: 'json_object' },
         messages: [
           {

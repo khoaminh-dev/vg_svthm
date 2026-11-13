@@ -10,12 +10,15 @@ import '../domain/ocr_repositories.dart';
 
 /// Đọc ảnh bằng AI (Groq vision) qua endpoint `/api/ocr` trên Vercel.
 class ApiOcrEngine implements OcrEngine {
-  ApiOcrEngine({required this.accessToken, http.Client? client, String? baseUrl})
+  ApiOcrEngine({required this.accessToken, this.mode, http.Client? client, String? baseUrl})
     : _client = client ?? http.Client(),
       _baseUrl = baseUrl ?? Env.apiBaseUrl;
 
   /// Lấy token đăng nhập hiện tại (Supabase) để API xác thực người dùng.
   final String? Function() accessToken;
+
+  /// `bp` để chỉ đọc SYS/DIA/PULSE (nhanh hơn); null là đọc tổng quát.
+  final String? mode;
   final http.Client _client;
   final String _baseUrl;
 
@@ -36,7 +39,7 @@ class ApiOcrEngine implements OcrEngine {
           .post(
             Uri.parse('$_baseUrl/api/ocr'),
             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
-            body: jsonEncode({'image': base64Encode(bytes), 'mime': mime}),
+            body: jsonEncode({'image': base64Encode(bytes), 'mime': mime, if (mode != null) 'mode': mode}),
           )
           .timeout(const Duration(seconds: 60));
     } catch (_) {

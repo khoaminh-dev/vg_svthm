@@ -12,6 +12,14 @@ import '../../domain/ocr_repositories.dart';
 final ocrEngineProvider = Provider<OcrEngine>((ref) => MlKitOcrEngine());
 
 /// Đọc bằng AI qua API (dùng token đăng nhập hiện tại).
+/// Bản chỉ đọc huyết áp (SYS/DIA/PULSE): câu trả lời ngắn nên nhanh hơn.
+final bpOcrEngineProvider = Provider<OcrEngine>(
+  (ref) => ApiOcrEngine(
+    mode: 'bp',
+    accessToken: () => ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
+  ),
+);
+
 final aiOcrEngineProvider = Provider<OcrEngine>(
   (ref) => ApiOcrEngine(
     accessToken: () => ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
