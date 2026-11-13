@@ -32,7 +32,7 @@ Mã hành động ở cột "Hành động" ghi theo dạng `màn.việc`. Ô "A
 | `bp` (tên hiển thị **"Sức khoẻ"**) | `/bp` (tab 3) | Sức khoẻ: huyết áp gần nhất, biểu đồ, lịch sử | `bp.capture` (mở OCR), `bp.delete(reading)` | Mở màn: **có** (`show_bp`). Đọc số gần nhất: **có** (`read_bp`). Xoá: **chưa** |
 | `profile` | `/profile` (tab 4) | Hồ sơ: thông tin tài khoản, phiên bản app, đăng xuất | `profile.sign_out` (có hộp xác nhận "Ở lại / Đăng xuất") | **Chưa** |
 | `measure` | `/measure` (toàn màn hình, ẩn nút Vy) | Đo huyết áp một chạm kiểu Locket: camera + nút chụp; chụp xong tự đọc (AI), phân loại, lưu `ocr_records` + `bp_readings`, nhận xét | `measure.shoot`, `measure.pick_gallery`, `measure.flip`, `measure.flash`, `measure.retake`, `measure.open_history`, `measure.close` | `measure_bp` mở màn này: **có**. Tự bấm chụp: **chưa** (cần agent bấm `measure.shoot`) |
-| `ocr` | `/ocr` | Chụp/chọn ảnh máy đo, danh sách bản ghi OCR | `ocr.scan_camera`, `ocr.scan_gallery`, `ocr.open_record(record)` | Mở màn và hướng dẫn chụp: **có** (`measure_bp`). Tự bấm chụp: **chưa** |
+|| `open_feature` | `feature` = `chat` | `ocr` | `bp` | `fun` || `/ocr` | Chụp/chọn ảnh máy đo, danh sách bản ghi OCR | `ocr.scan_camera`, `ocr.scan_gallery`, `ocr.open_record(record)` | Mở màn và hướng dẫn chụp: **có** (`measure_bp`). Tự bấm chụp: **chưa** |
 | `ocr.edit` | `/ocr/edit` (extra: bản nháp) | Sửa các chỉ số vừa đọc, lưu | `ocr_edit.change_value(field, value)`, `ocr_edit.save` | **Chưa** |
 | `ocr.detail` | `/ocr/detail` (extra: bản ghi) | Xem một bản ghi | `ocr_detail.copy`, `ocr_detail.delete` | **Chưa** |
 | `community` | `/community` (toàn màn hình; lối vào là nút "Tìm người" ở thanh trên của `rooms`, chỉ hiện khi cờ `community` bật) | **Chỉ dùng cho đợt thử nghiệm.** Danh sách mọi người dùng (RPC `community_users`), tìm theo tên/@username, bấm "Nhắn tin" để mở chat riêng (kết bạn) | `rooms.open_community`, `community.search(query)`, `community.start_chat(username)` | **Chưa** |
@@ -60,9 +60,9 @@ Ghi chú:
 |---|---|---|---|---|
 | `send_message` | `room_id`, `content` | **Có** (Gửi/Sửa/Hủy) | gửi tin chữ vào phòng, mở phòng | thu gọn màn Vy |
 | `open_chat` | `room_id` | Không | mở phòng chat | thu gọn màn Vy |
-| `open_feature` | `feature` = `chat` \| `ocr` \| `bp` | Không | `router.go` tới màn tương ứng | thu gọn màn Vy |
+| `open_feature` | `feature` = `chat` | `ocr` | `bp` | `fun` |\| `ocr` \| `bp` | Không | `router.go` tới màn tương ứng | thu gọn màn Vy |
 | `measure_bp` | — | Không | mở `ocr`, nhắc chụp màn máy đo | thu gọn màn Vy |
-| `show_bp` | — | Không | mở `bp` | thu gọn màn Vy |
+| `show_bp` | — | Không | mở| `open_feature` | `feature` = `chat` | `ocr` | `bp` | `fun` | thu gọn màn Vy |
 | `read_bp` | — | Không | đọc lần đo gần nhất (từ `bpReadingsProvider`) | màn Vy **giữ mở** |
 | `go_home` / `go_back` | — | Không | về trang chủ / lùi một màn | thu gọn màn Vy |
 | `emergency` (nhận diện lời khẩn cấp) | — | — | Vy trả lời khẩn, không thực thi lệnh | — |
@@ -125,10 +125,11 @@ Chưa làm; sẽ chốt khi xong thiết kế toàn bộ màn hình.
 - Cài đặt cách xưng hô của Vy (`profile.set_honorific`).
 - Chế độ tối (để sau).
 | 13/11/2026 | **OCR:** bỏ công tắc "Đọc bằng AI"; luôn đọc bằng AI (`ocr_ai`). Bỏ action tương ứng, không còn `toggle_ai_ocr` | Agent không cần bật/tắt AI |
-| 13/11/2026 | **Đo một chạm:** thêm màn `measure` (`/measure`, gói `camera`, quyền CAMERA). Home, tab Sức khoẻ và intent `measure_bp` giờ mở `measure` thay vì `ocr`; `ocr` (bản ghi tổng quát) hiện không còn lối vào từ UI | Quyết định có giữ `ocr` cho hoá đơn/bảng biểu |
+| 13/11/2026 | **Đo một chạm:** thêm màn `measure` (`/measure`, gói `camera`, quyền CAMERA). Home, tab Sức khoẻ và intent `measure_bp` giờ mở `measure` thay vì `ocr`;| `open_feature` | `feature` = `chat` | `ocr` | `bp` | `fun` |(bản ghi tổng quát) hiện không còn lối vào từ UI | Quyết định có giữ `ocr` cho hoá đơn/bảng biểu |
 | 13/11/2026 | **Cộng đồng (thử nghiệm):** bảng `app_flags` (khoá `community`), RPC `community_users`, màn `/community`, nút "Tìm người" ở màn Tin nhắn (đã chuyển từ trang chủ 13/11). Tắt sau đợt test bằng `update app_flags set enabled=false where key='community'` | Thêm màn `community` và hành động `community.start_chat`; agent có thể dùng làm cách tìm người để nhắn khi còn bật |
 
 | 13/11/2026 | **Trang chủ kiểu Oura:** ảnh thật CC0 toàn nền theo buổi (`assets/images/`, nguồn `docs/CREDITS.md`), số huyết áp lớn, blob Vy gradient méo theo nhịp (`VyOrb`), nút kính mờ "Đo huyết áp". Bỏ các ô "Làm nhanh" (trùng thanh dưới) | Semantics giữ nguyên tên hành động; blob là lối vào Vy thứ hai cạnh nút giữa thanh dưới |
 | 13/11/2026 | **Giao diện kiểu iOS cho các tab:** tiêu đề lớn (`LargeTitle`), nút tròn trên thanh tiêu đề (`SoftIconButton`), danh sách gom nhóm (`InsetGroup`), thẻ không viền. Tin nhắn: nút "+" (Chat mới) và "Tìm người" (Cộng đồng) ở tiêu đề, bỏ FAB. Sức khoẻ: nút máy ảnh ở tiêu đề thay FAB. Hồ sơ: nhóm thông tin + hàng "Đăng xuất" đỏ. Mạch hiển thị chữ "Mạch" thay biểu tượng trái tim | Các hành động giữ nguyên nhãn Semantics (`Chat mới`, `Tìm người dùng khác`, `Đo huyết áp`, `Đăng xuất`) |
 | 13/11/2026 | **Thanh điều hướng + Vy:** thanh dưới trắng nổi không viền, không còn nền đặc cho mục đang chọn. Nút Vy giữa thanh là blob (`VyButton` dùng `VyOrb`), ẩn ở tab Trang chủ vì Trang chủ đã có blob lớn (`home.open_vy`). Bong bóng chat nhận không còn viền | `open_vy_from_nav` chỉ có ở 3 tab Tin nhắn, Sức khoẻ, Hồ sơ |
 | 13/11/2026 | **Đo nhanh hơn:** `/api/ocr` nhận `mode=bp` (chỉ đọc SYS/DIA/PULSE, câu trả lời ngắn); màn `measure` hiện kết quả ngay sau khi đọc, lưu chạy ngầm ("Đang lưu…" → "Đã tự lưu"), tải lịch sử song song với lúc đọc | Không đổi hành động của agent |
+| 13/11/2026 | **Giải trí (YouTube):** thêm màn `entertainment` (`/entertainment`: ô tìm `video-search`, chip gợi ý, danh sách thẻ video) và `entertainment.play` (`/entertainment/play`, trình phát nhúng `youtube_player_iframe`, nút "Mở bằng app YouTube" khi video cấm nhúng). Trang chủ thêm nút "Giải trí" (`home-fun`, hành động `home.open_fun`). Tìm kiếm qua `POST /api/youtube` (YouTube Data API, khoá `YOUTUBE_API_KEY` ở Vercel, lọc `videoEmbeddable` + `safeSearch=strict`, cache 6 giờ, giới hạn theo người dùng); lỗi thì app tự quay về đọc trang YouTube | Intent mới `play_video` (`content` = từ khoá): từ khoá cụ thể phát ngay kết quả đầu, từ khoá chung ("nhạc xưa") hiện danh sách để chọn. `open_feature` thêm `feature = fun` |

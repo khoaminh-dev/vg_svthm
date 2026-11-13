@@ -18,6 +18,9 @@ import 'routes.dart';
 import '../analytics/analytics.dart';
 import '../../features/bp/presentation/screens/bp_screen.dart';
 import '../../features/bp/presentation/screens/measure_screen.dart';
+import '../../features/entertainment/data/youtube_service.dart';
+import '../../features/entertainment/presentation/entertainment_screen.dart';
+import '../../features/entertainment/presentation/player_screen.dart';
 import '../../features/home/presentation/main_shell.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/community/presentation/community_screen.dart';
@@ -73,6 +76,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.community, builder: (_, _) => const CommunityScreen()),
       GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
+      GoRoute(path: Routes.entertainment, builder: (_, _) => const EntertainmentScreen()),
+      GoRoute(path: Routes.player, builder: (_, state) => PlayerScreen(video: state.extra! as VideoItem)),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
       GoRoute(
         path: Routes.ocrEdit,

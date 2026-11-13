@@ -7,6 +7,8 @@ abstract final class Routes {
   static const room = '/rooms/:id';
   static String roomPath(String id) => '/rooms/$id';
   static const measure = '/measure';
+  static const entertainment = '/entertainment';
+  static const player = '/entertainment/play';
   static const ocr = '/ocr';
   static const ocrEdit = '/ocr/edit';
   static const ocrDetail = '/ocr/detail';

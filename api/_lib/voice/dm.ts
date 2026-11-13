@@ -92,19 +92,20 @@ const S = {
   cancelled: () => 'Dạ, con hủy rồi ạ.',
   notHeard: (h: string) => `Con chưa nghe rõ, ${h} nói lại giúp con nhé.`,
   opened: () => 'Dạ, con mở rồi ạ.',
-  help: (h: string) => `Con giúp ${h} nhắn tin, đo huyết áp và xem lịch sử huyết áp ạ.`,
+  help: (h: string) => `Con giúp ${h} nhắn tin, đo huyết áp, xem lịch sử huyết áp và mở video, nhạc trên YouTube ạ.`,
   unsupported: (h: string) => `Việc này con chưa làm được. Con giúp ${h} nhắn tin hoặc đo huyết áp nhé?`,
   emergency: (h: string) => `${h} hãy gọi 115 hoặc nhờ người thân ngay nhé. Nếu thấy nguy hiểm, đừng chờ ạ.`,
   trouble: (h: string) => `Con đang trục trặc một chút, ${h} thử lại sau nhé.`,
   confirmHint: (h: string) => `${h} nói "gửi" hoặc "sửa" giúp con nhé.`,
   askFeatureMissing: (h: string) => `Dạ, ${h} muốn mở phần nào ạ?`,
+  askVideo: (h: string) => `Dạ, ${h} muốn xem hoặc nghe gì ạ?`,
 };
 
 /** Toàn bộ câu cố định (theo từng cách xưng hô) — dùng để chứng thực "câu tĩnh" ở /voice/tts và tạo cache dùng chung. */
 export function staticTexts(): Set<string> {
   const out = new Set<string>();
   for (const h of HONORIFICS) {
-    for (const f of [S.askRecipient, S.askContent, S.askName, S.notHeard, S.help, S.unsupported, S.trouble, S.confirmHint, S.askFeatureMissing]) {
+    for (const f of [S.askRecipient, S.askContent, S.askName, S.notHeard, S.help, S.unsupported, S.trouble, S.confirmHint, S.askFeatureMissing, S.askVideo]) {
       out.add(f(h));
     }
   }
@@ -137,6 +138,7 @@ const FEATURE_WORDS: Record<string, string> = {
   chat: 'chat', 'tin nhan': 'chat', 'tro chuyen': 'chat',
   ocr: 'ocr', 'so lieu': 'ocr', 'doc so lieu': 'ocr',
   'huyet ap': 'bp', home: 'home', 'trang chu': 'home',
+  'giai tri': 'fun', youtube: 'fun', fun: 'fun',
 };
 export function featureOf(s: string): string {
   const n = norm(s);
@@ -145,8 +147,23 @@ export function featureOf(s: string): string {
   return '';
 }
 
+const NOT_VIDEO = /\b(tin nhan|nhan tin|huyet ap|chat|ocr|trang chu|so lieu|nhan cho|gui cho)\b/;
+
+/** "mở bài Nối vòng tay lớn", "cho nghe nhạc xưa", "phát video con mèo": lấy phần từ khoá tìm video; null nếu không phải. */
+export function videoQuery(t: string): string | null {
+  if (NOT_VIDEO.test(t)) return null;
+  const m = t.match(/^(mo|phat|bat|cho (?:toi |con )?(?:nghe|xem)|nghe|xem)\s+(?:(bai hat|ca khuc|bai|video|clip|nhac|phim|youtube)\s+)?(.{2,80})$/);
+  if (!m) return null;
+  const verb = m[1];
+  const media = m[2];
+  // "mở X" / "xem X" trần trụi dễ nhầm với lệnh khác: cần thêm từ chỉ video/nhạc.
+  if (!media && (verb === 'mo' || verb === 'xem')) return null;
+  const rest = (media === 'nhac' ? `nhac ${m[3]}` : m[3]).replace(/\s+(tren )?(youtube|you tube)$/, '').trim();
+  return rest.length >= 2 ? rest : null;
+}
+
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
-function fastIntent(t: string): { intent: string; feature?: string } | null {
+function fastIntent(t: string): { intent: string; feature?: string; content?: string } | null {
   if (/^(ve )?(trang chu|man hinh chinh)$/.test(t) || /^ve trang chu/.test(t)) return { intent: 'go_home' };
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
   if (/(xem|mo).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo) huyet ap$/.test(t)) return { intent: 'show_bp' };
@@ -154,6 +171,9 @@ function fastIntent(t: string): { intent: string; feature?: string } | null {
   if (/\b(do|chup|doc)\b.*\b(huyet ap|may do)\b/.test(t) || /^do huyet ap/.test(t)) return { intent: 'measure_bp' };
   if (/^(mo|vao|xem) (tin nhan|chat|tro chuyen)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'chat' };
   if (/^(mo|vao|chup|quet) (ocr|doc so lieu|so lieu)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'ocr' };
+  if (/^(mo|vao) (giai tri|youtube)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'fun' };
+  const video = videoQuery(t);
+  if (video) return { intent: 'play_video', content: video };
   if (/(giup|lam duoc gi|huong dan|biet lam gi|co the lam)/.test(t) && t.split(' ').length <= 8) return { intent: 'help' };
   return null;
 }
@@ -214,6 +234,7 @@ const REQUIRED: Record<string, string[]> = {
   send_message: ['recipient', 'content'],
   open_chat: ['recipient'],
   open_feature: ['feature'],
+  play_video: ['content'],
   measure_bp: [], show_bp: [], read_bp: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message']);
@@ -322,7 +343,13 @@ export async function step(
   const fast = fastIntent(t);
   let nluOut: NluResult | null = null;
   if (fast) {
-    nluOut = { intent: fast.intent, recipient: '', content: '', feature: fast.feature ?? '', say: '' };
+    let content = fast.content ?? '';
+    if (fast.intent === 'play_video' && content) {
+      // Lấy lại cụm có dấu từ câu gốc để tìm trên YouTube chính xác hơn (nếu khớp với bản không dấu).
+      const orig = text.trim().split(/\s+/).slice(-content.split(' ').length).join(' ');
+      if (norm(orig) === content) content = orig;
+    }
+    nluOut = { intent: fast.intent, recipient: '', content, feature: fast.feature ?? '', say: '' };
   } else {
     try {
       nluOut = await nlu(text, { state, ui, honorific: hon });
@@ -399,10 +426,15 @@ function progress(
   }
   // nội dung
   if (need.includes('content') && !task.slots.content) {
-    return mk({ action: 'ask', intent, task, pending: 'content', expects: 'free_text', say: S.askContent(hon), expectsReply: true, aliasPhrase, learnAlias });
+    return mk({
+      action: 'ask', intent, task, pending: 'content', expects: 'free_text',
+      say: intent === 'play_video' ? S.askVideo(hon) : S.askContent(hon),
+      expectsReply: true, aliasPhrase, learnAlias,
+      chips: intent === 'play_video' ? ['Nhạc xưa', 'Tin tức', 'Cải lương'] : [],
+    });
   }
   if (need.includes('feature') && !task.slots.feature) {
-    return mk({ action: 'ask', intent, task, pending: 'feature', expects: 'command', say: S.askFeatureMissing(hon), expectsReply: true, chips: ['Tin nhắn', 'Huyết áp', 'Đọc số liệu'] });
+    return mk({ action: 'ask', intent, task, pending: 'feature', expects: 'command', say: S.askFeatureMissing(hon), expectsReply: true, chips: ['Tin nhắn', 'Huyết áp', 'Giải trí'] });
   }
 
   if (NEEDS_CONFIRM.has(intent)) {
