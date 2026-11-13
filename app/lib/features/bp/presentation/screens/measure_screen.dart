@@ -475,7 +475,7 @@ class _ResultPanel extends ConsumerWidget {
               if (r.pulse != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text('♥ ${r.pulse}', style: text.titleMedium),
+                  child: Text('Mạch ${r.pulse}', style: text.titleMedium),
                 ),
             ],
           ),

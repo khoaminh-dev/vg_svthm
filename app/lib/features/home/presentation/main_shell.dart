@@ -18,10 +18,26 @@ class MainShell extends ConsumerWidget {
   final Widget child;
 
   static const items = [
-    PillNavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Trang chủ'),
-    PillNavItem(icon: Icons.chat_bubble_outline_rounded, selectedIcon: Icons.chat_bubble_rounded, label: 'Tin nhắn'),
-    PillNavItem(icon: Icons.favorite_border_rounded, selectedIcon: Icons.favorite_rounded, label: 'Sức khoẻ'),
-    PillNavItem(icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: 'Hồ sơ'),
+    PillNavItem(
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+      label: 'Trang chủ',
+    ),
+    PillNavItem(
+      icon: Icons.chat_bubble_outline_rounded,
+      selectedIcon: Icons.chat_bubble_rounded,
+      label: 'Tin nhắn',
+    ),
+    PillNavItem(
+      icon: Icons.favorite_border_rounded,
+      selectedIcon: Icons.favorite_rounded,
+      label: 'Sức khoẻ',
+    ),
+    PillNavItem(
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+      label: 'Hồ sơ',
+    ),
   ];
 
   @override
@@ -38,13 +54,16 @@ class MainShell extends ConsumerWidget {
           Analytics.track('tab', {'to': Routes.tabs[i]});
           context.go(Routes.tabs[i]);
         },
-        center: VyButton(
-          size: 60,
-          onTap: () {
-            Analytics.track('open_vy_from_nav');
-            ref.read(voiceControllerProvider.notifier).toggle();
-          },
-        ),
+        // Trang chủ đã có blob Vy lớn, nên không lặp lại ở thanh dưới.
+        center: path == Routes.home
+            ? null
+            : VyButton(
+                size: 60,
+                onTap: () {
+                  Analytics.track('open_vy_from_nav');
+                  ref.read(voiceControllerProvider.notifier).toggle();
+                },
+              ),
       ),
     );
   }
