@@ -94,7 +94,7 @@ class RoomListScreen extends ConsumerWidget {
     ref.watch(joinedRoomsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat')),
+      appBar: AppBar(title: const Text('Tin nhắn')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Analytics.track('tap_new_chat');
@@ -177,12 +177,13 @@ class RoomListScreen extends ConsumerWidget {
                     final room = list[i];
                     return Card(
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        minTileHeight: 76,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: room.isDirect
                             ? UserAvatar(
                                 name: room.displayName,
                                 imageUrl: room.peer?.avatarUrl,
-                                radius: 22,
+                                radius: 26,
                               )
                             : CircleAvatar(
                                 backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
@@ -193,7 +194,7 @@ class RoomListScreen extends ConsumerWidget {
                               ),
                         title: Text(
                           room.displayName,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                         ),
                         subtitle: Text(room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm'),
                         trailing: const Icon(Icons.chevron_right_rounded),

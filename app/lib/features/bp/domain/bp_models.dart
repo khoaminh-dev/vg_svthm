@@ -90,9 +90,16 @@ abstract final class BpExtractor {
     r'dia|diastolic|t[âa]m\s*tr[ưu]ơng|tam\s*truong|t\.?\s*tr[ưu]ơng',
     caseSensitive: false,
   );
-  static final _pul = RegExp(r'pul|m[ạa]ch|nh[ịi]p|heart|bpm', caseSensitive: false);
+  static final _pul = RegExp(
+    r'pul|m[ạa]ch|nh[ịi]p|heart|bpm',
+    caseSensitive: false,
+  );
 
-  static BpReading? fromValues(List<OcrValue> values, {required String source, DateTime? at}) {
+  static BpReading? fromValues(
+    List<OcrValue> values, {
+    required String source,
+    DateTime? at,
+  }) {
     int? pick(RegExp re) {
       for (final v in values) {
         if (re.hasMatch(v.label)) {

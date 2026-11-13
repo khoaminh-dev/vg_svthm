@@ -60,26 +60,36 @@ class SupabaseOcrRepository implements OcrRepository {
         '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 32)}.${kind.ext}';
     final path = '$uid/$name';
 
-    await _client.storage
+    // Tải ảnh và ghi bản ghi song song (đường dẫn đã biết trước) để lưu nhanh hơn.
+    final upload = _client.storage
         .from(_bucket)
         .uploadBinary(path, bytes, fileOptions: FileOptions(contentType: kind.mime));
-
+    final insert = _client
+        .from('ocr_records')
+        .insert({
+          'user_id': uid,
+          'title': title.trim(),
+          'raw_text': rawText,
+          'values': values.map((v) => v.toJson()).toList(),
+          'image_path': path,
+        })
+        .select()
+        .single();
     try {
-      final row = await _client
-          .from('ocr_records')
-          .insert({
-            'user_id': uid,
-            'title': title.trim(),
-            'raw_text': rawText,
-            'values': values.map((v) => v.toJson()).toList(),
-            'image_path': path,
-          })
-          .select()
-          .single();
-      return OcrRecord.fromMap(row);
+      final results = await Future.wait<Object?>([upload, insert]);
+      return OcrRecord.fromMap(results[1]! as Map<String, dynamic>);
     } catch (e) {
-      // Không để lại ảnh mồ côi nếu lưu bản ghi thất bại.
-      await _client.storage.from(_bucket).remove([path]);
+      // Không để lại ảnh hay bản ghi mồ côi nếu một trong hai bước thất bại.
+      await Future.wait([
+        upload.then<void>((_) {}, onError: (_) {}),
+        insert.then<void>((_) {}, onError: (_) {}),
+      ]);
+      try {
+        await _client.storage.from(_bucket).remove([path]);
+      } catch (_) {}
+      try {
+        await _client.from('ocr_records').delete().eq('image_path', path);
+      } catch (_) {}
       rethrow;
     }
   });

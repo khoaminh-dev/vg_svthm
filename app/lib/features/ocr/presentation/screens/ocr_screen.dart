@@ -23,7 +23,6 @@ class OcrScreen extends ConsumerWidget {
   ) async {
     Analytics.track('ocr_scan', {
       'source': source.name,
-      'ai': ref.read(ocrUseAiProvider),
     });
     final draft = await ref.read(ocrControllerProvider.notifier).scan(source);
     if (!context.mounted) return;
@@ -40,7 +39,6 @@ class OcrScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scanning = ref.watch(ocrControllerProvider).isLoading;
-    final useAi = ref.watch(ocrUseAiProvider);
     final records = ref.watch(ocrRecordsProvider);
 
     return Scaffold(
@@ -92,23 +90,6 @@ class OcrScreen extends ConsumerWidget {
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Đọc bằng AI'),
-                          subtitle: Text(
-                            useAi
-                                ? 'Phù hợp màn hình LCD, hoá đơn và bảng biểu (cần mạng)'
-                                : 'Đọc ngay trên máy, phù hợp chữ in rõ',
-                          ),
-                          value: useAi,
-                          onChanged: scanning
-                              ? null
-                              : (v) {
-                                  Analytics.track('toggle_ai_ocr', {'on': v});
-                                  ref.read(ocrUseAiProvider.notifier).set(v);
-                                },
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Row(

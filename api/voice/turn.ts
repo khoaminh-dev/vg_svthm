@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
 import { requireUser, rateLimit } from '../_lib/auth.js';
 import { bodyObject } from '../_lib/http.js';
 import { dbInsert } from '../_lib/db.js';
-import { deepseekChat, elevenScribe, geminiJsonChat, groqJsonChat, groqWhisper, type Msg, type SttResult } from '../_lib/voice/providers.js';
+import { deepseekChat, elevenScribe, groqJsonChat, groqWhisper, type Msg, type SttResult } from '../_lib/voice/providers.js';
 import { INTENT_LIST, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
 import { getPolicy } from '../_lib/voice/gate.js';
 
@@ -95,10 +95,10 @@ function makeNlu(model: string, meter: Meter): Nlu {
       { role: 'user', content: `Màn hình hiện tại: ${ctx.ui.screen || 'không rõ'}\nCâu nói: ${text}` },
     ];
     const t0 = Date.now();
+    // Groq trước (nhanh), DeepSeek dự phòng. Không dùng Gemini.
     const chain = [
-      () => deepseekChat(messages, model),
       () => groqJsonChat(messages),
-      ...(process.env.GEMINI_MODEL ? [() => geminiJsonChat(messages)] : []),
+      () => deepseekChat(messages, model),
     ];
     let last: unknown;
     for (const run of chain) {

@@ -11,6 +11,7 @@ import '../../bp/presentation/providers/bp_providers.dart';
 import '../../chat/domain/room.dart';
 import '../../chat/presentation/providers/chat_providers.dart';
 import '../data/speech_player.dart';
+import '../data/thinking_sound.dart';
 import '../data/voice_api.dart';
 import '../data/voice_recorder.dart';
 import '../domain/voice_models.dart';
@@ -87,6 +88,20 @@ class VoiceController extends Notifier<VoiceState> {
     return v;
   }
 
+  ThinkingSound? _soundInst;
+  ThinkingSound get _sound => _soundInst ??= ThinkingSound();
+
+  /// Lệnh đổi màn hình: chạy xong thì thu gọn màn Vy để người dùng thấy kết quả (Vy vẫn đọc nốt câu trả lời).
+  static const _navIntents = {
+    'send_message',
+    'open_chat',
+    'open_feature',
+    'measure_bp',
+    'show_bp',
+    'go_home',
+    'go_back',
+  };
+
   String _session = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
   int _turnNo = 0;
   int _run = 0; // tăng mỗi lần huỷ/bắt đầu để bỏ kết quả cũ
@@ -100,9 +115,17 @@ class VoiceController extends Notifier<VoiceState> {
   @override
   VoiceState build() {
     ref.onDispose(() {
-      final r = _recorderInst, p = _playerInst;
+      final r = _recorderInst, p = _playerInst, s = _soundInst;
       if (r != null) unawaited(r.dispose());
       if (p != null) unawaited(p.dispose());
+      if (s != null) unawaited(s.dispose());
+    });
+    // Âm thanh "đang nghĩ" chỉ chạy khi trạng thái là thinking.
+    listenSelf((prev, next) {
+      final was = prev?.status == VoiceStatus.thinking;
+      final now = next.status == VoiceStatus.thinking;
+      if (now && !was) unawaited(_sound.start());
+      if (!now && was) unawaited(_sound.stop());
     });
     return const VoiceState();
   }
@@ -118,12 +141,14 @@ class VoiceController extends Notifier<VoiceState> {
       case VoiceStatus.speaking:
         Analytics.track('voice_barge_in');
         await _player.stop();
+        state = state.copyWith(panelOpen: true);
         await _listen();
       case VoiceStatus.thinking:
         _cancelRun();
         state = state.copyWith(status: VoiceStatus.idle);
       case VoiceStatus.idle:
         Analytics.track('voice_mic_start');
+        unawaited(_sound.warmUp());
         _newSession();
         state = state.copyWith(panelOpen: true, transcript: '', say: '', chips: const [], error: null);
         await _listen();
@@ -242,12 +267,12 @@ class VoiceController extends Notifier<VoiceState> {
   }
 
   String? _currentRoomId() {
-    final path = ref.read(routerProvider).routeInformationProvider.value.uri.path;
+    final path = currentPath(ref.read(routerProvider));
     final m = RegExp(r'^/rooms/([^/]+)$').firstMatch(path);
     return m?.group(1);
   }
 
-  String _screenName() => ref.read(routerProvider).routeInformationProvider.value.uri.path;
+  String _screenName() => currentPath(ref.read(routerProvider));
 
   Future<void> _send({VoiceClipArg? audio, String? text, int? run}) async {
     final myRun = run ?? ++_run;
@@ -312,12 +337,14 @@ class VoiceController extends Notifier<VoiceState> {
 
     _lastSay = say;
     _lastSayClass = sayClass;
+    final navigated = d.action == 'execute' && _navIntents.contains(d.task?.intent);
     state = state.copyWith(
       transcript: res.transcript,
       say: say,
       chips: d.chips,
       dialog: dialog,
       status: VoiceStatus.speaking,
+      panelOpen: navigated ? false : state.panelOpen,
     );
     await _speakAndMaybeListen(say, sayClass, listenAfter: listenAfter, run: run, alreadySpeaking: true);
   }
@@ -365,7 +392,7 @@ class VoiceController extends Notifier<VoiceState> {
           case 'chat':
             router.go(Routes.rooms);
           case 'ocr':
-            router.go(Routes.ocr);
+            router.go(Routes.measure);
           case 'bp':
             router.go(Routes.bp);
           default:
@@ -373,7 +400,7 @@ class VoiceController extends Notifier<VoiceState> {
         }
         return null;
       case 'measure_bp':
-        router.go(Routes.ocr);
+        router.go(Routes.measure);
         return 'Dạ, $_honorific chụp màn hình máy đo huyết áp giúp con nhé.';
       case 'show_bp':
         router.go(Routes.bp);

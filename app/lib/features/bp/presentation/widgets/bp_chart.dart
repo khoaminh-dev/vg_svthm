@@ -22,7 +22,11 @@ class BpChart extends StatelessWidget {
       height: 220,
       child: CustomPaint(
         size: Size.infinite,
-        painter: _BpPainter(readings, muted, Theme.of(context).textTheme.labelSmall!),
+        painter: _BpPainter(
+          readings,
+          muted,
+          Theme.of(context).textTheme.labelSmall!,
+        ),
       ),
     );
   }
@@ -61,13 +65,18 @@ class _BpPainter extends CustomPainter {
     lo = ((lo - 10) ~/ 10) * 10;
     hi = ((hi + 10) ~/ 10) * 10 + 10;
     double y(num v) => top + h * (1 - (v - lo) / (hi - lo));
-    double x(int i) => left + (data.length == 1 ? w / 2 : w * i / (data.length - 1));
+    double x(int i) =>
+        left + (data.length == 1 ? w / 2 : w * i / (data.length - 1));
 
     final gridPaint = Paint()
       ..color = grid.withValues(alpha: 0.25)
       ..strokeWidth = 1;
     for (var v = lo; v <= hi; v += 20) {
-      canvas.drawLine(Offset(left, y(v)), Offset(size.width - rightPad, y(v)), gridPaint);
+      canvas.drawLine(
+        Offset(left, y(v)),
+        Offset(size.width - rightPad, y(v)),
+        gridPaint,
+      );
       _text(canvas, '$v', Offset(left - 6, y(v) - 6), right: true);
     }
 
@@ -78,7 +87,11 @@ class _BpPainter extends CustomPainter {
     for (final v in [120, 80]) {
       if (v < lo || v > hi) continue;
       for (var dx = left; dx < size.width - rightPad; dx += 8) {
-        canvas.drawLine(Offset(dx, y(v)), Offset(min(dx + 4, size.width - rightPad), y(v)), ref);
+        canvas.drawLine(
+          Offset(dx, y(v)),
+          Offset(min(dx + 4, size.width - rightPad), y(v)),
+          ref,
+        );
       }
     }
 

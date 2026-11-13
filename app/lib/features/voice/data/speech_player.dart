@@ -8,9 +8,15 @@ import 'package:path_provider/path_provider.dart';
 
 import 'voice_api.dart';
 
-/// Đọc câu trả lời: ưu tiên giọng ElevenLabs/cache từ máy chủ, không có thì dùng giọng máy (flutter_tts).
+/// Đọc câu trả lời. Hiện mặc định dùng giọng máy (flutter_tts) cho mọi câu để phản hồi nhanh nhất.
+/// Đặt [serverVoice] = true để bật lại đường ElevenLabs/cache từ máy chủ (thêm một vòng mạng trước khi đọc).
 class SpeechPlayer {
-  SpeechPlayer(this._api);
+  SpeechPlayer(this._api) {
+    unawaited(_initTts()); // khởi tạo sớm để câu đầu tiên không bị trễ
+  }
+
+  /// Tạm tắt giọng từ máy chủ cho tới khi có giải pháp giọng tốt hơn.
+  static const bool serverVoice = false;
 
   final VoiceApi _api;
   final AudioPlayer _player = AudioPlayer();
@@ -39,8 +45,8 @@ class SpeechPlayer {
     await _stopInternal();
     var usedServer = false;
     try {
-      Uint8List? audio = _memo[text];
-      if (audio == null) {
+      Uint8List? audio = serverVoice ? _memo[text] : null;
+      if (serverVoice && audio == null) {
         final r = await _api.tts(text, sayClass);
         audio = r.audio;
         if (audio != null && _memo.length < 20) _memo[text] = audio;

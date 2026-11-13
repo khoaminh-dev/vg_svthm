@@ -18,16 +18,6 @@ final aiOcrEngineProvider = Provider<OcrEngine>(
   ),
 );
 
-/// Người dùng đang bật chế độ "Đọc bằng AI" hay không.
-class OcrUseAiNotifier extends Notifier<bool> {
-  @override
-  bool build() => false;
-
-  void set(bool value) => state = value;
-}
-
-final ocrUseAiProvider = NotifierProvider<OcrUseAiNotifier, bool>(OcrUseAiNotifier.new);
-
 final ocrRepositoryProvider = Provider<OcrRepository>(
   (ref) => SupabaseOcrRepository(ref.watch(supabaseClientProvider)),
 );

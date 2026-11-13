@@ -54,6 +54,13 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> signOut() async => _set(null);
 }
 
+/// Trang chủ có quả cầu Vy chuyển động liên tục nên `pumpAndSettle` không bao giờ yên: bơm vài khung hình.
+Future<void> settle(WidgetTester t) async {
+  for (var i = 0; i < 8; i++) {
+    await t.pump(const Duration(milliseconds: 300));
+  }
+}
+
 void main() {
   testWidgets('đăng nhập vào trang chủ, đăng xuất về đăng nhập', (tester) async {
     final repo = FakeAuthRepository();
@@ -63,16 +70,16 @@ void main() {
         child: const App(),
       ),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.byType(LoginScreen), findsOneWidget);
 
     await repo.signIn(email: 'a@b.co', password: '12345678');
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('@an'), findsOneWidget);
+    expect(find.text('Hôm nay bạn cần gì?'), findsOneWidget);
 
     await repo.signOut();
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.byType(LoginScreen), findsOneWidget);
   });
 
@@ -84,14 +91,14 @@ void main() {
         child: const App(),
       ),
     );
-    await tester.pumpAndSettle();
+    await settle(tester);
 
     repo.signInGoogleNoProfile();
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.byType(CompleteProfileScreen), findsOneWidget);
 
     await repo.completeProfile(username: 'gee', displayName: 'Gee');
-    await tester.pumpAndSettle();
+    await settle(tester);
     expect(find.byType(HomeScreen), findsOneWidget);
   });
 }

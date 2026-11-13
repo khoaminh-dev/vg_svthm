@@ -24,7 +24,7 @@ class VoiceRecorder {
 
   /// Mức ồn (dBFS) coi là có tiếng nói; nền ồn cao hơn thì tự nâng ngưỡng.
   static const _speechDb = -34.0;
-  static const _silenceStop = Duration(milliseconds: 2200);
+  static const _silenceStop = Duration(milliseconds: 1300);
   static const _noSpeechStop = Duration(seconds: 8);
   static const _maxLength = Duration(seconds: 30);
 

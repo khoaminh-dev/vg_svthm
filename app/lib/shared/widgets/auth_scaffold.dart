@@ -44,7 +44,8 @@ class AuthScaffold extends StatelessWidget {
                           const Color(0xFFF8F4EE),
                           scheme.surface,
                         ],
-                  stops: const [0, 0.55, 1],
+                  // Số mốc phải bằng số màu (chế độ tối có 2 màu, sáng có 3 màu).
+                  stops: dark ? const [0, 1] : const [0, 0.55, 1],
                 ),
               ),
             ),
