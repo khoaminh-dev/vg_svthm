@@ -24,6 +24,8 @@ import '../../features/entertainment/presentation/player_screen.dart';
 import '../../features/home/presentation/main_shell.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/community/presentation/community_screen.dart';
+import '../../features/health/presentation/providers/health_providers.dart';
+import '../../features/health/presentation/screens/health_setup_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
@@ -31,6 +33,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refresh.dispose);
 
   ref.listen(authChangesProvider, (_, _) => refresh.value++);
+  // Hồ sơ sức khoẻ tải xong hoặc vừa lưu: chạy lại redirect.
+  ref.listen(healthProfileProvider, (_, _) => refresh.value++);
 
   return GoRouter(
     initialLocation: Routes.login,
@@ -51,6 +55,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (user.needsProfile) {
         return loc == Routes.completeProfile ? null : Routes.completeProfile;
       }
+      // Chưa có hồ sơ sức khoẻ (người mới, hoặc người cũ vừa cập nhật app): bắt nhập một lần.
+      // Chỉ chặn khi đã tải xong và chắc chắn chưa có; đang tải hay lỗi mạng thì không chặn.
+      final hp = ref.read(healthProfileProvider);
+      final missing = !hp.isLoading && !hp.hasError && hp.hasValue && hp.value == null;
+      if (missing) {
+        return loc == Routes.healthSetup ? null : Routes.healthSetup;
+      }
+      if (loc == Routes.healthSetup && hp.hasValue && hp.value != null) return Routes.home;
       // Đã đăng nhập: không ở lại các trang đăng nhập/đăng ký.
       if (Routes.publicRoutes.contains(loc) || loc == Routes.completeProfile) {
         return Routes.home;
@@ -76,6 +88,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.community, builder: (_, _) => const CommunityScreen()),
       GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
+      GoRoute(path: Routes.healthSetup, builder: (_, _) => const HealthSetupScreen()),
+      GoRoute(path: Routes.healthProfile, builder: (_, _) => const HealthSetupScreen(editing: true)),
       GoRoute(path: Routes.entertainment, builder: (_, _) => const EntertainmentScreen()),
       GoRoute(path: Routes.player, builder: (_, state) => PlayerScreen(video: state.extra! as VideoItem)),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),

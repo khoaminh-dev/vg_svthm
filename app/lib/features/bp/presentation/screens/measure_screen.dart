@@ -10,6 +10,10 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/status_chip.dart';
+import '../../../health/domain/health_models.dart';
+import '../../../health/presentation/providers/health_providers.dart';
+import '../../../health/presentation/risk_texts.dart';
+import '../../../health/presentation/widgets/risk_view.dart' show callEmergency;
 import '../providers/measure_controller.dart';
 
 /// Màn đo huyết áp một chạm kiểu Locket: mở lên là thấy camera, bấm chụp là xong.
@@ -443,6 +447,7 @@ class _ResultPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final r = m.reading!;
     final text = Theme.of(context).textTheme;
+    final risk = ref.watch(riskRunnerProvider).value;
     return Container(
       key: const Key('measure-result'),
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -495,6 +500,42 @@ class _ResultPanel extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(m.advice ?? '', style: text.bodyLarge),
+          // Mức thấp thì im lặng (chỉ chấm nhỏ ở Trang chủ); từ "cần chú ý" trở lên mới nói ngay tại đây.
+          if (risk != null && risk.level.worthMentioning) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              key: const Key('measure-risk'),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: risk.level.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nguy cơ: ${risk.level.label}',
+                    style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: risk.level.color),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(riskSentence(risk.level), style: text.bodyLarge),
+                  if (risk.level == RiskLevel.urgent) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(backgroundColor: AppColors.levelDanger),
+                        onPressed: callEmergency,
+                        icon: const Icon(Icons.phone_rounded),
+                        label: const Text('Gọi 115'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../health/presentation/providers/health_providers.dart';
 import '../../../ocr/domain/ocr_models.dart';
 import '../../../ocr/presentation/providers/ocr_controller.dart';
 import '../../../ocr/presentation/providers/ocr_providers.dart';
@@ -43,6 +44,7 @@ class MeasureController extends Notifier<MeasureState> {
 
   Future<void> process(String imagePath) async {
     state = MeasureState(step: MeasureStep.analyzing, imagePath: imagePath);
+    ref.read(riskRunnerProvider.notifier).clear();
     try {
       // Tải lịch sử song song với lúc đọc ảnh để không phải chờ thêm.
       final historyF = ref
@@ -77,6 +79,8 @@ class MeasureController extends Notifier<MeasureState> {
         return;
       }
       Analytics.track('measure', {'ok': true, 'category': reading.category.code});
+      // Tự đánh giá nguy cơ ngay sau khi lưu; kết quả hiện ở màn đo khi có.
+      ref.read(riskRunnerProvider.notifier).run();
       state = MeasureState(
         step: MeasureStep.done,
         imagePath: imagePath,

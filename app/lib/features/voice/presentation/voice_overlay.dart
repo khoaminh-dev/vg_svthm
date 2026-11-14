@@ -110,6 +110,8 @@ double dockBottomFor(String path) => 24;
 bool hidesVyButton(String path) =>
     Routes.tabs.contains(path) ||
     path == Routes.measure ||
+    path == Routes.healthSetup ||
+    path == Routes.healthProfile ||
     path.startsWith('${Routes.rooms}/');
 
 /// Màn hội thoại toàn màn hình với Vy.

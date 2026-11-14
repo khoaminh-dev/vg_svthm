@@ -12,6 +12,7 @@ import '../../../shared/widgets/user_avatar.dart';
 import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
+import '../../health/presentation/providers/health_providers.dart';
 import '../../voice/presentation/voice_controller.dart';
 
 /// Ảnh nền theo thời điểm trong ngày (ảnh CC0, nguồn ghi ở docs/CREDITS.md).
@@ -31,6 +32,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final readings = ref.watch(bpReadingsProvider);
+    final risk = ref.watch(latestRiskProvider).value;
     final now = DateTime.now();
     const shadow = [Shadow(color: Color(0x66000000), blurRadius: 12)];
 
@@ -204,6 +206,43 @@ class HomeScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
+                          if (risk != null) ...[
+                            const SizedBox(height: 12),
+                            Semantics(
+                              button: true,
+                              label: 'Nguy cơ ${risk.level.label}. Mở đánh giá',
+                              excludeSemantics: true,
+                              child: GestureDetector(
+                                key: const Key('home-risk'),
+                                onTap: () {
+                                  Analytics.track('tap_feature', {'feature': 'risk'});
+                                  ref.read(healthTabProvider.notifier).set(1);
+                                  context.go(Routes.bp);
+                                },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(color: risk.level.color, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Nguy cơ: ${risk.level.label}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        shadows: shadow,
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 22),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                           const Spacer(flex: 2),
                           Semantics(
                             button: true,
