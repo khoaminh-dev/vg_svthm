@@ -271,7 +271,7 @@ const ACTION = { ask: 'Hỏi lại', confirm: 'Xác nhận', execute: 'Thực hi
 const REASON = { user_calls: 'Hết số câu/ngày', user_chars: 'Hết ký tự/ngày', user_rate: 'Quá nhanh', global: 'Hết ngân sách chung', disabled: 'Đã tắt', tier_off: 'Hạng Tắt', class: 'Câu thường', too_long: 'Câu quá dài', busy: 'Quá tải', error: 'Lỗi ElevenLabs', no_key: 'Chưa có key', empty: 'Rỗng' };
 async function loadVoice() {
   $('voiceErr').textContent = '';
-  const { ok, d } = await api('/api/admin/voice?days=' + $('days').value).catch(() => ({ ok: false, d: {} }));
+  const { ok, d } = await api('/api/admin/stats?kind=voice&days=' + $('days').value).catch(() => ({ ok: false, d: {} }));
   if (!ok) { $('voiceErr').textContent = 'Lỗi: ' + (d.error || ''); return; }
   const t = d.totals, l = d.latency || {}, e = d.tts;
   $('vKpis').innerHTML = [
