@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/analytics/analytics.dart';
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ios_style.dart';
@@ -76,6 +78,25 @@ class ProfileScreen extends ConsumerWidget {
                     ],
                   ),
                 ],
+                const SizedBox(height: AppSpacing.lg),
+                InsetGroup(
+                  dividerIndent: 0,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: 'Hồ sơ sức khoẻ',
+                      excludeSemantics: true,
+                      child: ListTile(
+                        key: const Key('profile-health'),
+                        minTileHeight: 64,
+                        leading: Icon(Icons.assignment_ind_outlined, color: scheme.primary),
+                        title: const Text('Hồ sơ sức khoẻ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => context.push(Routes.healthProfile),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 InsetGroup(
                   dividerIndent: 0,

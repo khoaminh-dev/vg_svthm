@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test _tests/dm.test.ts _tests/stt_guard.test.ts"
+    "test": "node --test _tests/dm.test.ts _tests/stt_guard.test.ts _tests/health.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
