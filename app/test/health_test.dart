@@ -183,15 +183,18 @@ void main() {
     expect(find.text('Gọi 115'), findsNothing);
     expect(repo.runs, 1, reason: 'mở tab thì làm mới ngầm một lần');
 
-    expect(find.text('Bác đang hút thuốc'), findsNothing);
-    await t.tap(find.text('Vì sao có kết quả này'));
-    await t.pumpAndSettle();
-    expect(find.text('Bác đang hút thuốc'), findsOneWidget);
-    expect(
-      find.textContaining('Huyết áp lần đo gần nhất khá cao'),
-      findsOneWidget,
-    );
+    // Yếu tố hiện sẵn dạng thẻ, không phải gập lại; có thanh 4 nấc và 3 việc nên làm.
+    expect(find.byKey(const Key('risk-bar')), findsOneWidget);
+    expect(find.text('Hút thuốc'), findsOneWidget);
+    expect(find.text('Huyết áp 150/95'), findsOneWidget);
     expect(find.textContaining('trên 70 tuổi'), findsOneWidget);
+    expect(find.byKey(const Key('risk-todo')), findsOneWidget);
+    expect(find.text('Đo mỗi ngày, cùng giờ'), findsOneWidget);
+    // Chỉ phần dấu hiệu nguy hiểm còn gập lại.
+    expect(find.text('Đau ngực hoặc khó thở'), findsNothing);
+    await t.tap(find.text('Khi nào cần đi khám ngay'));
+    await t.pumpAndSettle();
+    expect(find.text('Đau ngực hoặc khó thở'), findsOneWidget);
   });
 
   testWidgets(

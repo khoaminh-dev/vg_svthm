@@ -1,4 +1,52 @@
+import 'package:flutter/material.dart';
+
 import '../domain/health_models.dart';
+
+/// Nhãn ngắn + biểu tượng cho từng yếu tố (hiện dạng thẻ nhỏ thay cho đoạn chữ).
+({IconData icon, String label}) factorChip(String code, RiskResult r) =>
+    switch (code) {
+      'bp_high_now' => (
+        icon: Icons.favorite_rounded,
+        label: 'Huyết áp ${r.systolic}/${r.diastolic}',
+      ),
+      'hypertension' => (
+        icon: Icons.monitor_heart_outlined,
+        label: 'Tăng huyết áp',
+      ),
+      'prior_stroke' => (
+        icon: Icons.psychology_alt_outlined,
+        label: 'Từng đột quỵ',
+      ),
+      'heart_disease' => (icon: Icons.heart_broken_outlined, label: 'Bệnh tim'),
+      'diabetes' => (icon: Icons.water_drop_outlined, label: 'Tiểu đường'),
+      'smoker' => (icon: Icons.smoking_rooms_outlined, label: 'Hút thuốc'),
+      'age_65' => (icon: Icons.cake_outlined, label: 'Từ 65 tuổi'),
+      _ => (icon: Icons.info_outline, label: code),
+    };
+
+/// Ba việc nên làm, mỗi việc một biểu tượng và vài chữ.
+List<({IconData icon, String label})> todoFor(RiskLevel l) => switch (l) {
+  RiskLevel.low => [
+    (icon: Icons.favorite_border_rounded, label: 'Đo huyết áp đều'),
+    (icon: Icons.directions_walk_rounded, label: 'Đi bộ nhẹ mỗi ngày'),
+    (icon: Icons.restaurant_outlined, label: 'Ăn nhạt, ngủ đủ'),
+  ],
+  RiskLevel.attention => [
+    (icon: Icons.schedule_rounded, label: 'Đo mỗi ngày, cùng giờ'),
+    (icon: Icons.local_hospital_outlined, label: 'Gặp bác sĩ vài tuần tới'),
+    (icon: Icons.no_food_outlined, label: 'Bớt muối, bỏ thuốc lá'),
+  ],
+  RiskLevel.high => [
+    (icon: Icons.event_available_outlined, label: 'Đặt lịch khám sớm'),
+    (icon: Icons.favorite_border_rounded, label: 'Đo và ghi mỗi ngày'),
+    (icon: Icons.medication_outlined, label: 'Không tự bỏ thuốc'),
+  ],
+  RiskLevel.urgent => [
+    (icon: Icons.event_seat_outlined, label: 'Ngồi nghỉ, đo lại'),
+    (icon: Icons.local_hospital_outlined, label: 'Còn cao thì đi khám'),
+    (icon: Icons.people_outline_rounded, label: 'Nhờ người thân ở cạnh'),
+  ],
+};
 
 /// Câu chữ cho từng mức nguy cơ. Lời khuyên chỉ nói chuyện theo dõi, lối sống và đi khám, không nhắc đến thuốc.
 String riskSentence(RiskLevel l) => switch (l) {

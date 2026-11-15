@@ -172,27 +172,19 @@ class _RiskViewState extends ConsumerState<RiskView> {
               Semantics(
                 label: 'Mức nguy cơ: ${lv.label}',
                 excludeSemantics: true,
-                child: Container(
+                child: Text(
+                  lv.label,
                   key: const Key('risk-ring'),
-                  width: 148,
-                  height: 148,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: lv.color, width: 12),
-                  ),
-                  child: Text(
-                    lv.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: lv.color,
-                      height: 1.15,
-                    ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: lv.color,
                   ),
                 ),
               ),
+              const SizedBox(height: AppSpacing.sm),
+              _LevelBar(level: lv),
               const SizedBox(height: AppSpacing.md),
               Text(
                 riskSentence(lv),
@@ -233,22 +225,69 @@ class _RiskViewState extends ConsumerState<RiskView> {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
+        _Section(
+          title: 'Yếu tố ảnh hưởng',
+          footer: r.ageOutOfRange ? ageNote : null,
+          child: Wrap(
+            key: const Key('risk-factors'),
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (r.reasons.isEmpty)
+                const _Chip(
+                  icon: Icons.check_circle_outline_rounded,
+                  label: 'Chưa có yếu tố nổi bật',
+                  color: AppColors.levelGood,
+                ),
+              for (final c in r.reasons)
+                _Chip(
+                  icon: factorChip(c, r).icon,
+                  label: factorChip(c, r).label,
+                  color: lv.color,
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _Section(
+          title: 'Bác nên làm',
+          child: Row(
+            key: const Key('risk-todo'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final t in todoFor(lv))
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: AppColors.navy.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(t.icon, color: AppColors.navy, size: 26),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          t.label,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
         InsetGroup(
           dividerIndent: 0,
           children: [
-            _Fold(
-              title: 'Vì sao có kết quả này',
-              children: [
-                if (r.reasons.isEmpty)
-                  const Text('Chưa có yếu tố nguy cơ nào nổi bật.'),
-                for (final c in r.reasons) _Bullet(reasonText(c, r)),
-                if (r.ageOutOfRange) const _Bullet(ageNote),
-              ],
-            ),
-            _Fold(
-              title: 'Bác có thể làm gì',
-              children: [for (final t in adviceFor(lv)) _Bullet(t)],
-            ),
             _Fold(
               title: 'Khi nào cần đi khám ngay',
               children: [
@@ -264,6 +303,125 @@ class _RiskViewState extends ConsumerState<RiskView> {
       ],
     );
   }
+}
+
+/// Thanh 4 nấc Thấp / Chú ý / Cao / Khẩn; nấc hiện tại đậm và có mũi tên chỉ.
+class _LevelBar extends StatelessWidget {
+  const _LevelBar({required this.level});
+
+  final RiskLevel level;
+
+  static const _short = ['Thấp', 'Chú ý', 'Cao', 'Khẩn'];
+
+  @override
+  Widget build(BuildContext context) => Row(
+    key: const Key('risk-bar'),
+    children: [
+      for (final l in RiskLevel.values)
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.arrow_drop_down_rounded,
+                  size: 28,
+                  color: l == level ? l.color : Colors.transparent,
+                ),
+                Container(
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: l.color.withValues(alpha: l == level ? 1 : 0.28),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _short[l.index],
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: l == level ? FontWeight.w800 : FontWeight.w500,
+                    color: l == level ? l.color : AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+    ],
+  );
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.child, this.footer});
+
+  final String title;
+  final Widget child;
+  final String? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+          if (footer != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              footer!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.label, required this.color});
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Fold extends StatelessWidget {
