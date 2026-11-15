@@ -2,5 +2,6 @@
   "regions": ["hnd1"],
   "functions": {
     "api/**/*.ts": { "maxDuration": 30 }
-  }
+  },
+  "crons": [{ "path": "/api/cron/prune-chat-images", "schedule": "23 3 * * *" }]
 }

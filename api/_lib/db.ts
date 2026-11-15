@@ -58,6 +58,18 @@ export async function storageGet(bucket: string, path: string): Promise<Buffer |
   return Buffer.from(await r.arrayBuffer());
 }
 
+/** Xóa nhiều file trong một bucket (file không tồn tại thì bỏ qua). */
+export async function storageRemove(bucket: string, paths: string[]): Promise<void> {
+  if (!paths.length) return;
+  const { base, headers } = conf();
+  const r = await fetch(`${base}/storage/v1/object/${bucket}`, {
+    method: 'DELETE',
+    headers,
+    body: JSON.stringify({ prefixes: paths }),
+  });
+  if (!r.ok) throw new Error(`storage_${r.status}`);
+}
+
 export async function storagePut(bucket: string, path: string, body: Buffer, contentType: string): Promise<void> {
   const { base, headers } = conf();
   const h = { ...headers, 'Content-Type': contentType, 'x-upsert': 'true' };
