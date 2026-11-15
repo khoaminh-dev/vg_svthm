@@ -10,16 +10,19 @@ import 'package:vg_svthm/features/bp/presentation/providers/bp_providers.dart';
 import 'package:vg_svthm/features/health/data/health_repository.dart';
 import 'package:vg_svthm/features/health/domain/health_models.dart';
 import 'package:vg_svthm/features/health/presentation/providers/health_providers.dart';
+import 'package:vg_svthm/features/health/presentation/screens/health_history_screen.dart';
 import 'package:vg_svthm/features/health/presentation/screens/health_setup_screen.dart';
 import 'package:vg_svthm/features/health/presentation/widgets/risk_view.dart';
 
 import 'auth_flow_test.dart' show FakeAuthRepository, settle;
 
 class FakeHealthRepository implements HealthRepository {
-  FakeHealthRepository({this.profile, this.risk});
+  FakeHealthRepository({this.profile, this.risk, List<HealthQa>? qa})
+    : qa = qa ?? [];
 
   HealthProfile? profile;
   RiskResult? risk;
+  final List<HealthQa> qa;
   int runs = 0;
 
   @override
@@ -30,6 +33,12 @@ class FakeHealthRepository implements HealthRepository {
 
   @override
   Future<RiskResult?> latestAssessment() async => risk;
+
+  @override
+  Future<List<HealthQa>> history() async => List.of(qa);
+
+  @override
+  Future<void> clearHistory() async => qa.clear();
 
   @override
   Future<RiskResult?> runAssessment() async {
@@ -270,6 +279,63 @@ void main() {
             anyOf(findsOneWidget, findsNothing),
           );
       }
+    },
+  );
+  testWidgets(
+    'lịch sử hỏi Vy: trống thì có gợi ý, có dữ liệu thì xem và xoá được',
+    (t) async {
+      bigScreen(t);
+      Future<void> open(FakeHealthRepository repo) async {
+        await t.pumpWidget(
+          ProviderScope(
+            overrides: [healthRepositoryProvider.overrideWithValue(repo)],
+            child: MaterialApp(
+              theme: AppTheme.light,
+              home: const HealthHistoryScreen(),
+            ),
+          ),
+        );
+        await t.pumpAndSettle();
+      }
+
+      await open(FakeHealthRepository());
+      expect(find.byKey(const Key('history-empty')), findsOneWidget);
+      expect(find.byKey(const Key('history-clear')), findsNothing);
+
+      final repo = FakeHealthRepository(
+        qa: [
+          HealthQa(
+            id: 2,
+            question: 'Huyết áp tôi dạo này thế nào',
+            answer: 'Tuần này bác đo 4 lần, trung bình 139 trên 89.',
+            askedAt: DateTime(2026, 11, 14, 9, 5),
+          ),
+          HealthQa(
+            id: 1,
+            question: 'Tôi có nguy hiểm không',
+            answer: 'Mức nguy cơ của bác đang thấp.',
+            askedAt: DateTime(2026, 11, 13, 20, 30),
+          ),
+        ],
+      );
+      await open(repo);
+      expect(find.text('Huyết áp tôi dạo này thế nào'), findsOneWidget);
+      expect(find.textContaining('trung bình 139 trên 89'), findsOneWidget);
+      expect(find.text('09:05 ngày 14/11'), findsOneWidget);
+      expect(find.textContaining('tự xoá sau 90 ngày'), findsOneWidget);
+
+      await t.tap(find.byKey(const Key('history-clear')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('history-cancel')));
+      await t.pumpAndSettle();
+      expect(repo.qa, hasLength(2), reason: 'Giữ lại thì không xoá');
+
+      await t.tap(find.byKey(const Key('history-clear')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('history-confirm')));
+      await t.pumpAndSettle();
+      expect(repo.qa, isEmpty);
+      expect(find.byKey(const Key('history-empty')), findsOneWidget);
     },
   );
 }

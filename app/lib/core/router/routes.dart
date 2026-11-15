@@ -18,6 +18,7 @@ abstract final class Routes {
   static const community = '/community';
   static const healthSetup = '/health-setup';
   static const healthProfile = '/health-profile';
+  static const healthHistory = '/health-history';
 
   /// Bốn tab chính (có thanh điều hướng dưới). Màn "Sức khoẻ" dùng đường dẫn `/bp`.
   static const tabs = [home, rooms, bp, profile];

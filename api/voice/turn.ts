@@ -6,6 +6,8 @@ import { deepseekChat, elevenScribe, groqJsonChat, groqWhisper, type Msg, type S
 import { INTENT_LIST, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
 import { getPolicy } from '../_lib/voice/gate.js';
 import { isReliable } from '../_lib/voice/stt_guard.js';
+import { answerHealth } from '../_lib/voice/health_voice.js';
+import { topicOf } from '../_lib/voice/health_say.js';
 
 const MAX_AUDIO_B64 = 4_000_000; // ~3MB, dưới giới hạn body của Vercel
 const MAX_TEXT = 500;
@@ -69,10 +71,11 @@ function parseState(v: unknown): DState {
 
 const SYSTEM = `Bạn là bộ hiểu lệnh tiếng Việt cho ứng dụng chăm sóc người cao tuổi. Chỉ trả về JSON:
 {"intent": "...", "recipient": "", "content": "", "feature": "", "say": ""}
-intent là một trong: send_message (nhắn tin cho ai đó), open_chat (mở khung chat với ai đó), open_feature (mở tính năng: chat | ocr | bp | fun | home; fun là mục Giải trí/YouTube), measure_bp (đo/chụp huyết áp), show_bp (xem lịch sử/biểu đồ huyết áp), read_bp (đọc kết quả huyết áp gần nhất), play_video (xem/nghe video, bài hát, nhạc trên YouTube; từ khoá tìm đặt vào content), video_control (điều khiển video đang phát: content là một trong pause, play, next, previous, louder, quieter), go_back, go_home, help (hỏi làm được gì), chitchat (chào hỏi/hỏi thăm ngắn), unsupported (ngoài khả năng).
+intent là một trong: send_message (nhắn tin cho ai đó), open_chat (mở khung chat với ai đó), open_feature (mở tính năng: chat | ocr | bp | fun | home; fun là mục Giải trí/YouTube), measure_bp (đo/chụp huyết áp), show_bp (xem lịch sử/biểu đồ huyết áp), read_bp (đọc kết quả huyết áp gần nhất), health_status (hỏi về tình trạng sức khoẻ, xu hướng huyết áp, nguy cơ của chính mình, hoặc hỏi y khoa chung; content là một trong general, trend, risk, habit, other), play_video (xem/nghe video, bài hát, nhạc trên YouTube; từ khoá tìm đặt vào content), video_control (điều khiển video đang phát: content là một trong pause, play, next, previous, louder, quieter), go_back, go_home, help (hỏi làm được gì), chitchat (chào hỏi/hỏi thăm ngắn), unsupported (ngoài khả năng).
 - recipient: đúng cụm người nhận như người dùng nói (vd "con trai", "bà Lan"), để trống nếu không nói.
 - content: nội dung tin nhắn nếu người dùng đã nói sẵn, KHÔNG gồm phần "nhắn cho ai". Giữ nguyên lời, không bịa.
 - feature: chat | ocr | bp | fun | home khi intent là open_feature.
+- content với health_status: general (tình trạng chung) | trend (dạo này, tuần này) | risk (nguy cơ, có nguy hiểm không) | habit (đo mấy lần) | other (triệu chứng, ăn uống, thuốc).
 - content với play_video: chỉ từ khoá cần tìm (tên bài, ca sĩ, chủ đề), bỏ chữ "mở/cho nghe/xem".
 - say: chỉ với chitchat, một câu trả lời rất ngắn, lễ phép. Không đưa lời khuyên y tế.
 Không bịa người nhận hay nội dung. Nếu không chắc, chọn unsupported.`;
@@ -197,6 +200,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const model = pol.deepseek_model || 'deepseek-flash';
       decision = await step({ text, state, ui, lowConfidence: (stt?.confidence ?? 1) < 0.45 }, makeNlu(model, meter));
       if (decision.intent === 'error') { outcome = 'error'; error = 'nlu'; }
+      // Câu hỏi về sức khoẻ: server tự đọc số liệu của người dùng rồi dựng câu từ khuôn, không qua mô hình.
+      if (decision.intent === 'health_status' && decision.action === 'execute') {
+        const hon = honorificOf(ui.honorific);
+        try {
+          const h = await answerHealth(uid, topicOf(decision.task?.slots.content), hon, text);
+          decision = { ...decision, action: 'answer', say: h.say, sayClass: h.sayClass, task: null, expects: 'none', expectsReply: false, chips: [] };
+        } catch (e) {
+          console.error(e);
+          decision = { ...decision, action: 'answer', say: `Con đang trục trặc một chút, ${hon} thử lại sau nhé.`, sayClass: 'other', task: null, expects: 'none', expectsReply: false, chips: [] };
+          outcome = 'error';
+          error = 'health';
+        }
+      }
     }
 
     // Học bí danh ("con trai" = người này) — ghi phía server cho chắc.

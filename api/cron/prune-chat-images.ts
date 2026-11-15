@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
-import { dbPatch, dbSelect, storageRemove } from '../_lib/db.js';
+import { dbDelete, dbPatch, dbSelect, storageRemove } from '../_lib/db.js';
 
 // Chạy hằng ngày (vercel.json → crons): xóa file ảnh chat quá 90 ngày khỏi Storage rồi đánh dấu "đã hết hạn"
-// trên tin nhắn. Làm bằng API chứ không bằng SQL vì xóa dòng trong storage.objects không xóa file thật.
+// trên tin nhắn; đồng thời xóa lịch sử hỏi đáp sức khoẻ (health_qa) quá 90 ngày. Làm bằng API chứ không bằng SQL vì xóa dòng trong storage.objects không xóa file thật.
 const DAYS = 90;
 const BATCH = 200;
 const MAX_BATCHES = 10;
@@ -33,6 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       expired += rows.length;
       if (rows.length < BATCH) break;
     }
+    // Lịch sử bác hỏi Vy về sức khoẻ cũng chỉ giữ 90 ngày.
+    await dbDelete('health_qa', `asked_at=lt.${encodeURIComponent(cutoff)}`);
     res.status(200).json({ ok: true, expired });
   } catch (e) {
     const m = e instanceof Error ? e.message : 'error';

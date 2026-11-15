@@ -134,6 +134,27 @@ class _RiskViewState extends ConsumerState<RiskView> {
                   },
                 ),
               ),
+              Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  key: const Key('open-health-history'),
+                  minTileHeight: 64,
+                  leading: const Icon(
+                    Icons.history_rounded,
+                    color: AppColors.navy,
+                  ),
+                  title: const Text(
+                    'Lịch sử hỏi Vy',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
+                  ),
+                  subtitle: const Text('Những lần bác hỏi Vy về sức khoẻ'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Analytics.track('health_history_open');
+                    context.push(Routes.healthHistory);
+                  },
+                ),
+              ),
             ],
           ),
           Padding(

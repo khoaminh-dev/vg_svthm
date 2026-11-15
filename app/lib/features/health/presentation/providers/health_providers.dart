@@ -37,6 +37,11 @@ final latestRiskProvider = FutureProvider.autoDispose<RiskResult?>(
   (ref) => ref.watch(healthRepositoryProvider).latestAssessment(),
 );
 
+/// Lịch sử hỏi Vy về sức khoẻ. Tải lại mỗi lần mở màn.
+final healthHistoryProvider = FutureProvider.autoDispose<List<HealthQa>>(
+  (ref) => ref.watch(healthRepositoryProvider).history(),
+);
+
 /// Chạy đánh giá trên server. Gọi tự động sau mỗi lần đo huyết áp và khi sửa hồ sơ.
 class RiskRunner extends Notifier<AsyncValue<RiskResult?>> {
   @override

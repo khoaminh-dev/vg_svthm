@@ -92,7 +92,7 @@ const S = {
   cancelled: () => 'Dạ, con hủy rồi ạ.',
   notHeard: (h: string) => `Con chưa nghe rõ, ${h} nói lại giúp con nhé.`,
   opened: () => 'Dạ, con mở rồi ạ.',
-  help: (h: string) => `Con giúp ${h} nhắn tin, đo huyết áp, xem lịch sử huyết áp và mở video, nhạc trên YouTube ạ.`,
+  help: (h: string) => `Con giúp ${h} nhắn tin, đo huyết áp, xem lịch sử huyết áp, nói về tình trạng sức khoẻ và mở video, nhạc trên YouTube ạ.`,
   unsupported: (h: string) => `Việc này con chưa làm được. Con giúp ${h} nhắn tin hoặc đo huyết áp nhé?`,
   emergency: (h: string) => `${h} hãy gọi 115 hoặc nhờ người thân ngay nhé. Nếu thấy nguy hiểm, đừng chờ ạ.`,
   trouble: (h: string) => `Con đang trục trặc một chút, ${h} thử lại sau nhé.`,
@@ -177,12 +177,24 @@ export function videoControl(t: string): string | null {
   return null;
 }
 
+/** Câu hỏi về tình trạng sức khoẻ của chính người nói (t đã bỏ dấu): trả về loại câu hỏi hoặc null. */
+export function healthTopic(t: string): string | null {
+  if (/(nguy co|dot quy|tim mach|co nguy hiem khong|nguy hiem khong)/.test(t)) return 'risk';
+  if (/(tuan nay|thang nay|may ngay qua|dao nay).*(do|chup).*(may lan|bao nhieu lan)/.test(t) || /\bdo (may|bao nhieu) lan\b/.test(t)) return 'habit';
+  if (/(huyet ap).*(dao nay|tuan nay|may ngay|xu huong|tang khong|giam khong|on dinh|the nao|sao roi|ra sao|co sao khong)/.test(t) || /(dao nay|tuan nay).*(huyet ap)/.test(t)) return 'trend';
+  if (/(tinh trang|suc khoe).*(cua toi|cua con|hien tai|hom nay|the nao|ra sao|sao roi)/.test(t) || /^(suc khoe|tinh trang) (cua )?(toi|con)/.test(t) || /^(toi|con) (co )?khoe khong/.test(t)) return 'general';
+  if (/(dau dau|chong mat|mat ngu|uong thuoc gi|an gi (tot|co loi)|co sao khong|bi benh gi|benh gi)/.test(t)) return 'other';
+  return null;
+}
+
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
 function fastIntent(t: string): { intent: string; feature?: string; content?: string } | null {
   if (/^(ve )?(trang chu|man hinh chinh)$/.test(t) || /^ve trang chu/.test(t)) return { intent: 'go_home' };
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
   if (/(xem|mo).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo) huyet ap$/.test(t)) return { intent: 'show_bp' };
   if (/(huyet ap).*(bao nhieu|gan nhat|hom nay|vua do)/.test(t) || /(doc|cho biet).*(huyet ap)/.test(t)) return { intent: 'read_bp' };
+  const hs = healthTopic(t);
+  if (hs) return { intent: 'health_status', content: hs };
   if (/\b(do|chup|doc)\b.*\b(huyet ap|may do)\b/.test(t) || /^do huyet ap/.test(t)) return { intent: 'measure_bp' };
   if (/^(mo|vao|xem) (tin nhan|chat|tro chuyen)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'chat' };
   if (/^(mo|vao|chup|quet) (ocr|doc so lieu|so lieu)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'ocr' };
@@ -253,7 +265,7 @@ const REQUIRED: Record<string, string[]> = {
   open_feature: ['feature'],
   play_video: ['content'],
   video_control: ['content'],
-  measure_bp: [], show_bp: [], read_bp: [], go_back: [], go_home: [], help: [], chitchat: [],
+  measure_bp: [], show_bp: [], read_bp: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];

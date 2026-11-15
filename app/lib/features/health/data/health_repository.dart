@@ -18,6 +18,11 @@ abstract interface class HealthRepository {
 
   /// Nhờ server đánh giá theo hồ sơ và lần đo mới nhất. Null nếu chưa đủ dữ liệu (chưa đo hoặc chưa có hồ sơ).
   Future<RiskResult?> runAssessment();
+
+  /// Lịch sử bác hỏi Vy về sức khoẻ, mới nhất trước.
+  Future<List<HealthQa>> history();
+
+  Future<void> clearHistory();
 }
 
 class SupabaseHealthRepository implements HealthRepository {
@@ -85,6 +90,23 @@ class SupabaseHealthRepository implements HealthRepository {
       jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
     );
   }
+
+  @override
+  Future<List<HealthQa>> history() => _guard(() async {
+    final rows = await _client
+        .from('health_qa')
+        .select('id, question, answer, asked_at')
+        .order('asked_at', ascending: false)
+        .limit(100);
+    return [for (final r in rows) HealthQa.fromMap(r)];
+  });
+
+  @override
+  Future<void> clearHistory() => _guard(() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');
+    await _client.from('health_qa').delete().eq('user_id', uid);
+  });
 
   Future<T> _guard<T>(Future<T> Function() run) async {
     try {

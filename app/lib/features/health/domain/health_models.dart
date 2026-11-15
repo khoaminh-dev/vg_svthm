@@ -142,3 +142,25 @@ class RiskResult {
     );
   }
 }
+
+/// Một lần bác hỏi Vy về sức khoẻ và câu Vy trả lời (bảng `health_qa`, giữ 90 ngày).
+class HealthQa {
+  const HealthQa({
+    required this.id,
+    required this.question,
+    required this.answer,
+    required this.askedAt,
+  });
+
+  factory HealthQa.fromMap(Map<String, dynamic> m) => HealthQa(
+    id: (m['id'] as num).toInt(),
+    question: m['question'] as String,
+    answer: m['answer'] as String,
+    askedAt: DateTime.parse(m['asked_at'] as String).toLocal(),
+  );
+
+  final int id;
+  final String question;
+  final String answer;
+  final DateTime askedAt;
+}
