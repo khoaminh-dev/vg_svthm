@@ -68,11 +68,17 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
           validator: widget.validator,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => _submit(),
-          decoration: InputDecoration(labelText: widget.label, prefixText: widget.prefix),
+          decoration: InputDecoration(
+            labelText: widget.label,
+            prefixText: widget.prefix,
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Huỷ')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Huỷ'),
+        ),
         FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
       ],
     );

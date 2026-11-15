@@ -16,13 +16,15 @@ final ocrEngineProvider = Provider<OcrEngine>((ref) => MlKitOcrEngine());
 final bpOcrEngineProvider = Provider<OcrEngine>(
   (ref) => ApiOcrEngine(
     mode: 'bp',
-    accessToken: () => ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
+    accessToken: () =>
+        ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
   ),
 );
 
 final aiOcrEngineProvider = Provider<OcrEngine>(
   (ref) => ApiOcrEngine(
-    accessToken: () => ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
+    accessToken: () =>
+        ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
   ),
 );
 
@@ -56,15 +58,19 @@ class OcrRecordsNotifier extends AsyncNotifier<OcrPage> {
     final next = await ref
         .read(ocrRepositoryProvider)
         .list(before: current.items.last.createdAt, limit: pageSize);
-    state = AsyncData(OcrPage([...current.items, ...next], hasMore: next.length >= pageSize));
+    state = AsyncData(
+      OcrPage([...current.items, ...next], hasMore: next.length >= pageSize),
+    );
   }
 }
 
-final ocrRecordsProvider = AsyncNotifierProvider.autoDispose<OcrRecordsNotifier, OcrPage>(
-  OcrRecordsNotifier.new,
-);
+final ocrRecordsProvider =
+    AsyncNotifierProvider.autoDispose<OcrRecordsNotifier, OcrPage>(
+      OcrRecordsNotifier.new,
+    );
 
 /// Link xem ảnh đã lưu.
-final ocrImageUrlProvider = FutureProvider.autoDispose.family<String?, OcrRecord>(
-  (ref, record) => ref.watch(ocrRepositoryProvider).imageUrl(record),
-);
+final ocrImageUrlProvider = FutureProvider.autoDispose
+    .family<String?, OcrRecord>(
+      (ref, record) => ref.watch(ocrRepositoryProvider).imageUrl(record),
+    );

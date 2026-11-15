@@ -58,7 +58,10 @@ class _MessageInputState extends State<MessageInput> {
             ListTile(
               minTileHeight: 64,
               leading: const Icon(Icons.photo_library_outlined, size: 32),
-              title: const Text('Chọn từ thư viện', style: TextStyle(fontSize: 20)),
+              title: const Text(
+                'Chọn từ thư viện',
+                style: TextStyle(fontSize: 20),
+              ),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
           ],
@@ -76,7 +79,11 @@ class _MessageInputState extends State<MessageInput> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không mở được ảnh, hãy kiểm tra quyền camera/thư viện')),
+        const SnackBar(
+          content: Text(
+            'Không mở được ảnh, hãy kiểm tra quyền camera/thư viện',
+          ),
+        ),
       );
     }
   }
@@ -125,7 +132,11 @@ class _MessageInputState extends State<MessageInput> {
                         image,
                         height: 110,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const SizedBox(height: 110, width: 110, child: Icon(Icons.broken_image_outlined)),
+                        errorBuilder: (_, _, _) => const SizedBox(
+                          height: 110,
+                          width: 110,
+                          child: Icon(Icons.broken_image_outlined),
+                        ),
                       ),
                     ),
                     Positioned(
@@ -134,7 +145,9 @@ class _MessageInputState extends State<MessageInput> {
                       child: IconButton.filledTonal(
                         tooltip: 'Bỏ ảnh',
                         visualDensity: VisualDensity.compact,
-                        onPressed: _sending ? null : () => setState(() => _image = null),
+                        onPressed: _sending
+                            ? null
+                            : () => setState(() => _image = null),
                         icon: const Icon(Icons.close),
                       ),
                     ),
@@ -164,7 +177,9 @@ class _MessageInputState extends State<MessageInput> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
-                      hintText: image != null ? 'Thêm chú thích (không bắt buộc)' : 'Nhập tin nhắn...',
+                      hintText: image != null
+                          ? 'Thêm chú thích (không bắt buộc)'
+                          : 'Nhập tin nhắn...',
                       counterText: '',
                     ),
                   ),

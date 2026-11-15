@@ -28,7 +28,11 @@ class StatusChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon ?? Icons.circle, size: icon == null ? 10 : 18, color: color),
+          Icon(
+            icon ?? Icons.circle,
+            size: icon == null ? 10 : 18,
+            color: color,
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(

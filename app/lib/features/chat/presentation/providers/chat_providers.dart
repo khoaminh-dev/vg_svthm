@@ -25,9 +25,10 @@ final joinedRoomsProvider = StreamProvider.autoDispose<void>((ref) {
 });
 
 /// Tin nhắn của một phòng, cập nhật realtime.
-final messagesProvider = StreamProvider.autoDispose.family<List<Message>, String>(
-  (ref, roomId) => ref.watch(chatRepositoryProvider).watchMessages(roomId),
-);
+final messagesProvider = StreamProvider.autoDispose
+    .family<List<Message>, String>(
+      (ref, roomId) => ref.watch(chatRepositoryProvider).watchMessages(roomId),
+    );
 
 /// Đường dẫn tạm để xem ảnh trong chat (giữ trong bộ nhớ để cuộn danh sách không tải lại).
 final chatImageUrlProvider = FutureProvider.family<String?, String>(
@@ -35,13 +36,17 @@ final chatImageUrlProvider = FutureProvider.family<String?, String>(
 );
 
 /// Thành viên của một phòng.
-final membersProvider = FutureProvider.autoDispose.family<List<Profile>, String>((ref, roomId) {
-  final repo = ref.watch(chatRepositoryProvider);
-  // Có người được thêm/xoá thì tải lại danh sách (để tên hiển thị đúng ngay).
-  final sub = repo.watchMembers(roomId).listen((_) => ref.invalidateSelf(), onError: (_) {});
-  ref.onDispose(sub.cancel);
-  return repo.fetchMembers(roomId);
-});
+final membersProvider = FutureProvider.autoDispose.family<List<Profile>, String>(
+  (ref, roomId) {
+    final repo = ref.watch(chatRepositoryProvider);
+    // Có người được thêm/xoá thì tải lại danh sách (để tên hiển thị đúng ngay).
+    final sub = repo
+        .watchMembers(roomId)
+        .listen((_) => ref.invalidateSelf(), onError: (_) {});
+    ref.onDispose(sub.cancel);
+    return repo.fetchMembers(roomId);
+  },
+);
 
 /// Id những người đang online trong phòng.
 final onlineProvider = StreamProvider.autoDispose.family<Set<String>, String>(
@@ -50,7 +55,11 @@ final onlineProvider = StreamProvider.autoDispose.family<Set<String>, String>(
 
 /// Tin nhắn cũ đã tải thêm (phân trang kiểu keyset theo thời gian), ngoài cửa sổ realtime mới nhất.
 class OlderMessagesState {
-  const OlderMessagesState({this.items = const [], this.hasMore = true, this.loading = false});
+  const OlderMessagesState({
+    this.items = const [],
+    this.hasMore = true,
+    this.loading = false,
+  });
 
   final List<Message> items;
   final bool hasMore;
@@ -68,13 +77,20 @@ class OlderMessagesNotifier extends Notifier<OlderMessagesState> {
   /// Tải thêm một trang tin cũ hơn [oldestShown] (tin cũ nhất đang hiển thị).
   Future<void> loadMore(DateTime oldestShown) async {
     if (state.loading || !state.hasMore) return;
-    state = OlderMessagesState(items: state.items, hasMore: state.hasMore, loading: true);
+    state = OlderMessagesState(
+      items: state.items,
+      hasMore: state.hasMore,
+      loading: true,
+    );
     try {
       const page = 50;
       final older = await ref
           .read(chatRepositoryProvider)
           .fetchOlderMessages(roomId, before: oldestShown, limit: page);
-      state = OlderMessagesState(items: [...older, ...state.items], hasMore: older.length >= page);
+      state = OlderMessagesState(
+        items: [...older, ...state.items],
+        hasMore: older.length >= page,
+      );
     } catch (_) {
       state = OlderMessagesState(items: state.items, hasMore: state.hasMore);
     }

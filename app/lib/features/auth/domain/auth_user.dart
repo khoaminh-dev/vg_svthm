@@ -1,6 +1,12 @@
 /// Người dùng đã đăng nhập (không phụ thuộc Supabase).
 class AuthUser {
-  const AuthUser({required this.id, this.email, this.fullName, this.username, this.avatarUrl});
+  const AuthUser({
+    required this.id,
+    this.email,
+    this.fullName,
+    this.username,
+    this.avatarUrl,
+  });
 
   final String id;
   final String? email;
@@ -11,8 +17,9 @@ class AuthUser {
   /// Chưa chọn tên người dùng (thường là tài khoản Google mới).
   bool get needsProfile => username == null || username!.isEmpty;
 
-  String get displayName =>
-      (fullName?.trim().isNotEmpty ?? false) ? fullName! : (email ?? 'Người dùng');
+  String get displayName => (fullName?.trim().isNotEmpty ?? false)
+      ? fullName!
+      : (email ?? 'Người dùng');
 }
 
 /// Một thay đổi trạng thái xác thực.

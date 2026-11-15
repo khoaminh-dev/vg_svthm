@@ -11,12 +11,18 @@ AppFailure mapChatError(Object error) {
       case '42501':
         return const AppFailure('Bạn không có quyền thực hiện thao tác này');
       case '22023':
-        return const AppFailure('Không thể thực hiện với phòng hoặc người dùng này');
+        return const AppFailure(
+          'Không thể thực hiện với phòng hoặc người dùng này',
+        );
       case '23514':
-        return const AppFailure('Nội dung không hợp lệ (quá dài hoặc để trống)');
+        return const AppFailure(
+          'Nội dung không hợp lệ (quá dài hoặc để trống)',
+        );
       case 'P0001':
         if (error.message.contains('image_limit')) {
-          return const AppFailure('Hôm nay bạn đã gửi nhiều ảnh rồi, ngày mai gửi tiếp nhé');
+          return const AppFailure(
+            'Hôm nay bạn đã gửi nhiều ảnh rồi, ngày mai gửi tiếp nhé',
+          );
         }
     }
     return AppFailure(error.message);

@@ -19,8 +19,13 @@ class MlKitOcrEngine implements OcrEngine {
 
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     try {
-      final result = await recognizer.processImage(InputImage.fromFilePath(imagePath));
-      return OcrScan(rawText: result.text, values: OcrParser.parse(result.text));
+      final result = await recognizer.processImage(
+        InputImage.fromFilePath(imagePath),
+      );
+      return OcrScan(
+        rawText: result.text,
+        values: OcrParser.parse(result.text),
+      );
     } catch (_) {
       throw const AppFailure('Không đọc được ảnh, hãy thử ảnh rõ hơn');
     } finally {

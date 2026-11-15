@@ -26,7 +26,11 @@ class Analytics {
 
   /// Gọi một lần sau khi khởi tạo Supabase: tự gửi nốt hàng đợi khi app ra nền.
   static void init() {
-    _lifecycle ??= AppLifecycleListener(onInactive: flush, onHide: flush, onPause: flush);
+    _lifecycle ??= AppLifecycleListener(
+      onInactive: flush,
+      onHide: flush,
+      onPause: flush,
+    );
   }
 
   static void track(String name, [Map<String, Object?> props = const {}]) {
@@ -80,7 +84,8 @@ class AnalyticsObserver extends NavigatorObserver {
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _view(route);
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _view(route);
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
@@ -89,5 +94,6 @@ class AnalyticsObserver extends NavigatorObserver {
   }
 
   @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _view(newRoute);
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _view(newRoute);
 }

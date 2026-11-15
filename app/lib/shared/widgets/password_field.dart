@@ -44,7 +44,9 @@ class _PasswordFieldState extends State<PasswordField> {
       onSubmitted: widget.onSubmitted,
       suffixIcon: IconButton(
         tooltip: _obscure ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
-        icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+        icon: Icon(
+          _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+        ),
         onPressed: () => setState(() => _obscure = !_obscure),
       ),
     );

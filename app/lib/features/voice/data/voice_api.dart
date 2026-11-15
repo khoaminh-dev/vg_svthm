@@ -50,8 +50,10 @@ class VoiceApi {
     required String honorific,
   }) async {
     final token = accessToken();
-    if (_baseUrl.isEmpty) throw const VoiceApiException('config', 'Chưa cấu hình máy chủ');
-    if (token == null) throw const VoiceApiException('auth', 'Phiên đăng nhập đã hết hạn');
+    if (_baseUrl.isEmpty)
+      throw const VoiceApiException('config', 'Chưa cấu hình máy chủ');
+    if (token == null)
+      throw const VoiceApiException('auth', 'Phiên đăng nhập đã hết hạn');
     final http.Response res;
     try {
       res = await _client
@@ -62,7 +64,11 @@ class VoiceApi {
               'session_id': sessionId,
               'turn_no': turnNo,
               'input': audio != null
-                  ? {'audio_b64': base64Encode(audio), 'mime': mime, 'duration_ms': durationMs}
+                  ? {
+                      'audio_b64': base64Encode(audio),
+                      'mime': mime,
+                      'duration_ms': durationMs,
+                    }
                   : {'text': text ?? ''},
               'state': dialog.toJson(),
               'ui': {
@@ -77,21 +83,37 @@ class VoiceApi {
     } catch (_) {
       throw const VoiceApiException('network', 'Không kết nối được máy chủ');
     }
-    if (res.statusCode == 429) throw const VoiceApiException('rate', 'Bạn nói nhanh quá, chờ một chút nhé');
-    if (res.statusCode == 503) throw const VoiceApiException('disabled', 'Tính năng giọng nói đang tạm tắt');
-    if (res.statusCode == 401) throw const VoiceApiException('auth', 'Phiên đăng nhập đã hết hạn');
-    if (res.statusCode != 200) throw const VoiceApiException('server', 'Máy chủ đang bận');
+    if (res.statusCode == 429)
+      throw const VoiceApiException(
+        'rate',
+        'Bạn nói nhanh quá, chờ một chút nhé',
+      );
+    if (res.statusCode == 503)
+      throw const VoiceApiException(
+        'disabled',
+        'Tính năng giọng nói đang tạm tắt',
+      );
+    if (res.statusCode == 401)
+      throw const VoiceApiException('auth', 'Phiên đăng nhập đã hết hạn');
+    if (res.statusCode != 200)
+      throw const VoiceApiException('server', 'Máy chủ đang bận');
     try {
-      return VoiceTurnResult.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+      return VoiceTurnResult.fromJson(
+        jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>,
+      );
     } catch (_) {
-      throw const VoiceApiException('server', 'Máy chủ trả dữ liệu không hợp lệ');
+      throw const VoiceApiException(
+        'server',
+        'Máy chủ trả dữ liệu không hợp lệ',
+      );
     }
   }
 
   /// Xin giọng đọc cho một câu; lỗi/hết hạn mức → `audio == null` (app dùng giọng máy).
   Future<TtsReply> tts(String text, String sayClass) async {
     final token = accessToken();
-    if (_baseUrl.isEmpty || token == null) return const TtsReply(null, 'no_api');
+    if (_baseUrl.isEmpty || token == null)
+      return const TtsReply(null, 'no_api');
     try {
       final res = await _client
           .post(

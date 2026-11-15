@@ -52,10 +52,14 @@ class ChatController extends AsyncNotifier<void> {
   /// Gửi ảnh kèm chú thích tùy chọn. Lỗi nằm trong state; tin mới tới qua stream realtime.
   Future<bool> sendImage(String roomId, Uint8List bytes, String caption) async {
     state = await AsyncValue.guard(
-      () => ref.read(chatRepositoryProvider).sendImage(roomId, bytes, caption: caption),
+      () => ref
+          .read(chatRepositoryProvider)
+          .sendImage(roomId, bytes, caption: caption),
     );
     return !state.hasError;
   }
 }
 
-final chatControllerProvider = AsyncNotifierProvider<ChatController, void>(ChatController.new);
+final chatControllerProvider = AsyncNotifierProvider<ChatController, void>(
+  ChatController.new,
+);

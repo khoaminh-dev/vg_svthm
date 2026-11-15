@@ -11,7 +11,12 @@ class LargeTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
+    padding: const EdgeInsets.fromLTRB(
+      AppSpacing.lg,
+      AppSpacing.md,
+      AppSpacing.md,
+      AppSpacing.sm,
+    ),
     child: Row(
       children: [
         Expanded(
@@ -61,7 +66,9 @@ class SoftIconButton extends StatelessWidget {
           height: AppSpacing.tapTarget,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: filled ? scheme.primary : scheme.onSurface.withValues(alpha: 0.06),
+            color: filled
+                ? scheme.primary
+                : scheme.onSurface.withValues(alpha: 0.06),
           ),
           child: Icon(icon, color: filled ? Colors.white : scheme.onSurface),
         ),
@@ -72,14 +79,19 @@ class SoftIconButton extends StatelessWidget {
 
 /// Nhóm hàng kiểu iOS: một khối trắng bo góc, các hàng ngăn bằng đường mảnh thụt vào.
 class InsetGroup extends StatelessWidget {
-  const InsetGroup({super.key, required this.children, this.dividerIndent = 76});
+  const InsetGroup({
+    super.key,
+    required this.children,
+    this.dividerIndent = 76,
+  });
 
   final List<Widget> children;
   final double dividerIndent;
 
   @override
   Widget build(BuildContext context) {
-    final line = Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.6);
+    final line = Theme.of(context).colorScheme.outlineVariant
+        .withValues(alpha: 0.6);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       decoration: BoxDecoration(
@@ -87,13 +99,23 @@ class InsetGroup extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) Divider(height: 1, thickness: 0.5, indent: dividerIndent, color: line),
-            children[i],
+      // Các hàng ListTile bên trong vẽ nền và hiệu ứng chạm lên Material gần nhất; không có thì hiệu ứng bị khối trắng che mất.
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: dividerIndent,
+                  color: line,
+                ),
+              children[i],
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

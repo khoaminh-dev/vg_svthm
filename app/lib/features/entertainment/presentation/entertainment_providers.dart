@@ -5,7 +5,8 @@ import '../data/youtube_service.dart';
 
 final videoSearchProvider = Provider<VideoSearch>(
   (ref) => ApiVideoSearch(
-    accessToken: () => ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
+    accessToken: () =>
+        ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
     fallback: YoutubeExplodeSearch(),
   ),
 );
@@ -18,10 +19,14 @@ class VideoQueryNotifier extends Notifier<String> {
   void set(String value) => state = value.trim();
 }
 
-final videoQueryProvider = NotifierProvider<VideoQueryNotifier, String>(VideoQueryNotifier.new);
+final videoQueryProvider = NotifierProvider<VideoQueryNotifier, String>(
+  VideoQueryNotifier.new,
+);
 
 /// Kết quả tìm theo [videoQueryProvider]; rỗng khi chưa nhập gì.
-final videoResultsProvider = FutureProvider.autoDispose<List<VideoItem>>((ref) async {
+final videoResultsProvider = FutureProvider.autoDispose<List<VideoItem>>((
+  ref,
+) async {
   final q = ref.watch(videoQueryProvider);
   if (q.isEmpty) return const [];
   return ref.read(videoSearchProvider).search(q);
@@ -35,7 +40,10 @@ class VideoQueueNotifier extends Notifier<List<VideoItem>> {
   void set(List<VideoItem> items) => state = items;
 }
 
-final videoQueueProvider = NotifierProvider<VideoQueueNotifier, List<VideoItem>>(VideoQueueNotifier.new);
+final videoQueueProvider =
+    NotifierProvider<VideoQueueNotifier, List<VideoItem>>(
+      VideoQueueNotifier.new,
+    );
 
 /// Lệnh điều khiển trình phát (từ giọng nói của Vy hoặc nút trên màn).
 enum PlayerAction { pause, play, next, previous, louder, quieter }
@@ -53,7 +61,10 @@ class PlayerCommandNotifier extends Notifier<PlayerCommand?> {
   void send(PlayerAction a) => state = PlayerCommand(a);
 }
 
-final playerCommandProvider = NotifierProvider<PlayerCommandNotifier, PlayerCommand?>(PlayerCommandNotifier.new);
+final playerCommandProvider =
+    NotifierProvider<PlayerCommandNotifier, PlayerCommand?>(
+      PlayerCommandNotifier.new,
+    );
 
 /// Màn phát đang mở hay không (để Vy biết có thể điều khiển).
 class PlayerOpenNotifier extends Notifier<bool> {
@@ -63,4 +74,6 @@ class PlayerOpenNotifier extends Notifier<bool> {
   void set(bool v) => state = v;
 }
 
-final playerOpenProvider = NotifierProvider<PlayerOpenNotifier, bool>(PlayerOpenNotifier.new);
+final playerOpenProvider = NotifierProvider<PlayerOpenNotifier, bool>(
+  PlayerOpenNotifier.new,
+);

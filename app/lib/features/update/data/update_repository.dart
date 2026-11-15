@@ -39,7 +39,10 @@ class OtaApkInstaller implements ApkInstaller {
       )) {
         switch (e.status) {
           case OtaStatus.DOWNLOADING:
-            yield InstallEvent(InstallPhase.downloading, progress: int.tryParse(e.value ?? '') ?? 0);
+            yield InstallEvent(
+              InstallPhase.downloading,
+              progress: int.tryParse(e.value ?? '') ?? 0,
+            );
           case OtaStatus.INSTALLING:
           case OtaStatus.INSTALLATION_DONE:
             yield const InstallEvent(InstallPhase.installing);
@@ -49,9 +52,15 @@ class OtaApkInstaller implements ApkInstaller {
               message: 'Cần cho phép Viegrand cài ứng dụng. Hãy bật quyền trong cài đặt rồi thử lại.',
             );
           case OtaStatus.CHECKSUM_ERROR:
-            yield const InstallEvent(InstallPhase.failed, message: 'File tải về bị lỗi, hãy thử lại.');
+            yield const InstallEvent(
+              InstallPhase.failed,
+              message: 'File tải về bị lỗi, hãy thử lại.',
+            );
           case OtaStatus.CANCELED:
-            yield const InstallEvent(InstallPhase.failed, message: 'Đã huỷ tải bản cập nhật.');
+            yield const InstallEvent(
+              InstallPhase.failed,
+              message: 'Đã huỷ tải bản cập nhật.',
+            );
           case OtaStatus.ALREADY_RUNNING_ERROR:
             break; // đang tải rồi, cứ chờ tiếp
           case OtaStatus.DOWNLOAD_ERROR:
@@ -73,7 +82,8 @@ class UpdateRepository {
   final SupabaseClient _client;
 
   /// Chỉ Android mới tự cập nhật được (web tự lấy bản mới khi tải lại, iOS không cho cài ngoài App Store).
-  static bool get supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get supported =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   Future<AppUpdate?> check() async {
     if (!supported) return null;
@@ -81,7 +91,11 @@ class UpdateRepository {
       final info = await PackageInfo.fromPlatform();
       final current = int.tryParse(info.buildNumber);
       if (current == null) return null;
-      final row = await _client.from('app_versions').select().eq('platform', 'android').maybeSingle();
+      final row = await _client
+          .from('app_versions')
+          .select()
+          .eq('platform', 'android')
+          .maybeSingle();
       if (row == null) return null;
       return evaluateUpdate(currentBuild: current, row: row);
     } catch (_) {

@@ -42,6 +42,33 @@ final healthHistoryProvider = FutureProvider.autoDispose<List<HealthQa>>(
   (ref) => ref.watch(healthRepositoryProvider).history(),
 );
 
+/// Đã đồng ý tham gia nghiên cứu thử nghiệm chưa: null = chưa hỏi.
+class ResearchConsentNotifier extends AsyncNotifier<bool?> {
+  @override
+  Future<bool?> build() async {
+    final uid = ref.watch(currentUserProvider.select((u) => u?.id));
+    if (uid == null) return null;
+    return ref.read(healthRepositoryProvider).getResearchConsent();
+  }
+
+  Future<void> set(bool value) async {
+    await ref.read(healthRepositoryProvider).setResearchConsent(value);
+    state = AsyncData(value);
+    ref.invalidate(riskFeedbackProvider);
+  }
+}
+
+final researchConsentProvider =
+    AsyncNotifierProvider<ResearchConsentNotifier, bool?>(
+      ResearchConsentNotifier.new,
+    );
+
+/// Phản hồi đã gửi cho một lần đánh giá (theo id).
+final riskFeedbackProvider = FutureProvider.autoDispose
+    .family<RiskFeedback?, String>(
+      (ref, id) => ref.watch(healthRepositoryProvider).getFeedback(id),
+    );
+
 /// Chạy đánh giá trên server. Gọi tự động sau mỗi lần đo huyết áp và khi sửa hồ sơ.
 class RiskRunner extends Notifier<AsyncValue<RiskResult?>> {
   @override

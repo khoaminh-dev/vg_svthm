@@ -23,6 +23,22 @@ abstract interface class HealthRepository {
   Future<List<HealthQa>> history();
 
   Future<void> clearHistory();
+
+  /// Đồng ý tham gia nghiên cứu thử nghiệm: null = chưa hỏi.
+  Future<bool?> getResearchConsent();
+
+  /// Bật/tắt. Tắt thì xoá luôn các phản hồi đã gửi.
+  Future<void> setResearchConsent(bool value);
+
+  /// Phản hồi đã gửi cho một lần đánh giá, hoặc null.
+  Future<RiskFeedback?> getFeedback(String assessmentId);
+
+  Future<void> saveFeedback(
+    String assessmentId, {
+    required String verdict,
+    required String level,
+    String? note,
+  });
 }
 
 class SupabaseHealthRepository implements HealthRepository {
@@ -56,7 +72,7 @@ class SupabaseHealthRepository implements HealthRepository {
   Future<RiskResult?> latestAssessment() => _guard(() async {
     final row = await _client
         .from('health_assessments')
-        .select('level, details, created_at')
+        .select('id, level, details, created_at')
         .order('created_at', ascending: false)
         .limit(1)
         .maybeSingle();
@@ -65,6 +81,7 @@ class SupabaseHealthRepository implements HealthRepository {
       row['details'] as Map<String, dynamic>,
       level: row['level'] as String,
       createdAt: row['created_at'] as String,
+      id: row['id'] as String,
     );
   });
 
@@ -106,6 +123,67 @@ class SupabaseHealthRepository implements HealthRepository {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');
     await _client.from('health_qa').delete().eq('user_id', uid);
+  });
+
+  @override
+  Future<bool?> getResearchConsent() => _guard(() async {
+    final row = await _client
+        .from('health_profile')
+        .select('research_consent')
+        .maybeSingle();
+    return row?['research_consent'] as bool?;
+  });
+
+  @override
+  Future<void> setResearchConsent(bool value) => _guard(() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');
+    await _client
+        .from('health_profile')
+        .update({
+          'research_consent': value,
+          'research_consent_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('user_id', uid);
+    if (!value) {
+      await _client.from('health_feedback').delete().eq('user_id', uid);
+    }
+  });
+
+  @override
+  Future<RiskFeedback?> getFeedback(String assessmentId) => _guard(() async {
+    final row = await _client
+        .from('health_feedback')
+        .select('verdict, note')
+        .eq('assessment_id', assessmentId)
+        .maybeSingle();
+    return row == null
+        ? null
+        : RiskFeedback(
+            verdict: row['verdict'] as String,
+            note: row['note'] as String?,
+          );
+  });
+
+  @override
+  Future<void> saveFeedback(
+    String assessmentId, {
+    required String verdict,
+    required String level,
+    String? note,
+  }) => _guard(() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');
+    final text = note?.trim() ?? '';
+    await _client.from('health_feedback').upsert({
+      'user_id': uid,
+      'assessment_id': assessmentId,
+      'verdict': verdict,
+      'level': level,
+      'note': text.isEmpty
+          ? null
+          : (text.length > 300 ? text.substring(0, 300) : text),
+    }, onConflict: 'user_id,assessment_id');
   });
 
   Future<T> _guard<T>(Future<T> Function() run) async {

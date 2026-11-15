@@ -43,6 +43,7 @@ class _RiskViewState extends ConsumerState<RiskView> {
     final theme = Theme.of(context);
     final risk = ref.watch(latestRiskProvider);
     final run = ref.watch(riskRunnerProvider);
+    final consent = ref.watch(researchConsentProvider);
     final readings = ref.watch(bpReadingsProvider).value;
     final r = risk.value;
 
@@ -92,6 +93,8 @@ class _RiskViewState extends ConsumerState<RiskView> {
         key: const Key('risk-view'),
         padding: const EdgeInsets.only(top: 4, bottom: 120),
         children: [
+          const _TrialStrip(),
+          if (consent.hasValue && consent.value == null) const _ResearchCard(),
           body,
           if (run.hasError)
             Padding(
@@ -155,6 +158,33 @@ class _RiskViewState extends ConsumerState<RiskView> {
                   },
                 ),
               ),
+              if (consent.value != null)
+                Material(
+                  type: MaterialType.transparency,
+                  child: SwitchListTile(
+                    key: const Key('research-switch'),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    secondary: const Icon(
+                      Icons.science_outlined,
+                      color: AppColors.navy,
+                    ),
+                    title: const Text(
+                      'Tham gia nghiên cứu thử nghiệm',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      'Dùng kết quả và góp ý của bác (không kèm tên)',
+                    ),
+                    value: consent.value == true,
+                    onChanged: (v) {
+                      Analytics.track('health_research_toggle', {'on': v});
+                      ref.read(researchConsentProvider.notifier).set(v);
+                    },
+                  ),
+                ),
             ],
           ),
           Padding(
@@ -305,6 +335,11 @@ class _RiskViewState extends ConsumerState<RiskView> {
             ],
           ),
         ),
+        if (r.id != null &&
+            ref.watch(researchConsentProvider).value == true) ...[
+          const SizedBox(height: AppSpacing.md),
+          _FeedbackCard(key: ValueKey(r.id), result: r),
+        ],
         const SizedBox(height: AppSpacing.md),
         InsetGroup(
           dividerIndent: 0,
@@ -490,4 +525,266 @@ class _Bullet extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Dòng nhắc luôn hiện ở tab Đánh giá: đây là bản thử nghiệm.
+class _TrialStrip extends StatelessWidget {
+  const _TrialStrip();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('trial-strip'),
+    margin: const EdgeInsets.fromLTRB(
+      AppSpacing.md,
+      0,
+      AppSpacing.md,
+      AppSpacing.sm,
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.levelWatch.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.science_outlined, size: 20, color: AppColors.navy),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Bản thử nghiệm: kết quả chỉ để tham khảo, không thay thế bác sĩ.',
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Hỏi một lần: có đồng ý dùng kết quả và góp ý cho nghiên cứu không. Rút lại được bằng công tắc bên dưới.
+class _ResearchCard extends ConsumerWidget {
+  const _ResearchCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    void answer(bool v) {
+      Analytics.track('health_research_answer', {'on': v});
+      ref.read(researchConsentProvider.notifier).set(v);
+    }
+
+    return Container(
+      key: const Key('research-card'),
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Giúp Viegrand cải thiện?',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Công cụ này đang được thử nghiệm. Bác có đồng ý cho Viegrand dùng kết quả đánh giá và góp ý của bác, không kèm tên, để kiểm tra và cải thiện công cụ không? Bác có thể rút lại bất cứ lúc nào.',
+            style: theme.textTheme.bodyLarge,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  key: const Key('research-yes'),
+                  onPressed: () => answer(true),
+                  child: const Text('Đồng ý'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('research-no'),
+                  onPressed: () => answer(false),
+                  child: const Text('Không, cảm ơn'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Kết quả này có đúng với bác không?" Một chạm là lưu. Chọn "Chưa đúng" thì có ô ghi chú tuỳ chọn.
+class _FeedbackCard extends ConsumerStatefulWidget {
+  const _FeedbackCard({super.key, required this.result});
+
+  final RiskResult result;
+
+  @override
+  ConsumerState<_FeedbackCard> createState() => _FeedbackCardState();
+}
+
+class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
+  String? _verdict;
+  final _note = TextEditingController();
+  bool _saving = false;
+  bool _failed = false;
+  bool _noteSent = false;
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save(String verdict, {bool withNote = false}) async {
+    final id = widget.result.id;
+    if (id == null || _saving) return;
+    setState(() {
+      _saving = true;
+      _failed = false;
+      _verdict = verdict;
+    });
+    try {
+      await ref
+          .read(healthRepositoryProvider)
+          .saveFeedback(
+            id,
+            verdict: verdict,
+            level: widget.result.level.code,
+            note: verdict == 'wrong' ? _note.text : null,
+          );
+      Analytics.track('health_feedback', {'verdict': verdict});
+      ref.invalidate(riskFeedbackProvider(id));
+      if (mounted) setState(() => _noteSent = withNote);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final id = widget.result.id!;
+    final saved = ref.watch(riskFeedbackProvider(id)).value;
+    final verdict = _verdict ?? saved?.verdict;
+    if (_verdict == null && saved?.note != null && _note.text.isEmpty) {
+      _note.text = saved!.note!;
+    }
+
+    Widget choice(String v, String label, IconData icon) {
+      final on = verdict == v && !_failed;
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: OutlinedButton(
+            key: Key('fb-$v'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(56),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              backgroundColor: on
+                  ? AppColors.navy.withValues(alpha: 0.1)
+                  : null,
+              side: BorderSide(
+                color: on ? AppColors.navy : AppColors.border,
+                width: on ? 2 : 1,
+              ),
+            ),
+            onPressed: _saving ? null : () => _save(v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20),
+                const SizedBox(height: 2),
+                Text(label, style: const TextStyle(fontSize: 14)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      key: const Key('feedback-card'),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Kết quả này có đúng với bác không?',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              choice('right', 'Đúng', Icons.check_circle_outline_rounded),
+              choice('wrong', 'Chưa đúng', Icons.highlight_off_rounded),
+              choice('unsure', 'Không rõ', Icons.help_outline_rounded),
+            ],
+          ),
+          if (_failed) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Chưa gửi được, bác thử lại nhé.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppColors.levelDanger,
+              ),
+            ),
+          ] else if (verdict != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Cảm ơn bác đã góp ý. Bác bấm lại để đổi.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+          if (verdict == 'wrong') ...[
+            const SizedBox(height: 10),
+            TextField(
+              key: const Key('fb-note'),
+              controller: _note,
+              maxLength: 300,
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                hintText: 'Bác thấy chưa đúng ở đâu? (không bắt buộc)',
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const Key('fb-note-send'),
+                onPressed: _saving
+                    ? null
+                    : () => _save('wrong', withNote: true),
+                child: Text(_noteSent ? 'Đã gửi' : 'Gửi ghi chú'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }

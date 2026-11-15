@@ -13,8 +13,11 @@ class EditableOcrRow {
   final TextEditingController value;
   final TextEditingController unit;
 
-  OcrValue toValue() =>
-      OcrValue(label: label.text.trim(), value: value.text.trim(), unit: unit.text.trim());
+  OcrValue toValue() => OcrValue(
+    label: label.text.trim(),
+    value: value.text.trim(),
+    unit: unit.text.trim(),
+  );
 
   bool get isEmpty => value.text.trim().isEmpty;
 
@@ -43,7 +46,10 @@ class OcrValueRow extends StatelessWidget {
             flex: 9,
             child: TextField(
               controller: row.label,
-              decoration: const InputDecoration(labelText: 'Nhãn', isDense: true),
+              decoration: const InputDecoration(
+                labelText: 'Nhãn',
+                isDense: true,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -51,8 +57,14 @@ class OcrValueRow extends StatelessWidget {
             flex: 7,
             child: TextField(
               controller: row.value,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-              decoration: const InputDecoration(labelText: 'Giá trị', isDense: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Giá trị',
+                isDense: true,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -63,7 +75,11 @@ class OcrValueRow extends StatelessWidget {
               decoration: const InputDecoration(labelText: 'ĐV', isDense: true),
             ),
           ),
-          IconButton(tooltip: 'Xoá dòng', icon: const Icon(Icons.close), onPressed: onDelete),
+          IconButton(
+            tooltip: 'Xoá dòng',
+            icon: const Icon(Icons.close),
+            onPressed: onDelete,
+          ),
         ],
       ),
     );

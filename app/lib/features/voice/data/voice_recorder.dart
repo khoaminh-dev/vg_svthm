@@ -55,7 +55,9 @@ class VoiceRecorder {
       ),
       path: _path!,
     );
-    _amp = _rec.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((a) {
+    _amp = _rec.onAmplitudeChanged(const Duration(milliseconds: 100)).listen((
+      a,
+    ) {
       final now = DateTime.now();
       final db = a.current.isFinite ? a.current : -90.0;
       // Theo dõi nền ồn thấp nhất gần đây để ngưỡng thích ứng với phòng ồn.

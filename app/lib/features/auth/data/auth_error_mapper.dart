@@ -21,7 +21,9 @@ AppFailure mapAuthError(Object error) {
       return const AppFailure('Mật khẩu quá yếu, hãy dùng ít nhất 8 ký tự');
     }
     if (code == 'over_email_send_rate_limit' || error.statusCode == '429') {
-      return const AppFailure('Thao tác quá nhanh, vui lòng thử lại sau ít phút');
+      return const AppFailure(
+        'Thao tác quá nhanh, vui lòng thử lại sau ít phút',
+      );
     }
     if (code == 'same_password') {
       return const AppFailure('Mật khẩu mới phải khác mật khẩu cũ');

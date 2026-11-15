@@ -95,7 +95,9 @@ class VoiceDecision {
   factory VoiceDecision.fromJson(Map<String, dynamic> j) => VoiceDecision(
     action: j['action'] as String? ?? 'answer',
     intent: j['intent'] as String?,
-    task: j['task'] == null ? null : VoiceTask.fromJson(j['task'] as Map<String, dynamic>),
+    task: j['task'] == null
+        ? null
+        : VoiceTask.fromJson(j['task'] as Map<String, dynamic>),
     pending: j['pending'] as String?,
     expects: VoiceExpect.parse(j['expects'] as String?),
     choices: [
@@ -109,7 +111,8 @@ class VoiceDecision {
     aliasPhrase: j['alias_phrase'] as String?,
   );
 
-  final String action; // ask | confirm | execute | answer | cancel | unsupported | repeat
+  final String
+  action; // ask | confirm | execute | answer | cancel | unsupported | repeat
   final String? intent;
   final VoiceTask? task;
   final String? pending;
@@ -123,7 +126,11 @@ class VoiceDecision {
 }
 
 class VoiceTurnResult {
-  const VoiceTurnResult({required this.transcript, required this.decision, this.sttProvider});
+  const VoiceTurnResult({
+    required this.transcript,
+    required this.decision,
+    this.sttProvider,
+  });
 
   factory VoiceTurnResult.fromJson(Map<String, dynamic> j) => VoiceTurnResult(
     transcript: j['transcript'] as String? ?? '',

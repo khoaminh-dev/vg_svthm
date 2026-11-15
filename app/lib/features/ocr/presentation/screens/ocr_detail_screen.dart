@@ -24,8 +24,14 @@ class OcrDetailScreen extends ConsumerWidget {
         title: const Text('Xoá kết quả này?'),
         content: const Text('Ảnh và số liệu sẽ bị xoá, không khôi phục được.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Huỷ')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Xoá')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Xoá'),
+          ),
         ],
       ),
     );
@@ -59,7 +65,8 @@ class OcrDetailScreen extends ConsumerWidget {
             onPressed: () async {
               Analytics.track('ocr_copy');
               await Clipboard.setData(ClipboardData(text: _asText));
-              if (context.mounted) showAppSnackBar(context, 'Đã sao chép số liệu');
+              if (context.mounted)
+                showAppSnackBar(context, 'Đã sao chép số liệu');
             },
           ),
           IconButton(
@@ -77,8 +84,10 @@ class OcrDetailScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             image.when(
-              loading: () =>
-                  const SizedBox(height: 160, child: Center(child: CircularProgressIndicator())),
+              loading: () => const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              ),
               error: (_, _) => const SizedBox.shrink(),
               data: (url) => url == null
                   ? const SizedBox.shrink()

@@ -215,7 +215,9 @@ class HomeScreen extends ConsumerWidget {
                               child: GestureDetector(
                                 key: const Key('home-risk'),
                                 onTap: () {
-                                  Analytics.track('tap_feature', {'feature': 'risk'});
+                                  Analytics.track('tap_feature', {
+                                    'feature': 'risk',
+                                  });
                                   ref.read(healthTabProvider.notifier).set(1);
                                   context.go(Routes.bp);
                                 },
@@ -225,7 +227,10 @@ class HomeScreen extends ConsumerWidget {
                                     Container(
                                       width: 12,
                                       height: 12,
-                                      decoration: BoxDecoration(color: risk.level.color, shape: BoxShape.circle),
+                                      decoration: BoxDecoration(
+                                        color: risk.level.color,
+                                        shape: BoxShape.circle,
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
@@ -237,7 +242,11 @@ class HomeScreen extends ConsumerWidget {
                                         shadows: shadow,
                                       ),
                                     ),
-                                    const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 22),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Colors.white70,
+                                      size: 22,
+                                    ),
                                   ],
                                 ),
                               ),

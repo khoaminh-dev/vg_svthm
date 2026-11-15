@@ -27,7 +27,9 @@ class MembersSheet extends ConsumerWidget {
     );
     if (username == null || !context.mounted) return;
 
-    final ok = await ref.read(chatControllerProvider.notifier).addMember(roomId, username);
+    final ok = await ref
+        .read(chatControllerProvider.notifier)
+        .addMember(roomId, username);
     if (!context.mounted) return;
     if (ok) {
       showAppSnackBar(context, 'Đã thêm @$username vào phòng');
@@ -59,22 +61,34 @@ class MembersSheet extends ConsumerWidget {
           ),
           Flexible(
             child: members.when(
-              loading: () =>
-                  const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Padding(padding: const EdgeInsets.all(24), child: Text(errorMessage(e))),
+              loading: () => const Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(),
+              ),
+              error: (e, _) => Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(errorMessage(e)),
+              ),
               data: (list) => ListView(
                 shrinkWrap: true,
                 children: [
                   for (final p in list)
                     ListTile(
-                      leading: UserAvatar(name: p.name, imageUrl: p.avatarUrl, radius: 18),
+                      leading: UserAvatar(
+                        name: p.name,
+                        imageUrl: p.avatarUrl,
+                        radius: 18,
+                      ),
                       title: Text(p.name),
-                      subtitle: p.username == null ? null : Text('@${p.username}'),
+                      subtitle: p.username == null
+                          ? null
+                          : Text('@${p.username}'),
                       trailing: Icon(
                         Icons.circle,
                         size: 10,
-                        color: online.contains(p.id) ? Colors.green : Colors.grey,
+                        color: online.contains(p.id)
+                            ? Colors.green
+                            : Colors.grey,
                       ),
                     ),
                 ],

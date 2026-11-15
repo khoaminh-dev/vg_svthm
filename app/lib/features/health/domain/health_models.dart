@@ -105,8 +105,11 @@ class RiskResult {
     required this.createdAt,
     this.ageOutOfRange = false,
     this.hypertensionDerived = false,
+    this.id,
   });
 
+  /// Id lần đánh giá (bảng `health_assessments`), dùng để gắn phản hồi của người dùng.
+  final String? id;
   final RiskLevel level;
 
   /// Mã lý do (xem `risk_texts.dart`).
@@ -125,6 +128,7 @@ class RiskResult {
     Map<String, dynamic> m, {
     String? level,
     String? createdAt,
+    String? id,
   }) {
     final bp = m['bp'] as Map<String, dynamic>;
     return RiskResult(
@@ -139,8 +143,17 @@ class RiskResult {
           .toLocal(),
       ageOutOfRange: m['ageOutOfRange'] as bool? ?? false,
       hypertensionDerived: m['hypertensionDerived'] as bool? ?? false,
+      id: id ?? m['id'] as String?,
     );
   }
+}
+
+/// Phản hồi của người dùng cho một kết quả: `right` (đúng), `wrong` (chưa đúng), `unsure` (không rõ).
+class RiskFeedback {
+  const RiskFeedback({required this.verdict, this.note});
+
+  final String verdict;
+  final String? note;
 }
 
 /// Một lần bác hỏi Vy về sức khoẻ và câu Vy trả lời (bảng `health_qa`, giữ 90 ngày).

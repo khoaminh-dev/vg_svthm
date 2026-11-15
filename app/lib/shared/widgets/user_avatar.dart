@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 
 /// Ảnh đại diện tròn; không có ảnh thì hiện chữ cái đầu của tên.
 class UserAvatar extends StatelessWidget {
-  const UserAvatar({super.key, required this.name, this.imageUrl, this.radius = 28});
+  const UserAvatar({
+    super.key,
+    required this.name,
+    this.imageUrl,
+    this.radius = 28,
+  });
 
   final String name;
   final String? imageUrl;

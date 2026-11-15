@@ -68,7 +68,9 @@ class SpeechPlayer {
   Future<bool> _playBytes(Uint8List audio, int gen) async {
     try {
       final dir = await getTemporaryDirectory();
-      final f = File('${dir.path}/vg_tts_${audio.length}_${audio.hashCode}.mp3');
+      final f = File(
+        '${dir.path}/vg_tts_${audio.length}_${audio.hashCode}.mp3',
+      );
       if (!await f.exists()) await f.writeAsBytes(audio, flush: true);
       await _player.setFilePath(f.path);
       if (gen != _gen) return false;

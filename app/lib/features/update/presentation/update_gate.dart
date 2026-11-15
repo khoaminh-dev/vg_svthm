@@ -84,26 +84,44 @@ class _UpdateCardState extends ConsumerState<UpdateCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(Icons.system_update_rounded, size: 48, color: scheme.primary),
+              Icon(
+                Icons.system_update_rounded,
+                size: 48,
+                color: scheme.primary,
+              ),
               const SizedBox(height: 12),
               Text(
                 u.isRequired ? 'Cần cập nhật để tiếp tục' : 'Có bản mới',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                u.latestName.isEmpty ? 'Viegrand đã có bản mới.' : 'Viegrand ${u.latestName} đã sẵn sàng.',
+                u.latestName.isEmpty
+                    ? 'Viegrand đã có bản mới.'
+                    : 'Viegrand ${u.latestName} đã sẵn sàng.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 20),
               ),
               if (u.notes.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Text(u.notes, style: TextStyle(fontSize: 18, color: scheme.onSurfaceVariant)),
+                Text(
+                  u.notes,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ],
               const SizedBox(height: 20),
               if (e?.phase == InstallPhase.downloading) ...[
-                LinearProgressIndicator(value: e!.progress > 0 ? e.progress / 100 : null, minHeight: 8),
+                LinearProgressIndicator(
+                  value: e!.progress > 0 ? e.progress / 100 : null,
+                  minHeight: 8,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   e.progress > 0 ? 'Đang tải... ${e.progress}%' : 'Đang tải...',
@@ -120,18 +138,32 @@ class _UpdateCardState extends ConsumerState<UpdateCard> {
                 if (e?.message != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(e!.message!, textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: scheme.error)),
+                    child: Text(
+                      e!.message!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18, color: scheme.error),
+                    ),
                   ),
                 FilledButton(
                   onPressed: _start,
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56), textStyle: const TextStyle(fontSize: 20)),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    textStyle: const TextStyle(fontSize: 20),
+                  ),
                   child: Text(e == null ? 'Cập nhật' : 'Thử lại'),
                 ),
                 if (!u.isRequired) ...[
                   const SizedBox(height: 8),
                   TextButton(
-                    onPressed: _busy ? null : () => ref.read(updateDismissedProvider.notifier).dismiss(),
-                    style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48), textStyle: const TextStyle(fontSize: 18)),
+                    onPressed: _busy
+                        ? null
+                        : () => ref
+                              .read(updateDismissedProvider.notifier)
+                              .dismiss(),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      textStyle: const TextStyle(fontSize: 18),
+                    ),
                     child: const Text('Để sau'),
                   ),
                 ],

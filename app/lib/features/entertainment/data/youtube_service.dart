@@ -41,9 +41,13 @@ abstract interface class VideoSearch {
 
 /// Tìm qua máy chủ Viegrand (YouTube Data API, khoá nằm ở server); lỗi hoặc hết hạn mức thì quay về [fallback].
 class ApiVideoSearch implements VideoSearch {
-  ApiVideoSearch({required this.accessToken, required this.fallback, http.Client? client, String? baseUrl})
-    : _http = client ?? http.Client(),
-      _baseUrl = baseUrl ?? Env.apiBaseUrl;
+  ApiVideoSearch({
+    required this.accessToken,
+    required this.fallback,
+    http.Client? client,
+    String? baseUrl,
+  }) : _http = client ?? http.Client(),
+       _baseUrl = baseUrl ?? Env.apiBaseUrl;
 
   final String? Function() accessToken;
   final VideoSearch fallback;
@@ -58,23 +62,30 @@ class ApiVideoSearch implements VideoSearch {
         final res = await _http
             .post(
               Uri.parse('$_baseUrl/api/youtube'),
-              headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
               body: jsonEncode({'q': query, 'limit': limit}),
             )
             .timeout(const Duration(seconds: 12));
         if (res.statusCode == 200) {
-          final items = (jsonDecode(utf8.decode(res.bodyBytes))['items'] as List)
-              .map((e) => e as Map<String, dynamic>)
-              .map(
-                (e) => VideoItem(
-                  id: e['id'] as String,
-                  title: e['title'] as String,
-                  author: (e['author'] ?? '') as String,
-                  thumbnailUrl: 'https://i.ytimg.com/vi/${e['id']}/mqdefault.jpg',
-                  duration: e['duration'] is int ? Duration(seconds: e['duration'] as int) : null,
-                ),
-              )
-              .toList();
+          final items =
+              (jsonDecode(utf8.decode(res.bodyBytes))['items'] as List)
+                  .map((e) => e as Map<String, dynamic>)
+                  .map(
+                    (e) => VideoItem(
+                      id: e['id'] as String,
+                      title: e['title'] as String,
+                      author: (e['author'] ?? '') as String,
+                      thumbnailUrl:
+                          'https://i.ytimg.com/vi/${e['id']}/mqdefault.jpg',
+                      duration: e['duration'] is int
+                          ? Duration(seconds: e['duration'] as int)
+                          : null,
+                    ),
+                  )
+                  .toList();
           if (items.isNotEmpty) return items;
         }
       } catch (_) {
@@ -109,13 +120,15 @@ class YoutubeExplodeSearch implements VideoSearch {
   }
 
   Future<List<VideoItem>> _fetch(String q, int limit) async {
-    final uri = Uri.https('www.youtube.com', '/results', {'search_query': q, 'sp': 'EgIQAQ=='});
+    final uri = Uri.https('www.youtube.com', '/results', {
+      'search_query': q,
+      'sp': 'EgIQAQ==',
+    });
     final res = await _http
         .get(
           uri,
           headers: const {
-            'User-Agent':
-                'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36',
             'Accept-Language': 'vi-VN,vi;q=0.9',
             'Cookie': 'CONSENT=YES+1; SOCS=CAI',
           },
@@ -159,7 +172,8 @@ String _text(Object? o) {
   final t = o['simpleText'];
   if (t is String) return t;
   final runs = o['runs'];
-  if (runs is List) return runs.map((r) => r is Map ? '${r['text'] ?? ''}' : '').join();
+  if (runs is List)
+    return runs.map((r) => r is Map ? '${r['text'] ?? ''}' : '').join();
   return '';
 }
 
@@ -167,7 +181,9 @@ VideoItem? _videoFrom(Map v) {
   final id = v['videoId'] as String;
   final title = _text(v['title']);
   if (title.isEmpty) return null;
-  final author = _text(v['ownerText']).isNotEmpty ? _text(v['ownerText']) : _text(v['longBylineText']);
+  final author = _text(v['ownerText']).isNotEmpty
+      ? _text(v['ownerText'])
+      : _text(v['longBylineText']);
   return VideoItem(
     id: id,
     title: title,
@@ -180,7 +196,8 @@ VideoItem? _videoFrom(Map v) {
 /// "3:45" hoặc "1:02:10" thành Duration; rỗng/không hiểu thì null.
 Duration? _parseDuration(String s) {
   final parts = s.split(':').map(int.tryParse).toList();
-  if (parts.isEmpty || parts.any((p) => p == null) || parts.length > 3) return null;
+  if (parts.isEmpty || parts.any((p) => p == null) || parts.length > 3)
+    return null;
   var secs = 0;
   for (final p in parts) {
     secs = secs * 60 + p!;
@@ -191,12 +208,31 @@ Duration? _parseDuration(String s) {
 /// Từ khoá chung chung: nên cho người dùng chọn trong danh sách thay vì tự phát kết quả đầu tiên.
 /// "nhạc xưa", "tin tức", "hài" là chung chung; "Nối vòng tay lớn" là một tên bài cụ thể.
 bool isVagueVideoQuery(String query) {
-  final text = ' ${query.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ')} ';
+  final text =
+      ' ${query.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ')} ';
   final words = text.trim().split(' ');
   if (words.length > 3) return false;
   const vague = [
-    'nhạc', 'nhac', 'xưa', 'xua', 'vàng', 'vang', 'trẻ', 'tre', 'thiền', 'thien',
-    'hài', 'hai', 'phim', 'tin', 'tức', 'tuc', 'cải', 'cai', 'lương', 'luong',
+    'nhạc',
+    'nhac',
+    'xưa',
+    'xua',
+    'vàng',
+    'vang',
+    'trẻ',
+    'tre',
+    'thiền',
+    'thien',
+    'hài',
+    'hai',
+    'phim',
+    'tin',
+    'tức',
+    'tuc',
+    'cải',
+    'cai',
+    'lương',
+    'luong',
   ];
   // Mọi từ đều là từ chung chung (ví dụ "nhạc xưa", "tin tức", "cải lương") thì coi là mơ hồ.
   return words.every(vague.contains);

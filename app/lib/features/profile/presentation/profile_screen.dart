@@ -24,7 +24,10 @@ class ProfileScreen extends ConsumerWidget {
         content: const Text('Bạn cần đăng nhập lại để dùng tiếp.'),
         actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ở lại')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Ở lại'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
@@ -50,7 +53,10 @@ class ProfileScreen extends ConsumerWidget {
     Widget row(IconData icon, String label, String value) => ListTile(
       minTileHeight: 64,
       leading: Icon(icon, color: scheme.primary),
-      title: Text(label, style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+      title: Text(
+        label,
+        style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+      ),
       subtitle: Text(value, style: text.titleMedium),
     );
 
@@ -66,15 +72,31 @@ class ProfileScreen extends ConsumerWidget {
                 const LargeTitle('Hồ sơ'),
                 if (user != null) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Center(child: UserAvatar(name: user.displayName, imageUrl: user.avatarUrl, radius: 52)),
+                  Center(
+                    child: UserAvatar(
+                      name: user.displayName,
+                      imageUrl: user.avatarUrl,
+                      radius: 52,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  Text(user.displayName, style: text.headlineSmall, textAlign: TextAlign.center),
+                  Text(
+                    user.displayName,
+                    style: text.headlineSmall,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   InsetGroup(
                     dividerIndent: 56,
                     children: [
-                      if (user.username != null) row(Icons.alternate_email_rounded, 'Tên người dùng', user.username!),
-                      if (user.email != null) row(Icons.mail_outline_rounded, 'Email', user.email!),
+                      if (user.username != null)
+                        row(
+                          Icons.alternate_email_rounded,
+                          'Tên người dùng',
+                          user.username!,
+                        ),
+                      if (user.email != null)
+                        row(Icons.mail_outline_rounded, 'Email', user.email!),
                     ],
                   ),
                 ],
@@ -89,8 +111,17 @@ class ProfileScreen extends ConsumerWidget {
                       child: ListTile(
                         key: const Key('profile-health'),
                         minTileHeight: 64,
-                        leading: Icon(Icons.assignment_ind_outlined, color: scheme.primary),
-                        title: const Text('Hồ sơ sức khoẻ', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+                        leading: Icon(
+                          Icons.assignment_ind_outlined,
+                          color: scheme.primary,
+                        ),
+                        title: const Text(
+                          'Hồ sơ sức khoẻ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 17,
+                          ),
+                        ),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () => context.push(Routes.healthProfile),
                       ),
@@ -111,7 +142,11 @@ class ProfileScreen extends ConsumerWidget {
                         title: const Text(
                           'Đăng xuất',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: AppColors.levelDanger, fontWeight: FontWeight.w700, fontSize: 18),
+                          style: TextStyle(
+                            color: AppColors.levelDanger,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
                     ),
@@ -123,7 +158,9 @@ class ProfileScreen extends ConsumerWidget {
                   builder: (context, snap) {
                     final i = snap.data;
                     return Text(
-                      i == null ? '' : 'Viegrand ${i.version} (${i.buildNumber})',
+                      i == null
+                          ? ''
+                          : 'Viegrand ${i.version} (${i.buildNumber})',
                       textAlign: TextAlign.center,
                       style: text.bodySmall?.copyWith(color: scheme.outline),
                     );

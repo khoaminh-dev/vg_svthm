@@ -81,6 +81,7 @@
   <nav id="tabs">
     <button data-tab="stats" class="on">Thống kê</button>
     <button data-tab="voice">Giọng nói</button>
+    <button data-tab="health">Thử nghiệm sức khoẻ</button>
     <button data-tab="settings">Cài đặt</button>
   </nav>
   <main id="tab-voice" class="hidden">
@@ -98,6 +99,19 @@
       <div class="card"><h2>Lỗi gần đây</h2><div class="scroll"><table id="vErr"></table></div></div>
     </div>
     <div class="card" style="margin-top:16px"><h2>Lượt gần đây (không lưu nội dung câu nói)</h2><div class="scroll"><table id="vRecent"></table></div></div>
+  </main>
+  <main id="tab-health" class="hidden">
+    <p class="err" id="hErr"></p>
+    <p class="mute">Chỉ tính người đã đồng ý tham gia nghiên cứu. Mỗi người lấy kết quả mới nhất. Không hiển thị tên hay tài khoản.</p>
+    <div class="grid kpis" id="hKpis"></div>
+    <div class="grid" style="margin-top:16px">
+      <div class="card"><h2>Phân bố mức nguy cơ</h2><div id="hLevel"></div></div>
+      <div class="card"><h2>Người đồng ý theo bệnh nền</h2><div id="hFactors"></div></div>
+      <div class="card"><h2>Phản hồi "Kết quả có đúng với bác không?"</h2><div id="hVerdict"></div></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Mức nguy cơ theo nhóm tuổi (số người)</h2><div class="scroll"><table id="hAge"></table></div></div>
+    <div class="card" style="margin-top:16px"><h2>Phản hồi theo mức nguy cơ</h2><div class="scroll"><table id="hFbLevel"></table></div></div>
+    <div class="card" style="margin-top:16px"><h2>Ghi chú "chưa đúng" gần đây</h2><div class="scroll"><table id="hNotes"></table></div></div>
   </main>
   <main id="tab-settings" class="hidden">
     <div class="err" id="setErr"></div>
@@ -245,13 +259,13 @@ $('loginForm').addEventListener('submit', async (e) => {
   show(true); load();
 });
 let tab = 'stats';
-function loadTab() { return tab === 'voice' ? loadVoice() : tab === 'settings' ? loadSettings() : load(); }
+function loadTab() { return tab === 'voice' ? loadVoice() : tab === 'health' ? loadHealth() : tab === 'settings' ? loadSettings() : load(); }
 $('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-tab]');
   if (!b) return;
   tab = b.dataset.tab;
   document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-  for (const t of ['stats', 'voice', 'settings']) $('tab-' + t).classList.toggle('hidden', t !== tab);
+  for (const t of ['stats', 'voice', 'health', 'settings']) $('tab-' + t).classList.toggle('hidden', t !== tab);
   $('days').style.display = tab === 'settings' ? 'none' : '';
   loadTab();
 });
@@ -292,6 +306,33 @@ async function loadVoice() {
   $('vErr').innerHTML = (d.recentErrors || []).map((x) => `<tr><td>${fmt(x.at)}</td><td>${esc(x.intent || '')}</td><td><code>${esc(x.error)}</code></td></tr>`).join('') || '<tr><td class="mute">Không có lỗi</td></tr>';
   $('vRecent').innerHTML = '<tr><th>Thời gian</th><th>Người dùng</th><th>Ý định</th><th>Bước</th><th>STT</th><th>LLM</th><th>Tổng (ms)</th><th>Kết quả</th></tr>' +
     (d.recent || []).map((x) => `<tr><td>${fmt(x.at)}</td><td>${esc(x.user)}</td><td>${esc(x.intent || '')}</td><td>${esc(ACTION[x.action] || x.action || '')}</td><td>${esc(x.stt || '')}</td><td>${esc(x.nlu || '')}</td><td>${x.ms ?? ''}</td><td>${esc(x.outcome || '')}</td></tr>`).join('');
+}
+
+// ---------- Thử nghiệm sức khoẻ ----------
+const LV = { low: 'Thấp', attention: 'Cần chú ý', high: 'Cao', urgent: 'Khẩn cấp' };
+const LV_ORDER = ['low', 'attention', 'high', 'urgent'];
+const VERDICT = { right: 'Đúng với bác', wrong: 'Chưa đúng', unsure: 'Không rõ' };
+async function loadHealth() {
+  $('hErr').textContent = '';
+  const { ok, d } = await api('/api/admin/stats?kind=health&days=' + $('days').value).catch(() => ({ ok: false, d: {} }));
+  if (!ok) { $('hErr').textContent = 'Lỗi: ' + (d.error || ''); return; }
+  const f = d.feedback, pct = (n, t) => (t ? Math.round((n / t) * 100) + '%' : '—');
+  $('hKpis').innerHTML = [
+    ['Người đồng ý tham gia', d.consenting], ['Có kết quả', d.withResult], ['Lượt đánh giá', d.assessments],
+    ['Phản hồi', f.total], ['Trả lời "Đúng"', pct(f.right, f.total)], ['Trả lời "Chưa đúng"', pct(f.wrong, f.total)],
+  ].map(([k, v]) => `<div class="card kpi"><b>${v ?? 0}</b><span>${k}</span></div>`).join('');
+  const byKey = Object.fromEntries((d.byLevel || []).map((x) => [x.key, x.count]));
+  bars($('hLevel'), LV_ORDER.map((k) => ({ key: k, count: byKey[k] || 0 })), (k) => LV[k] || k);
+  const fa = d.factors || {};
+  bars($('hFactors'), [['hypertension', 'Tăng huyết áp'], ['heartDisease', 'Bệnh tim'], ['diabetes', 'Tiểu đường'], ['smoker', 'Hút thuốc'], ['hadStroke', 'Từng đột quỵ']]
+    .map(([k, l]) => ({ key: l, count: fa[k] || 0 })));
+  bars($('hVerdict'), ['right', 'wrong', 'unsure'].map((k) => ({ key: k, count: f[k] || 0 })), (k) => VERDICT[k] || k);
+  $('hAge').innerHTML = '<tr><th>Tuổi</th><th>Tổng</th><th>Thấp</th><th>Cần chú ý</th><th>Cao</th><th>Khẩn cấp</th></tr>' +
+    ((d.byAge || []).map((x) => `<tr><td>${esc(x.key.replace(/^\d\) /, ''))}</td><td>${x.total}</td><td>${x.low}</td><td>${x.attention}</td><td>${x.high}</td><td>${x.urgent}</td></tr>`).join('') || '<tr><td class="mute">Chưa có dữ liệu</td></tr>');
+  const fl = Object.fromEntries((f.byLevel || []).map((x) => [x.key, x]));
+  $('hFbLevel').innerHTML = '<tr><th>Mức nguy cơ</th><th>Đúng</th><th>Chưa đúng</th><th>Không rõ</th><th>Tỉ lệ đúng</th></tr>' +
+    LV_ORDER.filter((k) => fl[k]).map((k) => { const x = fl[k]; return `<tr><td>${LV[k]}</td><td>${x.right}</td><td>${x.wrong}</td><td>${x.unsure}</td><td>${pct(x.right, x.right + x.wrong + x.unsure)}</td></tr>`; }).join('') || '<tr><td class="mute">Chưa có phản hồi</td></tr>';
+  $('hNotes').innerHTML = (f.notes || []).map((x) => `<tr><td>${fmt(x.at)}</td><td>${esc(LV[x.level] || x.level || '')}</td><td>${esc(x.note)}</td></tr>`).join('') || '<tr><td class="mute">Chưa có ghi chú</td></tr>';
 }
 
 // ---------- Cài đặt ----------

@@ -52,14 +52,20 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
   );
 
   Future<void> _save() async {
-    final values = _rows.where((r) => !r.isEmpty).map((r) => r.toValue()).toList();
+    final values = _rows
+        .where((r) => !r.isEmpty)
+        .map((r) => r.toValue())
+        .toList();
     final reading = _saveBp ? _currentReading() : null;
     final ok = await ref
         .read(ocrControllerProvider.notifier)
         .save(widget.draft, _title.text, values, reading: reading);
     if (!mounted) return;
     if (ok) {
-      Analytics.track('ocr_save', {'bp': reading != null, 'rows': values.length});
+      Analytics.track('ocr_save', {
+        'bp': reading != null,
+        'rows': values.length,
+      });
       showAppSnackBar(context, 'Đã lưu kết quả');
       context.pop();
     } else {
@@ -81,17 +87,28 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
             if (!kIsWeb)
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radius),
-                child: Image.file(File(widget.draft.imagePath), height: 160, fit: BoxFit.cover),
+                child: Image.file(
+                  File(widget.draft.imagePath),
+                  height: 160,
+                  fit: BoxFit.cover,
+                ),
               ),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _title,
-              decoration: const InputDecoration(labelText: 'Tiêu đề (không bắt buộc)'),
+              decoration: const InputDecoration(
+                labelText: 'Tiêu đề (không bắt buộc)',
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                Expanded(child: Text('Số liệu', style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    'Số liệu',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
                 TextButton.icon(
                   onPressed: () {
                     Analytics.track('ocr_add_row');
@@ -105,7 +122,9 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
             if (_rows.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Không tìm thấy số liệu nào. Bạn có thể thêm dòng bằng tay.'),
+                child: Text(
+                  'Không tìm thấy số liệu nào. Bạn có thể thêm dòng bằng tay.',
+                ),
               ),
             for (final row in _rows)
               OcrValueRow(
@@ -131,7 +150,10 @@ class _OcrEditorScreenState extends ConsumerState<OcrEditorScreen> {
                     subtitle: Text(
                       '${r.systolic}/${r.diastolic}'
                       '${r.pulse != null ? ' · mạch ${r.pulse}' : ''} mmHg · ${r.category.label}',
-                      style: TextStyle(color: r.category.color, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: r.category.color,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 );

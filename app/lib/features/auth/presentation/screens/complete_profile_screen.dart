@@ -15,7 +15,8 @@ class CompleteProfileScreen extends ConsumerStatefulWidget {
   const CompleteProfileScreen({super.key});
 
   @override
-  ConsumerState<CompleteProfileScreen> createState() => _CompleteProfileScreenState();
+  ConsumerState<CompleteProfileScreen> createState() =>
+      _CompleteProfileScreenState();
 }
 
 class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
@@ -26,7 +27,9 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _name = TextEditingController(text: ref.read(currentUserProvider)?.fullName ?? '');
+    _name = TextEditingController(
+      text: ref.read(currentUserProvider)?.fullName ?? '',
+    );
   }
 
   @override
@@ -39,13 +42,16 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     // Thành công: metadata đổi, router tự chuyển sang trang chủ.
-    await ref.read(authControllerProvider.notifier).completeProfile(_username.text, _name.text);
+    await ref
+        .read(authControllerProvider.notifier)
+        .completeProfile(_username.text, _name.text);
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen(authControllerProvider, (_, next) {
-      if (next.hasError) showAppSnackBar(context, errorMessage(next.error!), error: true);
+      if (next.hasError)
+        showAppSnackBar(context, errorMessage(next.error!), error: true);
     });
     final loading = ref.watch(authControllerProvider).isLoading;
 
@@ -53,7 +59,9 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
       title: 'Hoàn tất hồ sơ',
       subtitle: 'Chọn tên người dùng để mọi người tìm thấy bạn',
       footer: TextButton(
-        onPressed: loading ? null : () => ref.read(authControllerProvider.notifier).signOut(),
+        onPressed: loading
+            ? null
+            : () => ref.read(authControllerProvider.notifier).signOut(),
         child: const Text('Đăng xuất'),
       ),
       child: Form(

@@ -239,7 +239,9 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(44),
                           child: ColoredBox(
-                            color: AppColors.levelDanger.withValues(alpha: 0.82),
+                            color: AppColors.levelDanger.withValues(
+                              alpha: 0.82,
+                            ),
                             child: Center(
                               child: Semantics(
                                 liveRegion: true,
@@ -249,7 +251,11 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.error_outline_rounded, color: Colors.white, size: 72),
+                                      const Icon(
+                                        Icons.error_outline_rounded,
+                                        color: Colors.white,
+                                        size: 72,
+                                      ),
                                       const SizedBox(height: 12),
                                       Text(
                                         m.error ?? 'Có lỗi',
@@ -495,7 +501,10 @@ class _ResultPanel extends ConsumerWidget {
                 color: AppColors.levelGood,
               ),
               const SizedBox(width: 4),
-              Text(m.saving ? 'Đang lưu…' : 'Đã tự lưu', style: text.bodyMedium),
+              Text(
+                m.saving ? 'Đang lưu…' : 'Đã tự lưu',
+                style: text.bodyMedium,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -515,17 +524,27 @@ class _ResultPanel extends ConsumerWidget {
                 children: [
                   Text(
                     'Nguy cơ: ${risk.level.label}',
-                    style: text.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: risk.level.color),
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: risk.level.color,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(riskSentence(risk.level), style: text.bodyLarge),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Bản thử nghiệm, chỉ để tham khảo.',
+                    style: text.bodySmall?.copyWith(color: AppColors.textMuted),
+                  ),
                   if (risk.level == RiskLevel.urgent) ...[
                     const SizedBox(height: AppSpacing.sm),
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: FilledButton.icon(
-                        style: FilledButton.styleFrom(backgroundColor: AppColors.levelDanger),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.levelDanger,
+                        ),
                         onPressed: callEmergency,
                         icon: const Icon(Icons.phone_rounded),
                         label: const Text('Gọi 115'),
@@ -576,8 +595,15 @@ class _RetakeButton extends ConsumerWidget {
       child: Container(
         width: 88,
         height: 88,
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-        child: const Icon(Icons.refresh_rounded, size: 44, color: AppColors.navy),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+        ),
+        child: const Icon(
+          Icons.refresh_rounded,
+          size: 44,
+          color: AppColors.navy,
+        ),
       ),
     ),
   );

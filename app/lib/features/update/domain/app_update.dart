@@ -25,11 +25,15 @@ class AppUpdate {
 /// So bản đang chạy ([currentBuild] = versionCode) với dòng trong bảng `app_versions`.
 /// Trả null khi đã mới nhất, hoặc dữ liệu không dùng được (không có link https để tải),
 /// để tránh khoá người dùng vì cấu hình sai.
-AppUpdate? evaluateUpdate({required int currentBuild, required Map<String, dynamic> row}) {
+AppUpdate? evaluateUpdate({
+  required int currentBuild,
+  required Map<String, dynamic> row,
+}) {
   final latest = row['latest_build'];
   final minBuild = row['min_supported_build'];
   final url = row['apk_url'];
-  if (latest is! int || url is! String || !url.startsWith('https://')) return null;
+  if (latest is! int || url is! String || !url.startsWith('https://'))
+    return null;
   if (currentBuild >= latest) return null;
   final required = minBuild is int && currentBuild < minBuild;
   final sha = row['apk_sha256'];

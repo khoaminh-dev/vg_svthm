@@ -80,12 +80,11 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       borderSide: BorderSide(color: scheme.outlineVariant),
     );
-    final textTheme = ThemeData(brightness: brightness).textTheme
-        .apply(
-          bodyColor: scheme.onSurface,
-          displayColor: scheme.onSurface,
-          fontFamily: fontFamily,
-        );
+    final textTheme = ThemeData(brightness: brightness).textTheme.apply(
+      bodyColor: scheme.onSurface,
+      displayColor: scheme.onSurface,
+      fontFamily: fontFamily,
+    );
 
     return ThemeData(
       useMaterial3: true,

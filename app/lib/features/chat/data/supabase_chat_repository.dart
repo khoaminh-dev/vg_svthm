@@ -31,7 +31,10 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<Room> createRoom(String name) => _guard(() async {
     // Một RPC duy nhất: tạo phòng và thêm người tạo trong cùng một giao dịch (không để phòng mồ côi).
-    final rows = await _client.rpc('create_group_room', params: {'p_name': name}) as List<dynamic>;
+    final rows = await _client.rpc(
+      'create_group_room',
+      params: {'p_name': name},
+    ) as List<dynamic>;
     final row = rows.first as Map<String, dynamic>;
     return Room(
       id: row['id'] as String,
@@ -87,12 +90,18 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<void> addMember(String roomId, String username) => _guard(
-    () => _client.rpc('add_member_by_username', params: {'p_room': roomId, 'p_username': username}),
+    () => _client.rpc(
+      'add_member_by_username',
+      params: {'p_room': roomId, 'p_username': username},
+    ),
   );
 
   @override
   Future<List<Profile>> fetchMembers(String roomId) => _guard(() async {
-    final members = await _client.from('room_members').select('user_id').eq('room_id', roomId);
+    final members = await _client
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId);
     final ids = members.map((m) => m['user_id'] as String).toList();
     if (ids.isEmpty) return <Profile>[];
     final rows = await _client.from('profiles').select().inFilter('id', ids);
@@ -188,17 +197,28 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Future<void> sendImage(String roomId, Uint8List bytes, {String caption = ''}) => _guard(() async {
+  Future<void> sendImage(
+    String roomId,
+    Uint8List bytes, {
+    String caption = '',
+  }) => _guard(() async {
     final uid = _uid;
-    if (bytes.length > maxImageBytes) throw const AppFailure('Ảnh quá lớn (tối đa 5 MB)');
+    if (bytes.length > maxImageBytes)
+      throw const AppFailure('Ảnh quá lớn (tối đa 5 MB)');
     final kind = imageKind(bytes);
-    if (kind == null) throw const AppFailure('Chỉ gửi được ảnh JPG, PNG hoặc WebP');
-    final name = '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 32)}.${kind.ext}';
+    if (kind == null)
+      throw const AppFailure('Chỉ gửi được ảnh JPG, PNG hoặc WebP');
+    final name =
+        '${DateTime.now().microsecondsSinceEpoch}_${Random().nextInt(1 << 32)}.${kind.ext}';
     final path = '$roomId/$uid/$name';
 
     await _client.storage
         .from(_imageBucket)
-        .uploadBinary(path, bytes, fileOptions: FileOptions(contentType: kind.mime));
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: kind.mime),
+        );
     try {
       await _client.from('messages').insert({
         'room_id': roomId,
@@ -218,7 +238,9 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<String?> imageUrl(String imagePath) async {
     try {
-      return await _client.storage.from(_imageBucket).createSignedUrl(imagePath, 3600);
+      return await _client.storage
+          .from(_imageBucket)
+          .createSignedUrl(imagePath, 3600);
     } catch (_) {
       return null;
     }
@@ -231,7 +253,10 @@ class SupabaseChatRepository implements ChatRepository {
 
     controller = StreamController<Set<String>>(
       onListen: () {
-        final ch = _client.channel('presence:room:$roomId', opts: RealtimeChannelConfig(key: _uid));
+        final ch = _client.channel(
+          'presence:room:$roomId',
+          opts: RealtimeChannelConfig(key: _uid),
+        );
         channel = ch;
         ch
             .onPresenceSync((_) {

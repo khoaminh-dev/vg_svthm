@@ -17,12 +17,19 @@ import 'package:vg_svthm/features/health/presentation/widgets/risk_view.dart';
 import 'auth_flow_test.dart' show FakeAuthRepository, settle;
 
 class FakeHealthRepository implements HealthRepository {
-  FakeHealthRepository({this.profile, this.risk, List<HealthQa>? qa})
-    : qa = qa ?? [];
+  FakeHealthRepository({
+    this.profile,
+    this.risk,
+    List<HealthQa>? qa,
+    this.consent,
+  }) : qa = qa ?? [];
 
   HealthProfile? profile;
   RiskResult? risk;
   final List<HealthQa> qa;
+  bool? consent;
+  final Map<String, RiskFeedback> feedback = {};
+  final List<String> feedbackLevels = [];
   int runs = 0;
 
   @override
@@ -41,6 +48,30 @@ class FakeHealthRepository implements HealthRepository {
   Future<void> clearHistory() async => qa.clear();
 
   @override
+  Future<bool?> getResearchConsent() async => consent;
+
+  @override
+  Future<void> setResearchConsent(bool value) async {
+    consent = value;
+    if (!value) feedback.clear();
+  }
+
+  @override
+  Future<RiskFeedback?> getFeedback(String assessmentId) async =>
+      feedback[assessmentId];
+
+  @override
+  Future<void> saveFeedback(
+    String assessmentId, {
+    required String verdict,
+    required String level,
+    String? note,
+  }) async {
+    feedback[assessmentId] = RiskFeedback(verdict: verdict, note: note);
+    feedbackLevels.add(level);
+  }
+
+  @override
   Future<RiskResult?> runAssessment() async {
     runs++;
     return risk;
@@ -53,7 +84,9 @@ RiskResult result(
   int sys = 150,
   int dia = 95,
   bool oldAge = false,
+  String? id = 'a1',
 }) => RiskResult(
+  id: id,
   level: level,
   reasons: reasons,
   systolic: sys,
@@ -336,6 +369,110 @@ void main() {
       await t.pumpAndSettle();
       expect(repo.qa, isEmpty);
       expect(find.byKey(const Key('history-empty')), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'thử nghiệm: dòng bản thử nghiệm, hỏi đồng ý một lần, phản hồi, rút lại',
+    (t) async {
+      bigScreen(t);
+      final repo = FakeHealthRepository(
+        risk: result(RiskLevel.high, reasons: ['hypertension']),
+      );
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              const AuthUser(id: 'u1', username: 'an'),
+            ),
+            healthRepositoryProvider.overrideWithValue(repo),
+            bpReadingsProvider.overrideWith((ref) async => []),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: RiskView()),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+
+      // Luôn có dòng "bản thử nghiệm"; chưa đồng ý thì hỏi và chưa có phần phản hồi.
+      expect(find.byKey(const Key('trial-strip')), findsOneWidget);
+      expect(find.byKey(const Key('research-card')), findsOneWidget);
+      expect(find.byKey(const Key('feedback-card')), findsNothing);
+      expect(find.byKey(const Key('research-switch')), findsNothing);
+
+      await t.tap(find.byKey(const Key('research-yes')));
+      await t.pumpAndSettle();
+      expect(repo.consent, isTrue);
+      expect(find.byKey(const Key('research-card')), findsNothing);
+      await t.scrollUntilVisible(
+        find.byKey(const Key('feedback-card')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Kết quả này có đúng với bác không?'), findsOneWidget);
+
+      // Một chạm là lưu, kèm mức nguy cơ lúc đó. Chưa đúng thì có ô ghi chú.
+      await t.tap(find.byKey(const Key('fb-wrong')));
+      await t.pumpAndSettle();
+      expect(repo.feedback['a1']?.verdict, 'wrong');
+      expect(repo.feedbackLevels.last, 'high');
+      expect(find.byKey(const Key('fb-note')), findsOneWidget);
+      await t.enterText(
+        find.byKey(const Key('fb-note')),
+        'Bác không bị tiểu đường',
+      );
+      await t.tap(find.byKey(const Key('fb-note-send')));
+      await t.pumpAndSettle();
+      expect(repo.feedback['a1']?.note, 'Bác không bị tiểu đường');
+
+      // Đổi ý sang "Đúng": không còn ô ghi chú.
+      await t.tap(find.byKey(const Key('fb-right')));
+      await t.pumpAndSettle();
+      expect(repo.feedback['a1']?.verdict, 'right');
+      expect(find.byKey(const Key('fb-note')), findsNothing);
+
+      // Rút lại sự đồng ý: xoá phản hồi và ẩn phần phản hồi.
+      await t.scrollUntilVisible(
+        find.byKey(const Key('research-switch')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.tap(find.byKey(const Key('research-switch')));
+      await t.pumpAndSettle();
+      expect(repo.consent, isFalse);
+      expect(repo.feedback, isEmpty);
+      expect(find.byKey(const Key('feedback-card')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'đã từ chối nghiên cứu: không hỏi lại và không có phần phản hồi',
+    (t) async {
+      bigScreen(t);
+      final repo = FakeHealthRepository(
+        risk: result(RiskLevel.low),
+        consent: false,
+      );
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              const AuthUser(id: 'u1', username: 'an'),
+            ),
+            healthRepositoryProvider.overrideWithValue(repo),
+            bpReadingsProvider.overrideWith((ref) async => []),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: RiskView()),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('research-card')), findsNothing);
+      expect(find.byKey(const Key('feedback-card')), findsNothing);
+      expect(find.byKey(const Key('trial-strip')), findsOneWidget);
     },
   );
 }

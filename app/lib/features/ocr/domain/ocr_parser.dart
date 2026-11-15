@@ -12,7 +12,9 @@ abstract final class OcrParser {
   static final _time = RegExp(r'\b\d{1,2}:\d{2}(:\d{2})?\b');
   static final _number = RegExp(r'-?\d[\d.,]*');
   static final _trailingSeparators = RegExp(r'[.,]+$');
-  static final _unitAfter = RegExp(r'^\s?([A-Za-zÀ-ỹ°µ%/²³]{1,6}\d?)(?![A-Za-zÀ-ỹ\d])');
+  static final _unitAfter = RegExp(
+    r'^\s?([A-Za-zÀ-ỹ°µ%/²³]{1,6}\d?)(?![A-Za-zÀ-ỹ\d])',
+  );
   static final _labelNoise = RegExp(r'^[\s:=\-–—.|]+|[\s:=\-–—.|]+$');
 
   static List<OcrValue> parse(String raw) {
@@ -20,7 +22,10 @@ abstract final class OcrParser {
     String? pendingLabel;
 
     for (final original in raw.split(RegExp(r'\r?\n'))) {
-      final line = original.replaceAll(_date, ' ').replaceAll(_time, ' ').trim();
+      final line = original
+          .replaceAll(_date, ' ')
+          .replaceAll(_time, ' ')
+          .trim();
       if (line.isEmpty) continue;
 
       final matches = _number.allMatches(line).toList();
@@ -31,8 +36,10 @@ abstract final class OcrParser {
 
       final first = matches.first;
       var label = _cleanLabel(line.substring(0, first.start));
-      final onlyNumbers = label.isEmpty && _cleanLabel(_removeNumbers(line)).isEmpty;
-      if (label.isEmpty && onlyNumbers && pendingLabel != null) label = pendingLabel;
+      final onlyNumbers =
+          label.isEmpty && _cleanLabel(_removeNumbers(line)).isEmpty;
+      if (label.isEmpty && onlyNumbers && pendingLabel != null)
+        label = pendingLabel;
 
       // Đơn vị đứng ngay sau số (kWh, m3, kg, đ...). Số dính liền đơn vị (m3) không tính là số riêng.
       final found = <(String value, String unit)>[];
@@ -49,7 +56,9 @@ abstract final class OcrParser {
       for (var i = 0; i < found.length; i++) {
         result.add(
           OcrValue(
-            label: found.length > 1 && label.isNotEmpty ? '$label #${i + 1}' : label,
+            label: found.length > 1 && label.isNotEmpty
+                ? '$label #${i + 1}'
+                : label,
             value: found[i].$1,
             unit: found[i].$2,
           ),

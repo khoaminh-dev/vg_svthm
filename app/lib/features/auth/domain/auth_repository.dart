@@ -21,7 +21,10 @@ abstract interface class AuthRepository {
   Future<bool> signInWithGoogle();
 
   /// Lưu username và tên hiển thị cho tài khoản chưa có hồ sơ.
-  Future<void> completeProfile({required String username, required String displayName});
+  Future<void> completeProfile({
+    required String username,
+    required String displayName,
+  });
 
   Future<void> signOut();
 }

@@ -14,11 +14,14 @@ class EntertainmentScreen extends ConsumerStatefulWidget {
   const EntertainmentScreen({super.key});
 
   @override
-  ConsumerState<EntertainmentScreen> createState() => _EntertainmentScreenState();
+  ConsumerState<EntertainmentScreen> createState() =>
+      _EntertainmentScreenState();
 }
 
 class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
-  late final TextEditingController _text = TextEditingController(text: ref.read(videoQueryProvider));
+  late final TextEditingController _text = TextEditingController(
+    text: ref.read(videoQueryProvider),
+  );
 
   /// Mục chọn nhanh: chạm một lần, không cần gõ.
   static const _categories = <(String, IconData, String)>[
@@ -27,7 +30,11 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
     ('Tin tức', Icons.newspaper_rounded, 'tin tức hôm nay'),
     ('Thiền thư giãn', Icons.self_improvement_rounded, 'thiền thư giãn'),
     ('Hài kịch', Icons.sentiment_very_satisfied_rounded, 'hài kịch'),
-    ('Dưỡng sinh', Icons.directions_walk_rounded, 'bài tập dưỡng sinh người lớn tuổi'),
+    (
+      'Dưỡng sinh',
+      Icons.directions_walk_rounded,
+      'bài tập dưỡng sinh người lớn tuổi',
+    ),
   ];
 
   @override
@@ -90,18 +97,33 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
               query.isEmpty ? 'Giải trí' : query,
               actions: [
                 if (query.isNotEmpty)
-                  SoftIconButton(icon: Icons.apps_rounded, label: 'Chọn mục khác', onPressed: _backToCategories),
-                SoftIconButton(icon: Icons.close_rounded, label: 'Đóng', onPressed: () => context.pop()),
+                  SoftIconButton(
+                    icon: Icons.apps_rounded,
+                    label: 'Chọn mục khác',
+                    onPressed: _backToCategories,
+                  ),
+                SoftIconButton(
+                  icon: Icons.close_rounded,
+                  label: 'Đóng',
+                  onPressed: () => context.pop(),
+                ),
               ],
             ),
             if (query.isEmpty)
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 120),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.md,
+                    120,
+                  ),
                   children: [
                     Text(
                       'Bác muốn xem gì? Chạm một mục, hoặc nói với Vy: "Mở bài Nối vòng tay lớn".',
-                      style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     GridView.count(
@@ -112,7 +134,12 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                       crossAxisSpacing: AppSpacing.sm,
                       childAspectRatio: 1.25,
                       children: [
-                        for (final c in _categories) _CategoryTile(icon: c.$2, label: c.$1, onTap: () => _search(c.$3)),
+                        for (final c in _categories)
+                          _CategoryTile(
+                            icon: c.$2,
+                            label: c.$1,
+                            onTap: () => _search(c.$3),
+                          ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -142,7 +169,11 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       const SizedBox(height: 48),
-                      Icon(Icons.cloud_off_outlined, size: 44, color: theme.colorScheme.outline),
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 44,
+                        color: theme.colorScheme.outline,
+                      ),
                       const SizedBox(height: 12),
                       const Text(
                         'Chưa tìm được video. Bác kiểm tra mạng rồi thử lại nhé.',
@@ -158,12 +189,23 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                   ),
                   data: (list) {
                     if (list.isEmpty) {
-                      return const Center(child: Text('Không tìm thấy video nào.', style: TextStyle(fontSize: 18)));
+                      return const Center(
+                        child: Text(
+                          'Không tìm thấy video nào.',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      );
                     }
                     return ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 120),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        120,
+                      ),
                       itemCount: list.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.md),
                       itemBuilder: (_, i) => VideoCard(
                         item: list[i],
                         onTap: () {
@@ -185,7 +227,11 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
 }
 
 class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({required this.icon, required this.label, required this.onTap});
+  const _CategoryTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -201,7 +247,10 @@ class _CategoryTile extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+          ),
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -211,7 +260,9 @@ class _CategoryTile extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -254,13 +305,18 @@ class VideoCard extends StatelessWidget {
                     Image.network(
                       item.thumbnailUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFFE1EAF4)),
+                      errorBuilder: (_, _, _) =>
+                          const ColoredBox(color: Color(0xFFE1EAF4)),
                     ),
                     const Center(
                       child: CircleAvatar(
                         radius: 28,
                         backgroundColor: Color(0x99000000),
-                        child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 38),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 38,
+                        ),
                       ),
                     ),
                     if (item.durationLabel.isNotEmpty)
@@ -268,14 +324,21 @@ class VideoCard extends StatelessWidget {
                         right: 10,
                         bottom: 10,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xCC000000),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             item.durationLabel,
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -287,13 +350,20 @@ class VideoCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.title, maxLines: 3, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
+                    Text(
+                      item.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       item.author,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),

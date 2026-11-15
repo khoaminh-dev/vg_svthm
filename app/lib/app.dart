@@ -17,7 +17,9 @@ class App extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       routerConfig: ref.watch(routerProvider),
-      builder: (context, child) => UpdateGate(child: VoiceOverlay(child: child ?? const SizedBox.shrink())),
+      builder: (context, child) => UpdateGate(
+        child: VoiceOverlay(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

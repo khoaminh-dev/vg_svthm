@@ -21,9 +21,7 @@ class OcrScreen extends ConsumerWidget {
     WidgetRef ref,
     ImageSource source,
   ) async {
-    Analytics.track('ocr_scan', {
-      'source': source.name,
-    });
+    Analytics.track('ocr_scan', {'source': source.name});
     final draft = await ref.read(ocrControllerProvider.notifier).scan(source);
     if (!context.mounted) return;
     if (draft == null) {

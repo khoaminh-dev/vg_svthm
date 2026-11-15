@@ -56,7 +56,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authControllerProvider, (_, next) {
-      if (next.hasError) showAppSnackBar(context, errorMessage(next.error!), error: true);
+      if (next.hasError)
+        showAppSnackBar(context, errorMessage(next.error!), error: true);
     });
     final loading = ref.watch(authControllerProvider).isLoading;
 

@@ -39,8 +39,11 @@ class MeasureController extends Notifier<MeasureState> {
 
   void reset() => state = const MeasureState();
 
-  MeasureState _failed(String imagePath, String error) =>
-      MeasureState(step: MeasureStep.failed, imagePath: imagePath, error: error);
+  MeasureState _failed(String imagePath, String error) => MeasureState(
+    step: MeasureStep.failed,
+    imagePath: imagePath,
+    error: error,
+  );
 
   Future<void> process(String imagePath) async {
     state = MeasureState(step: MeasureStep.analyzing, imagePath: imagePath);
@@ -58,7 +61,10 @@ class MeasureController extends Notifier<MeasureState> {
         return;
       }
       final history = await historyF;
-      final advice = bpAdvice(reading, previous: history.isEmpty ? null : history.first);
+      final advice = bpAdvice(
+        reading,
+        previous: history.isEmpty ? null : history.first,
+      );
 
       // Hiện kết quả ngay, việc lưu chạy ngầm.
       state = MeasureState(
@@ -69,16 +75,26 @@ class MeasureController extends Notifier<MeasureState> {
         saving: true,
       );
 
-      final draft = OcrDraft(imagePath: imagePath, rawText: scan.rawText, values: scan.values);
+      final draft = OcrDraft(
+        imagePath: imagePath,
+        rawText: scan.rawText,
+        values: scan.values,
+      );
       final ok = await ref
           .read(ocrControllerProvider.notifier)
           .save(draft, 'Huyết áp', scan.values, reading: reading);
       if (!ok) {
         final e = ref.read(ocrControllerProvider).error;
-        state = _failed(imagePath, e == null ? 'Chưa lưu được' : errorMessage(e));
+        state = _failed(
+          imagePath,
+          e == null ? 'Chưa lưu được' : errorMessage(e),
+        );
         return;
       }
-      Analytics.track('measure', {'ok': true, 'category': reading.category.code});
+      Analytics.track('measure', {
+        'ok': true,
+        'category': reading.category.code,
+      });
       // Tự đánh giá nguy cơ ngay sau khi lưu; kết quả hiện ở màn đo khi có.
       ref.read(riskRunnerProvider.notifier).run();
       state = MeasureState(
@@ -93,6 +109,5 @@ class MeasureController extends Notifier<MeasureState> {
   }
 }
 
-final measureControllerProvider = NotifierProvider<MeasureController, MeasureState>(
-  MeasureController.new,
-);
+final measureControllerProvider =
+    NotifierProvider<MeasureController, MeasureState>(MeasureController.new);

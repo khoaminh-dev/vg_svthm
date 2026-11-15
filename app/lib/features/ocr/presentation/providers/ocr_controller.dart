@@ -22,7 +22,9 @@ class OcrController extends AsyncNotifier<void> {
     } catch (e, st) {
       // Lỗi quyền camera / plugin: đưa vào state để UI báo, không để thoát ra thành exception.
       state = AsyncError(
-        const AppFailure('Không mở được camera hoặc thư viện ảnh, hãy kiểm tra quyền truy cập'),
+        const AppFailure(
+          'Không mở được camera hoặc thư viện ảnh, hãy kiểm tra quyền truy cập',
+        ),
         st,
       );
       return null;
@@ -39,7 +41,11 @@ class OcrController extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final engine = ref.read(aiOcrEngineProvider);
       final scan = await engine.scan(path);
-      draft = OcrDraft(imagePath: path, rawText: scan.rawText, values: scan.values);
+      draft = OcrDraft(
+        imagePath: path,
+        rawText: scan.rawText,
+        values: scan.values,
+      );
     });
     return draft;
   }
@@ -92,10 +98,14 @@ class OcrController extends AsyncNotifier<void> {
 
   Future<bool> delete(OcrRecord record) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => ref.read(ocrRepositoryProvider).delete(record));
+    state = await AsyncValue.guard(
+      () => ref.read(ocrRepositoryProvider).delete(record),
+    );
     if (!state.hasError) ref.invalidate(ocrRecordsProvider);
     return !state.hasError;
   }
 }
 
-final ocrControllerProvider = AsyncNotifierProvider<OcrController, void>(OcrController.new);
+final ocrControllerProvider = AsyncNotifierProvider<OcrController, void>(
+  OcrController.new,
+);

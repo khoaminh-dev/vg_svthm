@@ -29,7 +29,9 @@ class MessageBubble extends StatelessWidget {
     final path = message.imagePath;
 
     final bubble = Container(
-      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+      ),
       padding: path != null
           ? const EdgeInsets.fromLTRB(6, 6, 6, 8)
           : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -49,8 +51,16 @@ class MessageBubble extends StatelessWidget {
         children: [
           if (!isMine)
             Padding(
-              padding: path != null ? const EdgeInsets.fromLTRB(6, 2, 6, 4) : EdgeInsets.zero,
-              child: Text(senderName, style: text.labelMedium?.copyWith(color: scheme.primary, fontWeight: FontWeight.w700)),
+              padding: path != null
+                  ? const EdgeInsets.fromLTRB(6, 2, 6, 4)
+                  : EdgeInsets.zero,
+              child: Text(
+                senderName,
+                style: text.labelMedium?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           if (path != null) ChatImage(path: path),
           if (message.imageExpired)
@@ -59,12 +69,19 @@ class MessageBubble extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.hide_image_outlined, size: 20, color: fg.withValues(alpha: 0.8)),
+                  Icon(
+                    Icons.hide_image_outlined,
+                    size: 20,
+                    color: fg.withValues(alpha: 0.8),
+                  ),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       'Ảnh đã hết hạn lưu trữ',
-                      style: TextStyle(color: fg.withValues(alpha: 0.8), fontStyle: FontStyle.italic),
+                      style: TextStyle(
+                        color: fg.withValues(alpha: 0.8),
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ],
@@ -72,15 +89,24 @@ class MessageBubble extends StatelessWidget {
             ),
           if (message.content.isNotEmpty)
             Padding(
-              padding: path != null ? const EdgeInsets.fromLTRB(6, 6, 6, 0) : EdgeInsets.zero,
-              child: Text(message.content, style: TextStyle(color: fg, fontSize: 18, height: 1.35)),
+              padding: path != null
+                  ? const EdgeInsets.fromLTRB(6, 6, 6, 0)
+                  : EdgeInsets.zero,
+              child: Text(
+                message.content,
+                style: TextStyle(color: fg, fontSize: 18, height: 1.35),
+              ),
             ),
           const SizedBox(height: 2),
           Padding(
-            padding: path != null ? const EdgeInsets.symmetric(horizontal: 6) : EdgeInsets.zero,
+            padding: path != null
+                ? const EdgeInsets.symmetric(horizontal: 6)
+                : EdgeInsets.zero,
             child: Text(
               formatTime(message.createdAt),
-              style: text.labelSmall?.copyWith(color: fg.withValues(alpha: 0.7)),
+              style: text.labelSmall?.copyWith(
+                color: fg.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ],
@@ -88,9 +114,14 @@ class MessageBubble extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(
+        vertical: 4,
+        horizontal: AppSpacing.md,
+      ),
       child: Row(
-        mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMine
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMine) ...[
@@ -133,7 +164,11 @@ class ChatImage extends ConsumerWidget {
               children: [
                 Icon(Icons.refresh, color: scheme.onSurfaceVariant),
                 const SizedBox(height: 4),
-                Text(msg, textAlign: TextAlign.center, style: TextStyle(color: scheme.onSurfaceVariant)),
+                Text(
+                  msg,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
               ],
             ),
           ),
@@ -142,7 +177,12 @@ class ChatImage extends ConsumerWidget {
     );
 
     return url.when(
-      loading: () => box(ColoredBox(color: scheme.surfaceContainer, child: const Center(child: CircularProgressIndicator()))),
+      loading: () => box(
+        ColoredBox(
+          color: scheme.surfaceContainer,
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+      ),
       error: (_, _) => retry('Không tải được ảnh\nBấm để thử lại'),
       data: (u) {
         if (u == null) return retry('Không tải được ảnh\nBấm để thử lại');
@@ -157,12 +197,20 @@ class ChatImage extends ConsumerWidget {
                 fit: BoxFit.cover,
                 loadingBuilder: (_, child, p) => p == null
                     ? child
-                    : ColoredBox(color: scheme.surfaceContainer, child: const Center(child: CircularProgressIndicator())),
+                    : ColoredBox(
+                        color: scheme.surfaceContainer,
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
                 errorBuilder: (_, _, _) => InkWell(
                   onTap: () => ref.invalidate(chatImageUrlProvider(path)),
                   child: ColoredBox(
                     color: scheme.surfaceContainer,
-                    child: const Center(child: Text('Không tải được ảnh\nBấm để thử lại', textAlign: TextAlign.center)),
+                    child: const Center(
+                      child: Text(
+                        'Không tải được ảnh\nBấm để thử lại',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                 ),
               ),

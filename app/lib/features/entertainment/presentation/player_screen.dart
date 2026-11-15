@@ -51,9 +51,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     Future.microtask(() => _open.set(true));
     _c.listen((v) {
       if (!mounted) return;
-      final blocked = v.error == YoutubeError.notEmbeddable || v.error == YoutubeError.sameAsNotEmbeddable;
+      final blocked =
+          v.error == YoutubeError.notEmbeddable ||
+          v.error == YoutubeError.sameAsNotEmbeddable;
       if (blocked != _blocked || v.playerState != _state) {
-        final ended = v.playerState == PlayerState.ended && _state != PlayerState.ended;
+        final ended =
+            v.playerState == PlayerState.ended && _state != PlayerState.ended;
         setState(() {
           _blocked = blocked;
           _state = v.playerState;
@@ -94,7 +97,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _seek(double delta) async {
     final now = await _c.currentTime;
-    await _c.seekTo(seconds: (now + delta).clamp(0, double.infinity), allowSeekAhead: true);
+    await _c.seekTo(
+      seconds: (now + delta).clamp(0, double.infinity),
+      allowSeekAhead: true,
+    );
   }
 
   Future<void> _setVolume(int v) async {
@@ -121,7 +127,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _openInYoutube() async {
     Analytics.track('video_open_external');
-    await launchUrl(Uri.parse(_video.watchUrl), mode: LaunchMode.externalApplication);
+    await launchUrl(
+      Uri.parse(_video.watchUrl),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   @override
@@ -133,7 +142,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final i = _index;
     final hasNext = i >= 0 && i < q.length - 1;
     final hasPrev = i > 0;
-    final playing = _state == PlayerState.playing || _state == PlayerState.buffering;
+    final playing =
+        _state == PlayerState.playing || _state == PlayerState.buffering;
     final loading = _state == PlayerState.unStarted && !_blocked;
 
     return Scaffold(
@@ -142,7 +152,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.sm),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
               child: Row(
                 children: [
                   Semantics(
@@ -154,8 +169,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       child: Container(
                         width: AppSpacing.tapTarget,
                         height: AppSpacing.tapTarget,
-                        decoration: const BoxDecoration(color: Color(0x33FFFFFF), shape: BoxShape.circle),
-                        child: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                        decoration: const BoxDecoration(
+                          color: Color(0x33FFFFFF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -163,7 +184,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ),
             ),
             // Chặn chạm vào khung YouTube (logo, "More videos") để không lạc ra ngoài; điều khiển bằng nút của app.
-            IgnorePointer(child: YoutubePlayer(controller: _c, aspectRatio: 16 / 9)),
+            IgnorePointer(
+              child: YoutubePlayer(controller: _c, aspectRatio: 16 / 9),
+            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -172,13 +195,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     _video.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(_video.author, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                  Text(
+                    _video.author,
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
                   if (loading) ...[
                     const SizedBox(height: 8),
-                    const Text('Đang mở video…', style: TextStyle(color: Colors.white, fontSize: 18)),
+                    const Text(
+                      'Đang mở video…',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
                   Row(
@@ -192,7 +225,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       ),
                       _RoundButton(
                         key: const Key('player-toggle'),
-                        icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        icon: playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         label: playing ? 'Tạm dừng' : 'Phát',
                         big: true,
                         onTap: _toggle,
@@ -208,9 +243,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
-                      Expanded(child: _PillButton(icon: Icons.replay_10_rounded, label: 'Lùi 15 giây', onTap: () => _seek(-15))),
+                      Expanded(
+                        child: _PillButton(
+                          icon: Icons.replay_10_rounded,
+                          label: 'Lùi 15 giây',
+                          onTap: () => _seek(-15),
+                        ),
+                      ),
                       const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: _PillButton(icon: Icons.forward_10_rounded, label: 'Tới 15 giây', onTap: () => _seek(15))),
+                      Expanded(
+                        child: _PillButton(
+                          icon: Icons.forward_10_rounded,
+                          label: 'Tới 15 giây',
+                          onTap: () => _seek(15),
+                        ),
+                      ),
                     ],
                   ),
                   if (hasNext) ...[
@@ -219,20 +266,35 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       'Tiếp theo: ${q[i + 1].title}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white60, fontSize: 16),
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 16,
+                      ),
                     ),
                   ],
                   if (_blocked) ...[
                     const SizedBox(height: AppSpacing.lg),
                     const Text(
                       'Video này không cho xem trong Viegrand.',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    _PillButton(icon: Icons.open_in_new_rounded, label: 'Mở bằng app YouTube', onTap: _openInYoutube),
+                    _PillButton(
+                      icon: Icons.open_in_new_rounded,
+                      label: 'Mở bằng app YouTube',
+                      onTap: _openInYoutube,
+                    ),
                     if (hasNext) ...[
                       const SizedBox(height: AppSpacing.sm),
-                      _PillButton(icon: Icons.skip_next_rounded, label: 'Xem bài kế tiếp', onTap: () => _go(1)),
+                      _PillButton(
+                        icon: Icons.skip_next_rounded,
+                        label: 'Xem bài kế tiếp',
+                        onTap: () => _go(1),
+                      ),
                     ],
                   ],
                   const SizedBox(height: 96), // chừa chỗ cho nút Vy nổi
@@ -247,7 +309,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 }
 
 class _RoundButton extends StatelessWidget {
-  const _RoundButton({super.key, required this.icon, required this.label, required this.onTap, this.big = false});
+  const _RoundButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.big = false,
+  });
 
   final IconData icon;
   final String label;
@@ -275,7 +343,9 @@ class _RoundButton extends StatelessWidget {
           child: Icon(
             icon,
             size: big ? 52 : 38,
-            color: big ? Colors.black : (enabled ? Colors.white : Colors.white24),
+            color: big
+                ? Colors.black
+                : (enabled ? Colors.white : Colors.white24),
           ),
         ),
       ),
@@ -284,7 +354,11 @@ class _RoundButton extends StatelessWidget {
 }
 
 class _PillButton extends StatelessWidget {
-  const _PillButton({required this.icon, required this.label, required this.onTap});
+  const _PillButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;

@@ -12,7 +12,11 @@ class OcrValue {
   final String value;
   final String unit;
 
-  Map<String, dynamic> toJson() => {'label': label, 'value': value, 'unit': unit};
+  Map<String, dynamic> toJson() => {
+    'label': label,
+    'value': value,
+    'unit': unit,
+  };
 
   /// Giá trị dạng số, `null` nếu không đọc được.
   double? get number => parseNumber(value);
@@ -28,7 +32,11 @@ class OcrScan {
 
 /// Kết quả OCR chưa lưu: ảnh trên máy, văn bản thô và các dòng số liệu.
 class OcrDraft {
-  const OcrDraft({required this.imagePath, required this.rawText, required this.values});
+  const OcrDraft({
+    required this.imagePath,
+    required this.rawText,
+    required this.values,
+  });
 
   final String imagePath;
   final String rawText;
@@ -87,9 +95,13 @@ double? parseNumber(String input) {
   if (hasDot && hasComma) {
     // Dấu xuất hiện sau cùng là dấu thập phân.
     final decimalIsComma = s.lastIndexOf(',') > s.lastIndexOf('.');
-    s = decimalIsComma ? s.replaceAll('.', '').replaceAll(',', '.') : s.replaceAll(',', '');
+    s = decimalIsComma
+        ? s.replaceAll('.', '').replaceAll(',', '.')
+        : s.replaceAll(',', '');
   } else if (hasComma) {
-    s = _thousandsComma.hasMatch(s) ? s.replaceAll(',', '') : s.replaceAll(',', '.');
+    s = _thousandsComma.hasMatch(s)
+        ? s.replaceAll(',', '')
+        : s.replaceAll(',', '.');
   } else if (hasDot) {
     if (_thousandsDot.hasMatch(s)) s = s.replaceAll('.', '');
   }

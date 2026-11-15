@@ -64,7 +64,10 @@ class VoiceState {
 const _keep = Object();
 
 final voiceApiProvider = Provider<VoiceApi>(
-  (ref) => VoiceApi(accessToken: () => ref.read(supabaseClientProvider).auth.currentSession?.accessToken),
+  (ref) => VoiceApi(
+    accessToken: () =>
+        ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
+  ),
 );
 
 /// Bộ điều khiển hội thoại giọng nói: bấm mic để nói, bấm lại để dừng; trợ lý hỏi xong tự mở mic.
@@ -155,7 +158,13 @@ class VoiceController extends Notifier<VoiceState> {
         Analytics.track('voice_mic_start');
         unawaited(_sound.warmUp());
         _newSession();
-        state = state.copyWith(panelOpen: true, transcript: '', say: '', chips: const [], error: null);
+        state = state.copyWith(
+          panelOpen: true,
+          transcript: '',
+          say: '',
+          chips: const [],
+          error: null,
+        );
         await _listen();
     }
   }
@@ -201,10 +210,17 @@ class VoiceController extends Notifier<VoiceState> {
       return;
     }
     await _player.stop();
-    state = state.copyWith(status: VoiceStatus.listening, error: null, level: 0);
-    final clip = await _recorder.record(onLevel: (l) {
-      if (run == _run && state.status == VoiceStatus.listening) state = state.copyWith(level: l);
-    });
+    state = state.copyWith(
+      status: VoiceStatus.listening,
+      error: null,
+      level: 0,
+    );
+    final clip = await _recorder.record(
+      onLevel: (l) {
+        if (run == _run && state.status == VoiceStatus.listening)
+          state = state.copyWith(level: l);
+      },
+    );
     if (run != _run) return;
     if (clip == null) {
       state = state.copyWith(status: VoiceStatus.idle);
@@ -216,7 +232,10 @@ class VoiceController extends Notifier<VoiceState> {
       Analytics.track('voice_no_speech');
       if (_silentRounds >= 2) {
         _silentRounds = 0;
-        state = state.copyWith(status: VoiceStatus.idle, say: 'Con chưa nghe thấy gì. Bấm micro để nói lại nhé.');
+        state = state.copyWith(
+          status: VoiceStatus.idle,
+          say: 'Con chưa nghe thấy gì. Bấm micro để nói lại nhé.',
+        );
         return;
       }
       await _speakAndMaybeListen(
@@ -238,7 +257,11 @@ class VoiceController extends Notifier<VoiceState> {
       final c = ref.read(supabaseClientProvider);
       final uid = c.auth.currentUser?.id;
       if (uid == null) return;
-      final p = await c.from('voice_prefs').select('honorific').eq('user_id', uid).maybeSingle();
+      final p = await c
+          .from('voice_prefs')
+          .select('honorific')
+          .eq('user_id', uid)
+          .maybeSingle();
       if (p != null) _honorific = p['honorific'] as String? ?? 'bác';
     } catch (_) {}
   }
@@ -249,7 +272,10 @@ class VoiceController extends Notifier<VoiceState> {
       final uid = c.auth.currentUser?.id;
       final rooms = await ref.read(roomsProvider.future);
       try {
-        final rows = await c.from('voice_aliases').select('alias_norm, contact_id').eq('user_id', uid ?? '');
+        final rows = await c
+            .from('voice_aliases')
+            .select('alias_norm, contact_id')
+            .eq('user_id', uid ?? '');
         final m = <String, List<String>>{};
         for (final r in rows) {
           (m[r['contact_id'] as String] ??= []).add(r['alias_norm'] as String);
@@ -309,9 +335,16 @@ class VoiceController extends Notifier<VoiceState> {
     }
   }
 
-  Future<void> _apply(VoiceTurnResult res, List<VoiceContact> contacts, int run) async {
+  Future<void> _apply(
+    VoiceTurnResult res,
+    List<VoiceContact> contacts,
+    int run,
+  ) async {
     final d = res.decision;
-    Analytics.track('voice_turn', {'intent': d.intent ?? '', 'action': d.action});
+    Analytics.track('voice_turn', {
+      'intent': d.intent ?? '',
+      'action': d.action,
+    });
     var say = d.say;
     var sayClass = d.sayClass;
     var dialog = const VoiceDialog();
@@ -342,7 +375,8 @@ class VoiceController extends Notifier<VoiceState> {
 
     _lastSay = say;
     _lastSayClass = sayClass;
-    final navigated = d.action == 'execute' && _navIntents.contains(d.task?.intent);
+    final navigated =
+        d.action == 'execute' && _navIntents.contains(d.task?.intent);
     state = state.copyWith(
       transcript: res.transcript,
       say: say,
@@ -351,7 +385,13 @@ class VoiceController extends Notifier<VoiceState> {
       status: VoiceStatus.speaking,
       panelOpen: navigated ? false : state.panelOpen,
     );
-    await _speakAndMaybeListen(say, sayClass, listenAfter: listenAfter, run: run, alreadySpeaking: true);
+    await _speakAndMaybeListen(
+      say,
+      sayClass,
+      listenAfter: listenAfter,
+      run: run,
+      alreadySpeaking: true,
+    );
   }
 
   Future<void> _speakAndMaybeListen(
@@ -361,7 +401,8 @@ class VoiceController extends Notifier<VoiceState> {
     required int run,
     bool alreadySpeaking = false,
   }) async {
-    if (!alreadySpeaking) state = state.copyWith(status: VoiceStatus.speaking, say: say);
+    if (!alreadySpeaking)
+      state = state.copyWith(status: VoiceStatus.speaking, say: say);
     await _player.speak(say, sayClass: sayClass);
     if (run != _run) return;
     if (listenAfter) {
@@ -393,13 +434,16 @@ class VoiceController extends Notifier<VoiceState> {
     final first = found.first;
     ref.read(videoQueueProvider.notifier).set(found);
     router.push(Routes.player, extra: first);
-    final title = first.title.length > 70 ? '${first.title.substring(0, 70)}…' : first.title;
+    final title = first.title.length > 70
+        ? '${first.title.substring(0, 70)}…'
+        : first.title;
     return 'Dạ, con mở $title ạ.';
   }
 
   /// Điều khiển video đang phát bằng giọng nói.
   String? _controlVideo(String? action) {
-    if (!ref.read(playerOpenProvider)) return 'Dạ, hiện chưa có video nào đang phát ạ.';
+    if (!ref.read(playerOpenProvider))
+      return 'Dạ, hiện chưa có video nào đang phát ạ.';
     final a = switch (action?.toLowerCase()) {
       'pause' => PlayerAction.pause,
       'play' => PlayerAction.play,
@@ -417,7 +461,8 @@ class VoiceController extends Notifier<VoiceState> {
       PlayerAction.play => 'Dạ, con phát tiếp ạ.',
       PlayerAction.next => 'Dạ, con chuyển bài ạ.',
       PlayerAction.previous => 'Dạ, con mở lại bài trước ạ.',
-      PlayerAction.louder => 'Dạ, con tăng âm lượng rồi ạ. Nếu chưa đủ to, $_honorific bấm nút to bên hông máy giúp con nhé.',
+      PlayerAction.louder =>
+        'Dạ, con tăng âm lượng rồi ạ. Nếu chưa đủ to, $_honorific bấm nút to bên hông máy giúp con nhé.',
       PlayerAction.quieter => 'Dạ, con giảm âm lượng rồi ạ.',
     };
   }
@@ -430,10 +475,16 @@ class VoiceController extends Notifier<VoiceState> {
       case 'send_message':
         final roomId = s['room_id'];
         final content = s['content'];
-        if (roomId == null || content == null) return 'Con chưa gửi được, $_honorific thử lại nhé.';
-        final ok = await ref.read(chatRepositoryProvider).sendMessage(roomId, content).then((_) => true).catchError((_) => false);
+        if (roomId == null || content == null)
+          return 'Con chưa gửi được, $_honorific thử lại nhé.';
+        final ok = await ref
+            .read(chatRepositoryProvider)
+            .sendMessage(roomId, content)
+            .then((_) => true)
+            .catchError((_) => false);
         Analytics.track('voice_send_message', {'ok': ok});
-        if (!ok) return 'Con gửi chưa được, $_honorific kiểm tra mạng rồi thử lại nhé.';
+        if (!ok)
+          return 'Con gửi chưa được, $_honorific kiểm tra mạng rồi thử lại nhé.';
         _openRoom(roomId, contacts);
         return null;
       case 'open_chat':
@@ -499,8 +550,11 @@ class VoiceController extends Notifier<VoiceState> {
   Future<String> _readBp() async {
     try {
       final list = await ref.read(bpReadingsProvider.future);
-      if (list.isEmpty) return 'Chưa có kết quả đo nào. ${_honorific[0].toUpperCase()}${_honorific.substring(1)} đo huyết áp rồi chụp lại giúp con nhé.';
-      final r = list.reduce((a, b) => a.measuredAt.isAfter(b.measuredAt) ? a : b);
+      if (list.isEmpty)
+        return 'Chưa có kết quả đo nào. ${_honorific[0].toUpperCase()}${_honorific.substring(1)} đo huyết áp rồi chụp lại giúp con nhé.';
+      final r = list.reduce(
+        (a, b) => a.measuredAt.isAfter(b.measuredAt) ? a : b,
+      );
       final cat = BpCategory.of(r.systolic, r.diastolic).label;
       final pulse = r.pulse == null ? '' : ', mạch ${r.pulse}';
       return 'Lần đo gần nhất: huyết áp ${r.systolic} trên ${r.diastolic}$pulse. Mức: $cat.';
@@ -513,4 +567,6 @@ class VoiceController extends Notifier<VoiceState> {
 /// Âm thanh đã ghi (gọn để truyền vào [VoiceController._send]).
 typedef VoiceClipArg = RecordedClip;
 
-final voiceControllerProvider = NotifierProvider<VoiceController, VoiceState>(VoiceController.new);
+final voiceControllerProvider = NotifierProvider<VoiceController, VoiceState>(
+  VoiceController.new,
+);

@@ -4,10 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/time_format.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/user_avatar.dart';
 import '../../../community/presentation/community_providers.dart';
+import '../../domain/room.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
 import '../../../../shared/widgets/ios_style.dart';
@@ -30,7 +33,11 @@ class RoomListScreen extends ConsumerWidget {
               icon: Icons.person_outline,
               label: 'Chat riêng với @username',
             ),
-            _SheetTile(value: 'group', icon: Icons.group_add_outlined, label: 'Tạo phòng nhóm'),
+            _SheetTile(
+              value: 'group',
+              icon: Icons.group_add_outlined,
+              label: 'Tạo phòng nhóm',
+            ),
           ],
         ),
       ),
@@ -54,7 +61,9 @@ class RoomListScreen extends ConsumerWidget {
     );
     if (username == null || !context.mounted) return;
 
-    final room = await ref.read(chatControllerProvider.notifier).openDirectRoom(username);
+    final room = await ref
+        .read(chatControllerProvider.notifier)
+        .openDirectRoom(username);
     if (!context.mounted) return;
     if (room == null) {
       final error = ref.read(chatControllerProvider).error;
@@ -79,7 +88,9 @@ class RoomListScreen extends ConsumerWidget {
     );
     if (name == null || !context.mounted) return;
 
-    final room = await ref.read(chatControllerProvider.notifier).createRoom(name);
+    final room = await ref
+        .read(chatControllerProvider.notifier)
+        .createRoom(name);
     if (!context.mounted) return;
     if (room == null) {
       final error = ref.read(chatControllerProvider).error;
@@ -125,37 +136,47 @@ class RoomListScreen extends ConsumerWidget {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () async => ref.refresh(roomsProvider.future),
+                onRefresh: () async {
+                  ref.invalidate(communityEnabledProvider);
+                  ref.invalidate(roomsProvider);
+                  await ref.read(roomsProvider.future);
+                },
                 child: rooms.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (e, _) => ListView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       const SizedBox(height: 48),
-                      Icon(Icons.cloud_off_outlined, size: 44, color: Theme.of(context).colorScheme.outline),
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 44,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                       const SizedBox(height: 12),
-                      Text(errorMessage(e), textAlign: TextAlign.center),
+                      Text(
+                        errorMessage(e),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Center(
+                        child: FilledButton(
+                          key: const Key('rooms-retry'),
+                          onPressed: () => ref.invalidate(roomsProvider),
+                          child: const Text('Thử lại'),
+                        ),
+                      ),
                     ],
                   ),
                   data: (list) => list.isEmpty
-                      ? ListView(
-                          padding: const EdgeInsets.all(24),
-                          children: [
-                            const SizedBox(height: 72),
-                            Icon(Icons.forum_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(height: 20),
-                            Text(
-                              'Bắt đầu trò chuyện',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Bấm dấu cộng để tạo phòng hoặc tìm người thân bằng tên người dùng.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            ),
-                          ],
+                      ? _EmptyRooms(
+                          onDirect: () => _openDirect(context, ref),
+                          onGroup: () => _createRoom(context, ref),
+                          onCommunity:
+                              ref.watch(communityEnabledProvider).value == true
+                              ? () => context.push(Routes.community)
+                              : null,
                         )
                       : ListView(
                           padding: const EdgeInsets.only(top: 4, bottom: 120),
@@ -163,31 +184,16 @@ class RoomListScreen extends ConsumerWidget {
                             InsetGroup(
                               children: [
                                 for (final room in list)
-                                  ListTile(
-                                    minTileHeight: 80,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    leading: room.isDirect
-                                        ? UserAvatar(
-                                            name: room.displayName,
-                                            imageUrl: room.peer?.avatarUrl,
-                                            radius: 26,
-                                          )
-                                        : CircleAvatar(
-                                            radius: 26,
-                                            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                                            child: Icon(
-                                              Icons.group_outlined,
-                                              color: Theme.of(context).colorScheme.primary,
-                                            ),
-                                          ),
-                                    title: Text(
-                                      room.displayName,
-                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-                                    ),
-                                    subtitle: Text(room.isDirect ? 'Trò chuyện riêng' : 'Phòng nhóm'),
-                                    onTap: () {
+                                  _RoomTile(
+                                    room: room,
+                                    onTap: () async {
                                       Analytics.track('open_room');
-                                      context.push(Routes.roomPath(room.id), extra: room);
+                                      await context.push(
+                                        Routes.roomPath(room.id),
+                                        extra: room,
+                                      );
+                                      // Quay lại thì làm mới để xem trước tin nhắn và thứ tự đúng.
+                                      ref.invalidate(roomsProvider);
                                     },
                                   ),
                               ],
@@ -204,8 +210,132 @@ class RoomListScreen extends ConsumerWidget {
   }
 }
 
+class _RoomTile extends StatelessWidget {
+  const _RoomTile({required this.room, required this.onTap});
+
+  final Room room;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final preview = room.preview;
+    final at = room.lastAt;
+    final tile = ListTile(
+      key: Key('room-tile-${room.id}'),
+      minTileHeight: 80,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      leading: room.isDirect
+          ? UserAvatar(
+              name: room.displayName,
+              imageUrl: room.peer?.avatarUrl,
+              radius: 26,
+            )
+          : CircleAvatar(
+              radius: 26,
+              backgroundColor: scheme.secondaryContainer,
+              child: Icon(Icons.group_outlined, color: scheme.primary),
+            ),
+      title: Text(
+        room.displayName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+      ),
+      subtitle: Text(
+        preview ??
+            (room.isDirect
+                ? 'Chưa có tin nhắn'
+                : 'Phòng nhóm, chưa có tin nhắn'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 16,
+          color: preview == null ? scheme.outline : scheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: at == null
+          ? null
+          : Text(
+              TimeFormat.listTime(at, DateTime.now()),
+              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+            ),
+      onTap: onTap,
+    );
+    // ListTile vẽ nền và hiệu ứng chạm lên Material gần nhất; trong khối trắng InsetGroup phải có Material riêng.
+    return Material(type: MaterialType.transparency, child: tile);
+  }
+}
+
+class _EmptyRooms extends StatelessWidget {
+  const _EmptyRooms({
+    required this.onDirect,
+    required this.onGroup,
+    this.onCommunity,
+  });
+
+  final VoidCallback onDirect;
+  final VoidCallback onGroup;
+  final VoidCallback? onCommunity;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListView(
+      key: const Key('rooms-empty'),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        const SizedBox(height: 56),
+        Icon(Icons.forum_outlined, size: 56, color: theme.colorScheme.primary),
+        const SizedBox(height: 20),
+        Text(
+          'Bắt đầu trò chuyện',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Nhắn cho người thân bằng tên người dùng, hoặc tạo một phòng cho cả nhà.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        FilledButton.icon(
+          key: const Key('rooms-empty-direct'),
+          onPressed: onDirect,
+          icon: const Icon(Icons.person_outline),
+          label: const Text('Chat riêng với người thân'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          key: const Key('rooms-empty-group'),
+          onPressed: onGroup,
+          icon: const Icon(Icons.group_add_outlined),
+          label: const Text('Tạo phòng nhóm'),
+        ),
+        if (onCommunity != null) ...[
+          const SizedBox(height: 10),
+          TextButton.icon(
+            key: const Key('rooms-empty-community'),
+            onPressed: onCommunity,
+            icon: const Icon(Icons.person_search_outlined),
+            label: const Text('Tìm người dùng khác'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _SheetTile extends StatelessWidget {
-  const _SheetTile({required this.value, required this.icon, required this.label});
+  const _SheetTile({
+    required this.value,
+    required this.icon,
+    required this.label,
+  });
 
   final String value;
   final IconData icon;

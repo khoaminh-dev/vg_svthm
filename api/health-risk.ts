@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
 import { requireUser, rateLimit } from './_lib/auth.js';
 import { dbInsert, dbSelect } from './_lib/db.js';
@@ -47,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `health_assessments?user_id=eq.${uid}&reading_id=eq.${latest.id}&select=id,level,details,created_at&order=created_at.desc&limit=1`,
     );
     if (prev[0] && prev[0].created_at >= p.updated_at) {
-      return res.status(200).json({ ...prev[0].details, createdAt: prev[0].created_at, cached: true });
+      return res.status(200).json({ ...prev[0].details, id: prev[0].id, createdAt: prev[0].created_at, cached: true });
     }
 
     const rs: Reading[] = readings.map((r) => ({
@@ -68,7 +69,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       readings: rs,
       year: new Date().getUTCFullYear(),
     });
+    const id = randomUUID();
     await dbInsert('health_assessments', {
+      id,
       user_id: uid,
       reading_id: latest.id,
       level: result.level,
@@ -76,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       heart_p: result.heart.p,
       details: result,
     });
-    return res.status(200).json({ ...result, createdAt: new Date().toISOString(), cached: false });
+    return res.status(200).json({ ...result, id, createdAt: new Date().toISOString(), cached: false });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'internal' });

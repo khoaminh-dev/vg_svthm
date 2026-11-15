@@ -26,7 +26,8 @@ class SupabaseOcrRepository implements OcrRepository {
     if (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) {
       return (ext: 'webp', mime: 'image/webp');
     }
-    if (at(4, [0x66, 0x74, 0x79, 0x70])) return (ext: 'heic', mime: 'image/heic'); // ftyp
+    if (at(4, [0x66, 0x74, 0x79, 0x70]))
+      return (ext: 'heic', mime: 'image/heic'); // ftyp
     return (ext: 'jpg', mime: 'image/jpeg');
   }
 
@@ -39,12 +40,14 @@ class SupabaseOcrRepository implements OcrRepository {
   }
 
   @override
-  Future<List<OcrRecord>> list({DateTime? before, int limit = 20}) => _guard(() async {
-    var q = _client.from('ocr_records').select();
-    if (before != null) q = q.lt('created_at', before.toUtc().toIso8601String());
-    final rows = await q.order('created_at', ascending: false).limit(limit);
-    return rows.map(OcrRecord.fromMap).toList();
-  });
+  Future<List<OcrRecord>> list({DateTime? before, int limit = 20}) =>
+      _guard(() async {
+        var q = _client.from('ocr_records').select();
+        if (before != null)
+          q = q.lt('created_at', before.toUtc().toIso8601String());
+        final rows = await q.order('created_at', ascending: false).limit(limit);
+        return rows.map(OcrRecord.fromMap).toList();
+      });
 
   @override
   Future<OcrRecord> save({
@@ -63,7 +66,11 @@ class SupabaseOcrRepository implements OcrRepository {
     // Tải ảnh và ghi bản ghi song song (đường dẫn đã biết trước) để lưu nhanh hơn.
     final upload = _client.storage
         .from(_bucket)
-        .uploadBinary(path, bytes, fileOptions: FileOptions(contentType: kind.mime));
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: kind.mime),
+        );
     final insert = _client
         .from('ocr_records')
         .insert({

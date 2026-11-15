@@ -15,7 +15,10 @@ Future<void> main() async {
     return;
   }
 
-  await Supabase.initialize(url: Env.supabaseUrl, publishableKey: Env.supabaseAnonKey);
+  await Supabase.initialize(
+    url: Env.supabaseUrl,
+    publishableKey: Env.supabaseAnonKey,
+  );
   Analytics.init();
   runApp(const ProviderScope(child: App()));
 }
