@@ -13,6 +13,10 @@ class HealthProfile {
     this.bpMeds = false,
     this.diabetes = false,
     this.hadStroke = false,
+    this.highCholesterol = false,
+    this.difficultyWalking = false,
+    this.heightCm,
+    this.weightKg,
   });
 
   final int birthYear;
@@ -25,6 +29,14 @@ class HealthProfile {
   final bool? bpMeds;
   final bool? diabetes;
   final bool? hadStroke;
+  final bool? highCholesterol;
+  final bool? difficultyWalking;
+
+  /// Chiều cao (cm) và cân nặng (kg): không bắt buộc, dùng để tính BMI cho nguy cơ tiểu đường.
+  final int? heightCm;
+  final int? weightKg;
+
+  bool get hasBody => heightCm != null && weightKg != null;
 
   int ageAt(DateTime now) => now.year - birthYear;
 
@@ -37,6 +49,10 @@ class HealthProfile {
     bpMeds: m['on_bp_meds'] as bool?,
     diabetes: m['has_diabetes'] as bool?,
     hadStroke: m['had_stroke'] as bool?,
+    highCholesterol: m['high_cholesterol'] as bool?,
+    difficultyWalking: m['difficulty_walking'] as bool?,
+    heightCm: (m['height_cm'] as num?)?.toInt(),
+    weightKg: (m['weight_kg'] as num?)?.toInt(),
   );
 
   Map<String, dynamic> toUpsert() => {
@@ -48,6 +64,10 @@ class HealthProfile {
     'on_bp_meds': bpMeds,
     'has_diabetes': diabetes,
     'had_stroke': hadStroke,
+    'high_cholesterol': highCholesterol,
+    'difficulty_walking': difficultyWalking,
+    'height_cm': heightCm,
+    'weight_kg': weightKg,
     'updated_at': DateTime.now().toUtc().toIso8601String(),
   };
 
@@ -60,6 +80,10 @@ class HealthProfile {
     bool? Function()? bpMeds,
     bool? Function()? diabetes,
     bool? Function()? hadStroke,
+    bool? Function()? highCholesterol,
+    bool? Function()? difficultyWalking,
+    int? Function()? heightCm,
+    int? Function()? weightKg,
   }) => HealthProfile(
     birthYear: birthYear ?? this.birthYear,
     sex: sex ?? this.sex,
@@ -69,6 +93,14 @@ class HealthProfile {
     bpMeds: bpMeds != null ? bpMeds() : this.bpMeds,
     diabetes: diabetes != null ? diabetes() : this.diabetes,
     hadStroke: hadStroke != null ? hadStroke() : this.hadStroke,
+    highCholesterol: highCholesterol != null
+        ? highCholesterol()
+        : this.highCholesterol,
+    difficultyWalking: difficultyWalking != null
+        ? difficultyWalking()
+        : this.difficultyWalking,
+    heightCm: heightCm != null ? heightCm() : this.heightCm,
+    weightKg: weightKg != null ? weightKg() : this.weightKg,
   );
 }
 
@@ -110,7 +142,13 @@ class RiskResult {
     this.strokeLevel = RiskLevel.low,
     this.heartP,
     this.heartLevel = RiskLevel.low,
+    this.diabetesP,
+    this.diabetesLevel = RiskLevel.low,
   });
+
+  /// Nguy cơ tiểu đường (đã hiệu chỉnh); null nếu đã có tiểu đường hoặc hồ sơ chưa có chiều cao/cân nặng.
+  final double? diabetesP;
+  final RiskLevel diabetesLevel;
 
   /// Xác suất ước tính (0..1) và mức của từng mô hình; null nếu bản ghi cũ không có.
   final double? strokeP;
@@ -158,6 +196,8 @@ class RiskResult {
       strokeLevel: RiskLevel.of((m['stroke'] as Map?)?['level'] as String?),
       heartP: ((m['heart'] as Map?)?['p'] as num?)?.toDouble(),
       heartLevel: RiskLevel.of((m['heart'] as Map?)?['level'] as String?),
+      diabetesP: ((m['diabetes'] as Map?)?['p'] as num?)?.toDouble(),
+      diabetesLevel: RiskLevel.of((m['diabetes'] as Map?)?['level'] as String?),
     );
   }
 }

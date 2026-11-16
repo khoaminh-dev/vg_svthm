@@ -208,6 +208,10 @@ class _RiskViewState extends ConsumerState<RiskView> {
     );
   }
 
+  /// Chưa có chiều cao/cân nặng và chưa có tiểu đường: mời bổ sung để xem nguy cơ tiểu đường.
+  static bool _needsBody(HealthProfile? p) =>
+      p != null && !p.hasBody && p.diabetes != true;
+
   Widget _result(BuildContext context, ThemeData theme, RiskResult r) {
     final lv = r.level;
     return Column(
@@ -279,6 +283,11 @@ class _RiskViewState extends ConsumerState<RiskView> {
             ],
           ),
         ),
+        if (r.diabetesP == null &&
+            _needsBody(ref.watch(healthProfileProvider).value)) ...[
+          const SizedBox(height: AppSpacing.md),
+          _BodyPrompt(onTap: () => context.push(Routes.healthProfile)),
+        ],
         const SizedBox(height: AppSpacing.md),
         _Section(
           title: 'Yếu tố ảnh hưởng',
@@ -791,4 +800,42 @@ class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
       ),
     );
   }
+}
+
+/// Mời bổ sung chiều cao và cân nặng để có thêm vòng tròn nguy cơ tiểu đường.
+class _BodyPrompt extends StatelessWidget {
+  const _BodyPrompt({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+    child: Material(
+      color: AppColors.navy.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        key: const Key('body-prompt'),
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              const Icon(Icons.monitor_weight_outlined, color: AppColors.navy),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Thêm chiều cao và cân nặng để xem nguy cơ tiểu đường',
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }

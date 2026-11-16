@@ -77,6 +77,8 @@ String riskSpokenDetailed(RiskResult r) {
       'Nguy cơ đột quỵ ở mức ${word(r.strokeLevel)}.',
     if (r.heartLevel.worthMentioning)
       'Nguy cơ tim mạch ở mức ${word(r.heartLevel)}.',
+    if (r.diabetesP != null && r.diabetesLevel.worthMentioning)
+      'Nguy cơ tiểu đường ở mức ${word(r.diabetesLevel)}.',
   ];
   return [...parts, riskSpoken(r.level)].join(' ');
 }

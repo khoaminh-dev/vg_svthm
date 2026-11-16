@@ -43,6 +43,8 @@ RiskResult risk({
   RiskLevel heartLevel = RiskLevel.attention,
   List<String> reasons = const ['hypertension'],
   bool oldAge = false,
+  double? diabetes,
+  RiskLevel diabetesLevel = RiskLevel.low,
 }) => RiskResult(
   level: level,
   reasons: reasons,
@@ -55,6 +57,8 @@ RiskResult risk({
   heartP: heart,
   heartLevel: heartLevel,
   ageOutOfRange: oldAge,
+  diabetesP: diabetes,
+  diabetesLevel: diabetesLevel,
 );
 
 void bigScreen(WidgetTester t) {
@@ -260,4 +264,39 @@ void main() {
     addTearDown(c.dispose);
     expect(await c.read(speakAdviceProvider.future), isTrue);
   });
+  testWidgets(
+    'RiskDonuts: có tiểu đường thì thêm vòng thứ ba, không có thì chỉ hai vòng',
+    (t) async {
+      await t.pumpWidget(
+        host(
+          RiskDonuts(
+            result: risk(diabetes: 0.37, diabetesLevel: RiskLevel.high),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      expect(find.text('Tiểu đường'), findsOneWidget);
+      expect(find.text('37%'), findsOneWidget);
+      expect(find.byKey(const Key('donut-percent')), findsNWidgets(3));
+
+      await t.pumpWidget(host(RiskDonuts(result: risk())));
+      await t.pumpAndSettle();
+      expect(find.text('Tiểu đường'), findsNothing);
+      expect(find.byKey(const Key('donut-percent')), findsNWidgets(2));
+    },
+  );
+
+  test(
+    'riskSpokenDetailed: nêu tiểu đường khi đáng chú ý, bỏ qua khi thấp',
+    () {
+      final hi = riskSpokenDetailed(
+        risk(diabetes: 0.4, diabetesLevel: RiskLevel.high),
+      );
+      expect(hi, contains('Nguy cơ tiểu đường ở mức cao.'));
+      expect(hi, isNot(contains('%')));
+      final lo = riskSpokenDetailed(risk(diabetes: 0.05));
+      expect(lo, isNot(contains('tiểu đường')));
+      expect(riskSpokenDetailed(risk()), isNot(contains('tiểu đường')));
+    },
+  );
 }

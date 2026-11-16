@@ -1,4 +1,4 @@
-"""Xuất 2 model sức khoẻ (joblib) thành JSON thuần để API Node chạy mà không cần Python.
+"""Xuất 3 model sức khoẻ (joblib) thành JSON thuần để API Node chạy mà không cần Python.
 
 Dùng: python scripts/export_health_models.py <thư mục AI/models>
 Ghi: api/_lib/health/models.ts và api/_tests/fixtures/health_parity.json
@@ -83,6 +83,10 @@ def sample(rng, name, feats):
             row[f] = float(rng.randint(55, 125))
         elif f == "heartRate":
             row[f] = float(rng.randint(48, 120))
+        elif f == "Age":
+            row[f] = float(rng.randint(1, 13))
+        elif f == "BMI":
+            row[f] = float(rng.randint(16, 45))
         else:
             row[f] = float(rng.randint(0, 1))
     return row
@@ -92,7 +96,8 @@ def main():
     models_dir = Path(sys.argv[1])
     stroke = joblib.load(models_dir / "03c_stroke_balanced_compact" / "model.joblib")
     heart = joblib.load(models_dir / "03b_heart_disease_bp_compact" / "model.joblib")
-    out = {"stroke": export_logistic(stroke), "heart": export_hgb(heart)}
+    diabetes = joblib.load(models_dir / "03a_diabetes_compact" / "model.joblib")
+    out = {"stroke": export_logistic(stroke), "heart": export_hgb(heart), "diabetes": export_hgb(diabetes)}
     target = ROOT / "api" / "_lib" / "health" / "models.ts"
     target.parent.mkdir(parents=True, exist_ok=True)
     header = "// Sinh tự động bởi scripts/export_health_models.py, không sửa tay.\nexport const HEALTH_MODELS: any = "
@@ -101,7 +106,7 @@ def main():
 
     rng = random.Random(7)
     cases = []
-    for key, bundle in (("stroke", stroke), ("heart", heart)):
+    for key, bundle in (("stroke", stroke), ("heart", heart), ("diabetes", diabetes)):
         for _ in range(60):
             row = sample(rng, key, bundle["input_features"])
             df = pd.DataFrame([row], columns=bundle["input_features"])

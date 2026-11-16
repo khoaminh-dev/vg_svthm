@@ -1,16 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assess, predictHgb, predictLogistic, type RiskInput } from '../_lib/health/risk.ts';
+import { assess, ageCode, calibrateDiabetes, predictHgb, predictLogistic, type RiskInput } from '../_lib/health/risk.ts';
 import { HEALTH_MODELS } from '../_lib/health/models.ts';
 
 const parity = JSON.parse(readFileSync(new URL('./fixtures/health_parity.json', import.meta.url), 'utf8')) as {
-  model: 'stroke' | 'heart';
+  model: 'stroke' | 'heart' | 'diabetes';
   input: Record<string, number>;
   p: number;
 }[];
 
-test('TypeScript khớp scikit-learn trên 120 đầu vào ngẫu nhiên', () => {
+test('TypeScript khớp scikit-learn trên 180 đầu vào ngẫu nhiên (3 model)', () => {
   for (const c of parity) {
     const m = HEALTH_MODELS[c.model];
     const x = m.features.map((f: string) => c.input[f]);
@@ -91,4 +91,50 @@ test('thiếu mạch vẫn tính được; không có lần đo thì báo lỗi'
   const r = assess(HEALTH_MODELS, { ...base, readings: [reading(125, 80, null)] });
   assert.ok(Number.isFinite(r.heart.p));
   assert.throws(() => assess(HEALTH_MODELS, { ...base, readings: [] }), /no_reading/);
+});
+
+test('mã nhóm tuổi BRFSS', () => {
+  assert.equal(ageCode(18), 1);
+  assert.equal(ageCode(24), 1);
+  assert.equal(ageCode(25), 2);
+  assert.equal(ageCode(67), 10);
+  assert.equal(ageCode(79), 12);
+  assert.equal(ageCode(80), 13);
+  assert.equal(ageCode(95), 13);
+});
+
+test('hiệu chỉnh tiểu đường: dữ liệu 50/50 được kéo về tỉ lệ nền 14%', () => {
+  assert.ok(Math.abs(calibrateDiabetes(0.5) - 0.14) < 1e-9);
+  assert.ok(calibrateDiabetes(0.9) < 0.9 && calibrateDiabetes(0.9) > calibrateDiabetes(0.5));
+  assert.ok(calibrateDiabetes(0.1) < 0.03);
+});
+
+test('tiểu đường: thiếu chiều cao/cân nặng thì không tính; đã có tiểu đường thì không tính', () => {
+  assert.equal(assess(HEALTH_MODELS, base).diabetes, null);
+  assert.equal(assess(HEALTH_MODELS, { ...base, heightCm: 160, weightKg: 70, diabetes: true }).diabetes, null);
+  const r = assess(HEALTH_MODELS, { ...base, heightCm: 160, weightKg: 70 });
+  assert.ok(r.diabetes);
+  assert.equal(r.diabetes!.bmi, 27.3);
+  assert.ok(r.diabetes!.p > 0 && r.diabetes!.p < 1);
+});
+
+test('tiểu đường: người béo phì, huyết áp cao, mỡ máu cao có nguy cơ cao hơn người gầy khoẻ cùng tuổi', () => {
+  const lean = assess(HEALTH_MODELS, { ...base, heightCm: 170, weightKg: 58 }).diabetes!;
+  const risky = assess(HEALTH_MODELS, {
+    ...base,
+    hypertension: true,
+    highCholesterol: true,
+    difficultyWalking: true,
+    heightCm: 160,
+    weightKg: 90,
+  }).diabetes!;
+  assert.ok(risky.p > lean.p * 1.5, `${risky.p} vs ${lean.p}`);
+  assert.notEqual(risky.level, 'low');
+});
+
+test('thêm tiểu đường không làm đổi mức tổng (chỉ hai model đột quỵ và tim mạch quyết định)', () => {
+  const a = assess(HEALTH_MODELS, base);
+  const b = assess(HEALTH_MODELS, { ...base, heightCm: 160, weightKg: 95, highCholesterol: true });
+  assert.equal(a.level, b.level);
+  assert.deepEqual(a.stroke, b.stroke);
 });

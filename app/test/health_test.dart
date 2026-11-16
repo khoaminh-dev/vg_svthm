@@ -117,6 +117,7 @@ void main() {
       'createdAt': '2026-11-14T01:11:00Z',
     });
     expect(r.level, RiskLevel.attention);
+    expect(r.diabetesP, isNull, reason: 'bản ghi cũ không có tiểu đường');
     expect(r.reasons, ['smoker', 'age_65']);
     expect(r.systolic, 150);
     expect(r.ageOutOfRange, isTrue);
@@ -473,6 +474,167 @@ void main() {
       expect(find.byKey(const Key('research-card')), findsNothing);
       expect(find.byKey(const Key('feedback-card')), findsNothing);
       expect(find.byKey(const Key('trial-strip')), findsOneWidget);
+    },
+  );
+  test(
+    'RiskResult và HealthProfile đọc được phần tiểu đường, chiều cao, cân nặng',
+    () {
+      final r = RiskResult.fromJson({
+        'level': 'high',
+        'reasons': <String>[],
+        'bp': {
+          'systolic': 130,
+          'diastolic': 80,
+          'measuredAt': '2026-11-14T01:10:00Z',
+        },
+        'diabetes': {'p': 0.31, 'level': 'high', 'bmi': 29.4},
+        'createdAt': '2026-11-14T01:11:00Z',
+      });
+      expect(r.diabetesP, closeTo(0.31, 1e-9));
+      expect(r.diabetesLevel, RiskLevel.high);
+
+      final p = HealthProfile.fromMap({
+        'birth_year': 1955,
+        'sex': 'male',
+        'high_cholesterol': true,
+        'difficulty_walking': false,
+        'height_cm': 165,
+        'weight_kg': 70,
+      });
+      expect(p.hasBody, isTrue);
+      expect(p.highCholesterol, isTrue);
+      expect(p.toUpsert()['height_cm'], 165);
+      expect(
+        const HealthProfile(birthYear: 1950, sex: 'male').hasBody,
+        isFalse,
+      );
+    },
+  );
+
+  testWidgets(
+    'thiết lập: chiều cao, cân nặng không bắt buộc; nhập sai thì báo, nhập đúng thì lưu',
+    (t) async {
+      bigScreen(t);
+      final repo = FakeHealthRepository();
+      final router = GoRouter(
+        initialLocation: '/health-setup',
+        routes: [
+          GoRoute(
+            path: '/health-setup',
+            builder: (_, _) => const HealthSetupScreen(),
+          ),
+          GoRoute(path: '/', builder: (_, _) => const Text('TRANG CHU')),
+        ],
+      );
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              const AuthUser(id: 'u1', username: 'an'),
+            ),
+            healthRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp.router(
+            theme: AppTheme.light,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('sex-male')));
+      await t.pump();
+
+      await t.enterText(find.byKey(const Key('height-field')), '30');
+      await t.tap(find.byKey(const Key('health-next')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('body-error')), findsOneWidget);
+      expect(find.text('Bước 1/2'), findsOneWidget);
+
+      await t.enterText(find.byKey(const Key('height-field')), '165');
+      await t.enterText(find.byKey(const Key('weight-field')), '70');
+      await t.pump();
+      expect(find.byKey(const Key('body-error')), findsNothing);
+      await t.tap(find.byKey(const Key('health-next')));
+      await t.pumpAndSettle();
+      expect(find.text('Khó đi bộ hoặc leo cầu thang'), findsOneWidget);
+      expect(find.text('Mỡ máu cao'), findsOneWidget);
+      await t.tap(find.byKey(const Key('highChol-yes')));
+      await t.tap(find.byKey(const Key('health-next')));
+      await t.pumpAndSettle();
+
+      final p = repo.profile!;
+      expect(p.heightCm, 165);
+      expect(p.weightKg, 70);
+      expect(p.highCholesterol, isTrue);
+      expect(p.difficultyWalking, isFalse);
+    },
+  );
+
+  testWidgets(
+    'tab Đánh giá: chưa có chiều cao/cân nặng thì mời bổ sung; đã có số đo hoặc đã bị tiểu đường thì không mời',
+    (t) async {
+      bigScreen(t);
+      Future<void> open(FakeHealthRepository repo) async {
+        await t.pumpWidget(
+          ProviderScope(
+            key: UniqueKey(),
+            overrides: [
+              currentUserProvider.overrideWithValue(
+                const AuthUser(id: 'u1', username: 'an'),
+              ),
+              healthRepositoryProvider.overrideWithValue(repo),
+              bpReadingsProvider.overrideWith((ref) async => []),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.light,
+              home: const Scaffold(body: RiskView()),
+            ),
+          ),
+        );
+        await t.pumpAndSettle();
+      }
+
+      const noBody = HealthProfile(birthYear: 1955, sex: 'male');
+      await open(
+        FakeHealthRepository(
+          profile: noBody,
+          risk: result(RiskLevel.attention),
+        ),
+      );
+      expect(find.byKey(const Key('body-prompt')), findsOneWidget);
+
+      await open(
+        FakeHealthRepository(
+          profile: const HealthProfile(
+            birthYear: 1955,
+            sex: 'male',
+            heightCm: 160,
+            weightKg: 60,
+          ),
+          risk: result(RiskLevel.attention),
+        ),
+      );
+      expect(
+        find.byKey(const Key('body-prompt')),
+        findsNothing,
+        reason: 'đã có chiều cao, cân nặng thì không mời nữa',
+      );
+
+      await open(
+        FakeHealthRepository(
+          profile: const HealthProfile(
+            birthYear: 1955,
+            sex: 'male',
+            diabetes: true,
+          ),
+          risk: result(RiskLevel.attention),
+        ),
+      );
+      expect(
+        find.byKey(const Key('body-prompt')),
+        findsNothing,
+        reason: 'đã bị tiểu đường thì không cần dự đoán',
+      );
     },
   );
 }

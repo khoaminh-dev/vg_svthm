@@ -39,6 +39,8 @@ const _questions = [
   _Question('bpMeds', 'Đang uống thuốc huyết áp'),
   _Question('heartDisease', 'Bệnh tim'),
   _Question('diabetes', 'Tiểu đường'),
+  _Question('highChol', 'Mỡ máu cao'),
+  _Question('difficultyWalking', 'Khó đi bộ hoặc leo cầu thang'),
   _Question('smoker', 'Đang hút thuốc'),
   _Question('hadStroke', 'Từng bị đột quỵ'),
 ];
@@ -52,6 +54,9 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
   late int _year;
   String? _sex;
   bool _sexError = false;
+  bool _bodyError = false;
+  final _height = TextEditingController();
+  final _weight = TextEditingController();
   // Mặc định "Không": người dùng chỉ chạm "Có" cho những gì đúng với mình.
   final Map<String, bool> _answers = {for (final q in _questions) q.id: false};
 
@@ -74,13 +79,41 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
         ..['heartDisease'] = p.heartDisease ?? false
         ..['diabetes'] = p.diabetes ?? false
         ..['smoker'] = p.smoker ?? false
-        ..['hadStroke'] = p.hadStroke ?? false;
+        ..['hadStroke'] = p.hadStroke ?? false
+        ..['highChol'] = p.highCholesterol ?? false
+        ..['difficultyWalking'] = p.difficultyWalking ?? false;
+      if (p.heightCm != null) _height.text = '${p.heightCm}';
+      if (p.weightKg != null) _weight.text = '${p.weightKg}';
     }
+  }
+
+  @override
+  void dispose() {
+    _height.dispose();
+    _weight.dispose();
+    super.dispose();
+  }
+
+  /// Trống là hợp lệ (không bắt buộc); có nhập thì phải là số trong khoảng hợp lý.
+  static int? _num(String t, int min, int max) {
+    final v = int.tryParse(t.trim());
+    return v != null && v >= min && v <= max ? v : null;
+  }
+
+  bool get _bodyValid {
+    final h = _height.text.trim();
+    final w = _weight.text.trim();
+    return (h.isEmpty || _num(h, 100, 230) != null) &&
+        (w.isEmpty || _num(w, 25, 250) != null);
   }
 
   Future<void> _next() async {
     if (_page == 0 && _sex == null) {
       setState(() => _sexError = true);
+      return;
+    }
+    if (_page == 0 && !_bodyValid) {
+      setState(() => _bodyError = true);
       return;
     }
     if (_page < _lastPage) {
@@ -102,6 +135,10 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
       bpMeds: hyp && _answers['bpMeds']!,
       diabetes: _answers['diabetes'],
       hadStroke: _answers['hadStroke'],
+      highCholesterol: _answers['highChol'],
+      difficultyWalking: _answers['difficultyWalking'],
+      heightCm: _num(_height.text, 100, 230),
+      weightKg: _num(_weight.text, 25, 250),
     );
     try {
       await ref.read(healthProfileProvider.notifier).save(profile);
@@ -365,6 +402,78 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
             ],
           ),
         ),
+        const SizedBox(height: AppSpacing.lg),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            children: [
+              Text('Chiều cao và cân nặng', style: theme.textTheme.titleMedium),
+              Text(
+                'không bắt buộc',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const Key('height-field'),
+                  controller: _height,
+                  keyboardType: TextInputType.number,
+                  maxLength: 3,
+                  onChanged: (_) => setState(() => _bodyError = false),
+                  decoration: const InputDecoration(
+                    labelText: 'Chiều cao',
+                    suffixText: 'cm',
+                    counterText: '',
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: TextField(
+                  key: const Key('weight-field'),
+                  controller: _weight,
+                  keyboardType: TextInputType.number,
+                  maxLength: 3,
+                  onChanged: (_) => setState(() => _bodyError = false),
+                  decoration: const InputDecoration(
+                    labelText: 'Cân nặng',
+                    suffixText: 'kg',
+                    counterText: '',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_bodyError)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.sm,
+              AppSpacing.lg,
+              0,
+            ),
+            child: Text(
+              'Chiều cao 100-230 cm, cân nặng 25-250 kg, hoặc bác để trống.',
+              key: Key('body-error'),
+              style: TextStyle(
+                color: AppColors.levelDanger,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         if (_sexError)
           const Padding(
             padding: EdgeInsets.fromLTRB(

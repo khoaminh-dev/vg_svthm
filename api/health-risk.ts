@@ -14,6 +14,10 @@ type Profile = {
   on_bp_meds: boolean | null;
   has_diabetes: boolean | null;
   had_stroke: boolean | null;
+  high_cholesterol: boolean | null;
+  difficulty_walking: boolean | null;
+  height_cm: number | null;
+  weight_kg: number | null;
   updated_at: string;
 };
 type ReadingRow = { id: string; systolic: number; diastolic: number; pulse: number | null; measured_at: string };
@@ -66,6 +70,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bpMeds: p.on_bp_meds,
       diabetes: p.has_diabetes,
       hadStroke: p.had_stroke,
+      highCholesterol: p.high_cholesterol,
+      difficultyWalking: p.difficulty_walking,
+      heightCm: p.height_cm,
+      weightKg: p.weight_kg,
       readings: rs,
       year: new Date().getUTCFullYear(),
     });

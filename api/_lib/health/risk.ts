@@ -53,6 +53,11 @@ export interface RiskInput {
   bpMeds: boolean | null;
   diabetes: boolean | null;
   hadStroke: boolean | null;
+  // Cho model tiểu đường; thiếu chiều cao hoặc cân nặng thì bỏ qua model này.
+  highCholesterol?: boolean | null;
+  difficultyWalking?: boolean | null;
+  heightCm?: number | null;
+  weightKg?: number | null;
   /** Các lần đo gần nhất, mới nhất đứng đầu. */
   readings: Reading[];
   year: number;
@@ -62,6 +67,8 @@ export interface RiskResult {
   level: Level;
   stroke: { p: number; level: Exclude<Level, 'urgent'> };
   heart: { p: number; level: Exclude<Level, 'urgent'> };
+  /** Nguy cơ tiểu đường (đã hiệu chỉnh tỉ lệ nền); null nếu đã có tiểu đường hoặc thiếu chiều cao/cân nặng. */
+  diabetes: { p: number; level: Exclude<Level, 'urgent'>; bmi: number } | null;
   reasons: string[];
   bp: Reading;
   hypertensionDerived: boolean;
@@ -74,6 +81,25 @@ const worse = (a: Level, b: Level): Level => (ORDER.indexOf(a) >= ORDER.indexOf(
 
 // Mốc chia mức: tạm thời, chỉnh lại khi có dữ liệu người dùng thật.
 export const strokeLevel = (p: number): 'low' | 'attention' | 'high' => (p < 0.1 ? 'low' : p < 0.25 ? 'attention' : 'high');
+export const diabetesLevel = (p: number): 'low' | 'attention' | 'high' => (p < 0.15 ? 'low' : p < 0.3 ? 'attention' : 'high');
+
+/**
+ * Model tiểu đường huấn luyện trên bộ dữ liệu cân bằng 50/50 nên xác suất thô cao hơn thực tế rất nhiều.
+ * Hiệu chỉnh bằng cách dời log-odds từ tỉ lệ nền 50% về tỉ lệ nền thật (≈14% theo khảo sát BRFSS 2015 của Mỹ,
+ * nguồn của bộ dữ liệu); chưa kiểm chứng cho người Việt.
+ */
+export const DIABETES_BASE_RATE = 0.14;
+export function calibrateDiabetes(pRaw: number): number {
+  const p = Math.min(Math.max(pRaw, 1e-6), 1 - 1e-6);
+  const shift = Math.log(DIABETES_BASE_RATE / (1 - DIABETES_BASE_RATE)); // log-odds của 50% là 0
+  return sigmoid(Math.log(p / (1 - p)) + shift);
+}
+
+/** Mã nhóm tuổi của BRFSS: 1 = 18-24, 2 = 25-29, …, 12 = 75-79, 13 = từ 80. */
+export function ageCode(age: number): number {
+  return age < 25 ? 1 : Math.min(13, Math.floor((age - 25) / 5) + 2);
+}
+
 export const heartLevel = (p: number): 'low' | 'attention' | 'high' => (p < 0.3 ? 'low' : p < 0.5 ? 'attention' : 'high');
 
 function median(xs: number[]): number {
@@ -82,7 +108,7 @@ function median(xs: number[]): number {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-export function assess(models: { stroke: any; heart: any }, input: RiskInput): RiskResult {
+export function assess(models: { stroke: any; heart: any; diabetes?: any }, input: RiskInput): RiskResult {
   const latest = input.readings[0];
   if (!latest) throw new Error('no_reading');
   const age = input.year - input.birthYear;
@@ -110,6 +136,25 @@ export function assess(models: { stroke: any; heart: any }, input: RiskInput): R
     latest.pulse ?? NaN, // thiếu mạch thì dùng trung vị lúc huấn luyện
   ]);
 
+  let diabetes: RiskResult['diabetes'] = null;
+  const h = input.heightCm;
+  const w = input.weightKg;
+  if (models.diabetes && input.diabetes !== true && h && w && h > 100 && w > 25) {
+    const bmi = Math.min(98, Math.max(12, w / ((h / 100) * (h / 100))));
+    const raw = predictHgb(models.diabetes, [
+      ageCode(age),
+      bmi,
+      b(hyp),
+      b(input.highCholesterol ?? null),
+      b(input.heartDisease),
+      b(input.hadStroke),
+      b(input.smoker),
+      b(input.difficultyWalking ?? null),
+    ]);
+    const p = calibrateDiabetes(raw);
+    diabetes = { p, level: diabetesLevel(p), bmi: Math.round(bmi * 10) / 10 };
+  }
+
   const strokeLv = strokeLevel(pStroke);
   const heartLv = heartLevel(pHeart);
   let level: Level = worse(strokeLv, heartLv);
@@ -130,6 +175,7 @@ export function assess(models: { stroke: any; heart: any }, input: RiskInput): R
     level,
     stroke: { p: pStroke, level: strokeLv },
     heart: { p: pHeart, level: heartLv },
+    diabetes,
     reasons,
     bp: latest,
     hypertensionDerived,

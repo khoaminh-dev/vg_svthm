@@ -221,6 +221,9 @@ class RiskDonuts extends StatelessWidget {
     final r = result;
     final stroke = r.strokeP;
     final heart = r.heartP;
+    final diabetes = r.diabetesP;
+    // Ba vòng thì thu nhỏ một chút để vừa một hàng.
+    final s = diabetes != null && size > 96 ? 92.0 : size;
     return Row(
       key: const Key('risk-donuts'),
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -232,7 +235,7 @@ class RiskDonuts extends StatelessWidget {
             note: 'ước tính',
             p: stroke,
             color: r.strokeLevel.color,
-            size: size,
+            size: s,
           ),
         if (heart != null)
           RiskDonut(
@@ -240,7 +243,15 @@ class RiskDonuts extends StatelessWidget {
             note: 'trong 10 năm',
             p: heart,
             color: r.heartLevel.color,
-            size: size,
+            size: s,
+          ),
+        if (diabetes != null)
+          RiskDonut(
+            name: 'Tiểu đường',
+            note: 'ước tính',
+            p: diabetes,
+            color: r.diabetesLevel.color,
+            size: s,
           ),
       ],
     );
