@@ -115,12 +115,12 @@ async function sendAll(targets: { token: string; msg: Msg }[]) {
   return { sent, removed: dead.length };
 }
 
-type Prefs = { user_id: string; messages: boolean; updates: boolean; show_text: boolean };
+type Prefs = { user_id: string; messages: boolean; updates: boolean; show_text: boolean; family_alerts?: boolean };
 
 async function prefsFor(userIds: string[]): Promise<Map<string, Prefs>> {
   const m = new Map<string, Prefs>();
   if (!userIds.length) return m;
-  const rows = await select<Prefs[]>(`push_prefs?user_id=in.(${userIds.join(',')})&select=user_id,messages,updates,show_text`);
+  const rows = await select<Prefs[]>(`push_prefs?user_id=in.(${userIds.join(',')})&select=user_id,messages,updates,show_text,family_alerts`);
   for (const p of rows) m.set(p.user_id, p);
   return m;
 }
@@ -178,12 +178,88 @@ async function handleUpdate(b: Record<string, unknown>) {
   return sendAll(targets);
 }
 
+type Prof = { id: string; display_name: string | null; username: string | null };
+
+async function nameOf(id: string): Promise<string> {
+  const r = await select<Prof[]>(`profiles?id=eq.${id}&select=id,display_name,username&limit=1`);
+  return r[0]?.display_name?.trim() || r[0]?.username || 'Người thân';
+}
+
+async function tokensOf(userIds: string[]) {
+  if (!userIds.length) return [] as { token: string; user_id: string }[];
+  return select<{ token: string; user_id: string }[]>(`device_tokens?user_id=in.(${userIds.join(',')})&select=token,user_id`);
+}
+
+// Huyết áp từ 180/120: báo mọi người chăm sóc đang hoạt động và có quyền nhận cảnh báo.
+async function handleBpAlert(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  if (!owner) return { skipped: 'bad_request' };
+  const links = await select<{ carer_id: string; perms: Record<string, boolean> }[]>(
+    `family_links?owner_id=eq.${owner}&status=eq.active&select=carer_id,perms`,
+  );
+  const carers = links.filter((l) => l.perms?.alerts === true).map((l) => l.carer_id);
+  if (!carers.length) return { sent: 0 };
+  const [name, tokens, prefs] = await Promise.all([nameOf(owner), tokensOf(carers), prefsFor(carers)]);
+  const sys = Number(b.systolic ?? 0);
+  const dia = Number(b.diastolic ?? 0);
+  const targets = tokens
+    .filter((t) => prefs.get(t.user_id)?.family_alerts !== false)
+    .map((t) => ({
+      token: t.token,
+      msg: {
+        title: `Huyết áp của ${name} rất cao`,
+        body: `${sys}/${dia} mmHg. Bấm để xem và gọi ngay.`,
+        data: { type: 'family_alert', owner_id: owner },
+      },
+    }));
+  return sendAll(targets);
+}
+
+async function handleLink(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const carer = String(b.carer_id ?? '');
+  if (!owner || !carer) return { skipped: 'bad_request' };
+  const ev = String(b.event ?? '');
+  const [ownerName, carerName] = await Promise.all([nameOf(owner), nameOf(carer)]);
+  if (ev === 'joined') {
+    const tokens = await tokensOf([owner]);
+    return sendAll(tokens.map((t) => ({
+      token: t.token,
+      msg: { title: 'Có người theo dõi sức khoẻ của bác', body: `${carerName} vừa được xem số liệu sức khoẻ của bác. Bác gỡ được trong Hồ sơ.`, data: { type: 'family_link' } },
+    })));
+  }
+  if (ev === 'revoked') {
+    const byOwner = b.by_owner === true;
+    const tokens = await tokensOf([byOwner ? carer : owner]);
+    const body = byOwner ? `${ownerName} đã ngừng chia sẻ số liệu sức khoẻ với bạn.` : `${carerName} đã ngừng theo dõi bác.`;
+    return sendAll(tokens.map((t) => ({ token: t.token, msg: { title: 'Liên kết gia đình đã thay đổi', body, data: { type: 'family_link' } } })));
+  }
+  return { skipped: 'event' };
+}
+
+async function handleNudge(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const carer = String(b.carer_id ?? '');
+  if (!owner || !carer) return { skipped: 'bad_request' };
+  const [carerName, tokens] = await Promise.all([nameOf(carer), tokensOf([owner])]);
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: `${carerName} nhờ bác đo huyết áp`, body: 'Bác bấm vào đây để chụp máy đo huyết áp nhé.', data: { type: 'nudge' } },
+  })));
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method', { status: 405 });
   if (!PUSH_SECRET || req.headers.get('x-push-secret') !== PUSH_SECRET) return new Response('unauthorized', { status: 401 });
   try {
     const b = (await req.json()) as Record<string, unknown>;
-    const out = b.type === 'update' ? await handleUpdate(b) : b.type === 'message' ? await handleMessage(b) : { skipped: 'type' };
+    const out =
+      b.type === 'update' ? await handleUpdate(b)
+      : b.type === 'message' ? await handleMessage(b)
+      : b.type === 'bp_alert' ? await handleBpAlert(b)
+      : b.type === 'family_link' ? await handleLink(b)
+      : b.type === 'nudge' ? await handleNudge(b)
+      : { skipped: 'type' };
     return new Response(JSON.stringify(out), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error(e);

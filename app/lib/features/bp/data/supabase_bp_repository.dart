@@ -10,14 +10,19 @@ class SupabaseBpRepository implements BpRepository {
   final SupabaseClient _client;
 
   @override
-  Future<List<BpReading>> list({int limit = 200}) => _guard(() async {
-    final rows = await _client
-        .from('bp_readings')
-        .select()
-        .order('measured_at', ascending: false)
-        .limit(limit);
-    return rows.map(BpReading.fromMap).toList();
-  });
+  Future<List<BpReading>> list({int limit = 200, String? ownerId}) =>
+      _guard(() async {
+        // Luôn lọc theo chủ dữ liệu: người chăm sóc đọc được thêm số đo của cha mẹ, không được lẫn vào danh sách của chính mình.
+        final id = ownerId ?? _client.auth.currentUser?.id;
+        if (id == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');
+        final rows = await _client
+            .from('bp_readings')
+            .select()
+            .eq('user_id', id)
+            .order('measured_at', ascending: false)
+            .limit(limit);
+        return rows.map(BpReading.fromMap).toList();
+      });
 
   @override
   Future<void> add(BpReading reading) => _guard(() async {

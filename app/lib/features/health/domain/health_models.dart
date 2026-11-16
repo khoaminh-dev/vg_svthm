@@ -202,6 +202,27 @@ class RiskResult {
   }
 }
 
+/// Một điểm trên biểu đồ xu hướng: xác suất ước tính của từng vấn đề tại một lần đánh giá.
+class TrendPoint {
+  const TrendPoint({required this.at, this.stroke, this.heart, this.diabetes});
+
+  factory TrendPoint.fromRow(Map<String, dynamic> row) {
+    final d = (row['details'] as Map?) ?? const {};
+    double? p(Object? m) => ((m as Map?)?['p'] as num?)?.toDouble();
+    return TrendPoint(
+      at: DateTime.parse(row['created_at'] as String).toLocal(),
+      stroke: (row['stroke_p'] as num?)?.toDouble() ?? p(d['stroke']),
+      heart: (row['heart_p'] as num?)?.toDouble() ?? p(d['heart']),
+      diabetes: p(d['diabetes']),
+    );
+  }
+
+  final DateTime at;
+  final double? stroke;
+  final double? heart;
+  final double? diabetes;
+}
+
 /// Phản hồi của người dùng cho một kết quả: `right` (đúng), `wrong` (chưa đúng), `unsure` (không rõ).
 class RiskFeedback {
   const RiskFeedback({required this.verdict, this.note});

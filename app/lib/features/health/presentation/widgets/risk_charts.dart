@@ -209,6 +209,174 @@ class _DonutPainter extends CustomPainter {
       old.fraction != fraction || old.color != color;
 }
 
+/// Biểu đồ đường xu hướng nguy cơ theo thời gian (đột quỵ, tim mạch, tiểu đường). Trục đứng là xác suất ước tính.
+class RiskTrendChart extends StatelessWidget {
+  const RiskTrendChart({super.key, required this.points, this.height = 150});
+
+  final List<TrendPoint> points;
+  final double height;
+
+  static const strokeColor = Color(0xFFE0785F);
+  static const heartColor = Color(0xFF0048A8);
+  static const diabetesColor = Color(0xFF2D8B72);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (points.length < 2) {
+      return Padding(
+        key: const Key('trend-empty'),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'Cần ít nhất 2 lần đánh giá để vẽ xu hướng. Bác cứ đo huyết áp đều nhé.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: AppColors.textMuted,
+          ),
+        ),
+      );
+    }
+    final hasDiabetes = points.any((p) => p.diabetes != null);
+    return Column(
+      key: const Key('trend-chart'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 14,
+          runSpacing: 4,
+          children: [
+            _legend('Đột quỵ', strokeColor),
+            _legend('Tim mạch', heartColor),
+            if (hasDiabetes) _legend('Tiểu đường', diabetesColor),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: height,
+          width: double.infinity,
+          child: CustomPaint(painter: _TrendPainter(points)),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              _d(points.first.at),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+            Text(
+              _d(points.last.at),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static String _d(DateTime t) =>
+      '${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')}';
+
+  Widget _legend(String name, Color c) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 14,
+        height: 4,
+        decoration: BoxDecoration(
+          color: c,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+      const SizedBox(width: 6),
+      Text(
+        name,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    ],
+  );
+}
+
+class _TrendPainter extends CustomPainter {
+  _TrendPainter(this.points);
+
+  final List<TrendPoint> points;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const left = 34.0;
+    final plot = Rect.fromLTWH(
+      left,
+      6,
+      size.width - left - 6,
+      size.height - 12,
+    );
+    var top = 0.0;
+    for (final p in points) {
+      for (final v in [p.stroke, p.heart, p.diabetes]) {
+        if (v != null && v > top) top = v;
+      }
+    }
+    top = math.max(0.2, ((top * 10).ceil() / 10) + 0.05).clamp(0.2, 1.0);
+
+    final grid = Paint()
+      ..color = AppColors.border
+      ..strokeWidth = 1;
+    final label = TextPainter(textDirection: TextDirection.ltr);
+    for (var i = 0; i <= 4; i++) {
+      final y = plot.bottom - plot.height * i / 4;
+      canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y), grid);
+      label.text = TextSpan(
+        text: '${(top * i / 4 * 100).round()}%',
+        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+      );
+      label.layout();
+      label.paint(canvas, Offset(0, y - label.height / 2));
+    }
+
+    final t0 = points.first.at.millisecondsSinceEpoch.toDouble();
+    final span = math.max(1.0, points.last.at.millisecondsSinceEpoch - t0);
+    double x(TrendPoint p) =>
+        plot.left + plot.width * (p.at.millisecondsSinceEpoch - t0) / span;
+    double y(double v) => plot.bottom - plot.height * (v / top).clamp(0.0, 1.0);
+
+    void line(double? Function(TrendPoint) get, Color c) {
+      final paint = Paint()
+        ..color = c
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      final dot = Paint()..color = c;
+      final path = Path();
+      var started = false;
+      for (final p in points) {
+        final v = get(p);
+        if (v == null) continue;
+        final o = Offset(x(p), y(v));
+        if (!started) {
+          path.moveTo(o.dx, o.dy);
+          started = true;
+        } else {
+          path.lineTo(o.dx, o.dy);
+        }
+        canvas.drawCircle(o, 3.5, dot);
+      }
+      canvas.drawPath(path, paint);
+    }
+
+    line((p) => p.stroke, RiskTrendChart.strokeColor);
+    line((p) => p.heart, RiskTrendChart.heartColor);
+    line((p) => p.diabetes, RiskTrendChart.diabetesColor);
+  }
+
+  @override
+  bool shouldRepaint(_TrendPainter old) => old.points != points;
+}
+
 /// Hàng vòng tròn: Đột quỵ và Tim mạch (10 năm), kèm thẻ tên các vấn đề không có % (tăng huyết áp).
 class RiskDonuts extends StatelessWidget {
   const RiskDonuts({super.key, required this.result, this.size = 108});

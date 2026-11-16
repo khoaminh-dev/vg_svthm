@@ -9,7 +9,6 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/chat/domain/room.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/chat/presentation/screens/room_list_screen.dart';
-import '../../features/home/presentation/home_screen.dart';
 import '../../features/ocr/domain/ocr_models.dart';
 import '../../features/ocr/presentation/screens/ocr_detail_screen.dart';
 import '../../features/ocr/presentation/screens/ocr_editor_screen.dart';
@@ -25,6 +24,11 @@ import '../../features/home/presentation/main_shell.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/community/presentation/community_screen.dart';
 import '../../features/health/presentation/providers/health_providers.dart';
+import '../../features/family/presentation/family_audit_screen.dart';
+import '../../features/family/presentation/family_invite_screen.dart';
+import '../../features/family/presentation/family_join_screen.dart';
+import '../../features/family/presentation/family_person_screen.dart';
+import '../../features/family/presentation/home_entry.dart';
 import '../../features/health/presentation/screens/health_history_screen.dart';
 import '../../features/health/presentation/screens/health_setup_screen.dart';
 
@@ -78,7 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state, child) =>
             MainShell(path: state.uri.path, child: child),
         routes: [
-          GoRoute(path: Routes.home, builder: (_, _) => const HomeScreen()),
+          GoRoute(path: Routes.home, builder: (_, _) => const HomeEntry()),
           GoRoute(
             path: Routes.rooms,
             builder: (_, _) => const RoomListScreen(),
@@ -103,6 +107,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const CommunityScreen(),
       ),
       GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
+      GoRoute(
+        path: Routes.familyJoin,
+        builder: (_, _) => const FamilyJoinScreen(),
+      ),
+      GoRoute(
+        path: Routes.familyInvite,
+        builder: (_, _) => const FamilyInviteScreen(),
+      ),
+      GoRoute(
+        path: Routes.familyAudit,
+        builder: (_, _) => const FamilyAuditScreen(),
+      ),
+      GoRoute(
+        path: Routes.familyPerson,
+        builder: (_, s) => FamilyPersonScreen(ownerId: s.pathParameters['id']!),
+      ),
       GoRoute(
         path: Routes.healthSetup,
         builder: (_, _) => const HealthSetupScreen(),

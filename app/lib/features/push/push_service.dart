@@ -17,7 +17,7 @@ class PushService {
   final Ref _ref;
   bool _started = false;
   String? _token;
-  String? _pendingRoom;
+  String? _pendingPath;
   StreamSubscription<String>? _refreshSub;
 
   Future<void> start() async {
@@ -79,22 +79,39 @@ class PushService {
   }
 
   void _onOpened(RemoteMessage m) {
-    if (m.data['type'] != 'message')
-      return; // thông báo cập nhật: mở app là đủ, hộp thoại cập nhật tự hiện
-    final room = m.data['room_id'];
-    if (room is! String || room.isEmpty) return;
-    _pendingRoom = room;
+    // Thông báo cập nhật: mở app là đủ, hộp thoại cập nhật tự hiện.
+    final path = pathFor(m.data);
+    if (path == null) return;
+    _pendingPath = path;
     if (_ref.read(currentUserProvider) != null) _flushPending();
   }
 
   void _flushPending() {
-    final room = _pendingRoom;
-    if (room == null || _ref.read(currentUserProvider) == null) return;
-    _pendingRoom = null;
-    // Chờ router dựng xong trang chủ rồi mới đẩy phòng chat lên trên.
+    final path = _pendingPath;
+    if (path == null || _ref.read(currentUserProvider) == null) return;
+    _pendingPath = null;
+    // Chờ router dựng xong trang chủ rồi mới đẩy màn đích lên trên.
     Future<void>.delayed(const Duration(milliseconds: 600), () {
-      _ref.read(routerProvider).push(Routes.roomPath(room));
+      _ref.read(routerProvider).push(path);
     });
+  }
+
+  /// Màn cần mở khi bấm một thông báo (theo `data` của FCM), hoặc null nếu chỉ cần mở app.
+  static String? pathFor(Map<String, dynamic> data) {
+    final id = data['room_id'];
+    final owner = data['owner_id'];
+    switch (data['type']) {
+      case 'message':
+        return id is String && id.isNotEmpty ? Routes.roomPath(id) : null;
+      case 'family_alert':
+        return owner is String && owner.isNotEmpty
+            ? Routes.familyPersonPath(owner)
+            : null;
+      case 'nudge':
+        return Routes.measure;
+      default:
+        return null;
+    }
   }
 
   void dispose() => _refreshSub?.cancel();

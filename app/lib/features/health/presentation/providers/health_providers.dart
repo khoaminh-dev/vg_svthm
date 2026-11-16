@@ -69,6 +69,12 @@ final riskFeedbackProvider = FutureProvider.autoDispose
       (ref, id) => ref.watch(healthRepositoryProvider).getFeedback(id),
     );
 
+/// Xu hướng nguy cơ (30 lần đánh giá gần nhất). Làm mới khi có đánh giá mới.
+final riskTrendProvider = FutureProvider.autoDispose<List<TrendPoint>>((ref) {
+  ref.watch(latestRiskProvider);
+  return ref.watch(healthRepositoryProvider).trend();
+});
+
 /// Chạy đánh giá trên server. Gọi tự động sau mỗi lần đo huyết áp và khi sửa hồ sơ.
 class RiskRunner extends Notifier<AsyncValue<RiskResult?>> {
   @override

@@ -19,6 +19,11 @@ abstract final class Routes {
   static const healthSetup = '/health-setup';
   static const healthProfile = '/health-profile';
   static const healthHistory = '/health-history';
+  static const familyJoin = '/family/join';
+  static const familyInvite = '/family/invite';
+  static const familyAudit = '/family/audit';
+  static const familyPerson = '/family/person/:id';
+  static String familyPersonPath(String id) => '/family/person/$id';
 
   /// Bốn tab chính (có thanh điều hướng dưới). Màn "Sức khoẻ" dùng đường dẫn `/bp`.
   static const tabs = [home, rooms, bp, profile];

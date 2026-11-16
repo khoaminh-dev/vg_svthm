@@ -6,6 +6,7 @@ import '../../../core/analytics/analytics.dart';
 import '../../../core/router/routes.dart';
 import '../../../shared/widgets/pill_nav_bar.dart';
 import '../../../shared/widgets/vy_button.dart';
+import '../../family/presentation/family_providers.dart';
 import '../../voice/presentation/voice_controller.dart';
 
 /// Khung bốn tab chính: Trang chủ · Tin nhắn · (Vy) · Sức khoẻ · Hồ sơ.
@@ -16,6 +17,12 @@ class MainShell extends ConsumerWidget {
   /// Đường dẫn hiện tại, dùng để chọn tab đang sáng.
   final String path;
   final Widget child;
+
+  static const watchFirst = PillNavItem(
+    icon: Icons.family_restroom_outlined,
+    selectedIcon: Icons.family_restroom_rounded,
+    label: 'Gia đình',
+  );
 
   static const items = [
     PillNavItem(
@@ -42,12 +49,14 @@ class MainShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final watch = ref.watch(effectiveWatchModeProvider);
+    final shown = watch ? [watchFirst, ...items.skip(1)] : items;
     final found = Routes.tabs.indexOf(path);
     final index = found < 0 ? 0 : found;
     return Scaffold(
       body: child,
       bottomNavigationBar: PillNavBar(
-        items: items,
+        items: shown,
         index: index,
         onSelected: (i) {
           if (i == index) return;

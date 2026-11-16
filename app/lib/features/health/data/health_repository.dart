@@ -9,12 +9,15 @@ import '../domain/health_models.dart';
 
 abstract interface class HealthRepository {
   /// Hồ sơ sức khoẻ của người dùng hiện tại, hoặc null nếu chưa nhập.
-  Future<HealthProfile?> getProfile();
+  Future<HealthProfile?> getProfile({String? ownerId});
 
   Future<void> saveProfile(HealthProfile profile);
 
   /// Lần đánh giá gần nhất (đã lưu), hoặc null.
-  Future<RiskResult?> latestAssessment();
+  Future<RiskResult?> latestAssessment({String? ownerId});
+
+  /// Các lần đánh giá gần đây (cũ trước, mới sau) để vẽ xu hướng. [ownerId] null = chính mình.
+  Future<List<TrendPoint>> trend({String? ownerId, int limit = 30});
 
   /// Nhờ server đánh giá theo hồ sơ và lần đo mới nhất. Null nếu chưa đủ dữ liệu (chưa đo hoặc chưa có hồ sơ).
   Future<RiskResult?> runAssessment();
@@ -52,9 +55,21 @@ class SupabaseHealthRepository implements HealthRepository {
   final http.Client _http;
   final String _baseUrl;
 
+  /// Id người dùng hiện tại. Mọi truy vấn dữ liệu của CHÍNH MÌNH phải lọc theo id này: từ khi có liên kết gia đình,
+  /// cơ sở dữ liệu cho phép người chăm sóc đọc thêm dữ liệu của cha mẹ, nên không được dựa vào việc "chỉ trả dữ liệu của mình".
+  String _me() {
+    final id = _client.auth.currentUser?.id;
+    if (id == null) throw const AppFailure('Phiên đăng nhập đã hết hạn');
+    return id;
+  }
+
   @override
-  Future<HealthProfile?> getProfile() => _guard(() async {
-    final row = await _client.from('health_profile').select().maybeSingle();
+  Future<HealthProfile?> getProfile({String? ownerId}) => _guard(() async {
+    final row = await _client
+        .from('health_profile')
+        .select()
+        .eq('user_id', ownerId ?? _me())
+        .maybeSingle();
     return row == null ? null : HealthProfile.fromMap(row);
   });
 
@@ -69,10 +84,11 @@ class SupabaseHealthRepository implements HealthRepository {
   });
 
   @override
-  Future<RiskResult?> latestAssessment() => _guard(() async {
+  Future<RiskResult?> latestAssessment({String? ownerId}) => _guard(() async {
     final row = await _client
         .from('health_assessments')
         .select('id, level, details, created_at')
+        .eq('user_id', ownerId ?? _me())
         .order('created_at', ascending: false)
         .limit(1)
         .maybeSingle();
@@ -84,6 +100,17 @@ class SupabaseHealthRepository implements HealthRepository {
       id: row['id'] as String,
     );
   });
+
+  @override
+  Future<List<TrendPoint>> trend({String? ownerId, int limit = 30}) =>
+      _guard(() async {
+        var q = _client
+            .from('health_assessments')
+            .select('created_at, stroke_p, heart_p, details');
+        q = q.eq('user_id', ownerId ?? _me());
+        final rows = await q.order('created_at', ascending: false).limit(limit);
+        return [for (final r in rows.reversed) TrendPoint.fromRow(r)];
+      });
 
   @override
   Future<RiskResult?> runAssessment() async {
@@ -113,6 +140,7 @@ class SupabaseHealthRepository implements HealthRepository {
     final rows = await _client
         .from('health_qa')
         .select('id, question, answer, asked_at')
+        .eq('user_id', _me())
         .order('asked_at', ascending: false)
         .limit(100);
     return [for (final r in rows) HealthQa.fromMap(r)];
@@ -130,6 +158,7 @@ class SupabaseHealthRepository implements HealthRepository {
     final row = await _client
         .from('health_profile')
         .select('research_consent')
+        .eq('user_id', _me())
         .maybeSingle();
     return row?['research_consent'] as bool?;
   });

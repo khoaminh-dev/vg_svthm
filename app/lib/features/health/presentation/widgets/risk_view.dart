@@ -9,6 +9,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/ios_style.dart';
 import '../../../bp/presentation/providers/bp_providers.dart';
+import '../../../bp/domain/bp_models.dart';
 import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
 import '../risk_texts.dart';
@@ -239,7 +240,38 @@ class _RiskViewState extends ConsumerState<RiskView> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
+              Row(
+                key: const Key('assessment-bp'),
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  BpBars(
+                    category: BpCategory.of(r.systolic, r.diastolic),
+                    height: 48,
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mức huyết áp (${r.systolic}/${r.diastolic})',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      Text(
+                        BpCategory.of(r.systolic, r.diastolic).label,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: BpCategory.of(r.systolic, r.diastolic).color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
               if (r.strokeP != null || r.heartP != null)
                 RiskDonuts(result: r)
               else
@@ -288,6 +320,23 @@ class _RiskViewState extends ConsumerState<RiskView> {
           const SizedBox(height: AppSpacing.md),
           _BodyPrompt(onTap: () => context.push(Routes.healthProfile)),
         ],
+        const SizedBox(height: AppSpacing.md),
+        _Section(
+          title: 'Xu hướng nguy cơ',
+          child: Consumer(
+            builder: (context, ref, _) {
+              final t = ref.watch(riskTrendProvider);
+              return t.when(
+                loading: () => const SizedBox(
+                  height: 60,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (pts) => RiskTrendChart(points: pts),
+              );
+            },
+          ),
+        ),
         const SizedBox(height: AppSpacing.md),
         _Section(
           title: 'Yếu tố ảnh hưởng',

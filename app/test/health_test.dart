@@ -33,13 +33,13 @@ class FakeHealthRepository implements HealthRepository {
   int runs = 0;
 
   @override
-  Future<HealthProfile?> getProfile() async => profile;
+  Future<HealthProfile?> getProfile({String? ownerId}) async => profile;
 
   @override
   Future<void> saveProfile(HealthProfile p) async => profile = p;
 
   @override
-  Future<RiskResult?> latestAssessment() async => risk;
+  Future<RiskResult?> latestAssessment({String? ownerId}) async => risk;
 
   @override
   Future<List<HealthQa>> history() async => List.of(qa);
@@ -70,6 +70,12 @@ class FakeHealthRepository implements HealthRepository {
     feedback[assessmentId] = RiskFeedback(verdict: verdict, note: note);
     feedbackLevels.add(level);
   }
+
+  List<TrendPoint> trendPoints = [];
+
+  @override
+  Future<List<TrendPoint>> trend({String? ownerId, int limit = 30}) async =>
+      trendPoints;
 
   @override
   Future<RiskResult?> runAssessment() async {
@@ -637,4 +643,84 @@ void main() {
       );
     },
   );
+  testWidgets('tab Đánh giá: cột mức huyết áp và biểu đồ xu hướng', (t) async {
+    bigScreen(t);
+    Future<void> open(List<TrendPoint> pts) async {
+      final repo = FakeHealthRepository(risk: result(RiskLevel.attention))
+        ..trendPoints = pts;
+      await t.pumpWidget(
+        ProviderScope(
+          key: UniqueKey(),
+          overrides: [
+            currentUserProvider.overrideWithValue(
+              const AuthUser(id: 'u1', username: 'an'),
+            ),
+            healthRepositoryProvider.overrideWithValue(repo),
+            bpReadingsProvider.overrideWith((ref) async => []),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: RiskView()),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+    }
+
+    await open([]);
+    expect(find.byKey(const Key('assessment-bp')), findsOneWidget);
+    expect(find.byKey(const Key('bp-bars')), findsOneWidget);
+    expect(find.text('Mức huyết áp (150/95)'), findsOneWidget);
+    expect(find.text('Tăng huyết áp độ 2'), findsOneWidget);
+    await t.scrollUntilVisible(
+      find.byKey(const Key('trend-empty')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byKey(const Key('trend-empty')), findsOneWidget);
+
+    await open([
+      TrendPoint(at: DateTime(2026, 11, 10), stroke: 0.08, heart: 0.20),
+      TrendPoint(
+        at: DateTime(2026, 11, 12),
+        stroke: 0.10,
+        heart: 0.24,
+        diabetes: 0.12,
+      ),
+      TrendPoint(
+        at: DateTime(2026, 11, 14),
+        stroke: 0.12,
+        heart: 0.25,
+        diabetes: 0.15,
+      ),
+    ]);
+    await t.scrollUntilVisible(
+      find.byKey(const Key('trend-chart')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.byKey(const Key('trend-chart')), findsOneWidget);
+    expect(find.text('Tiểu đường'), findsWidgets);
+    expect(find.text('10/11'), findsOneWidget);
+    expect(find.text('14/11'), findsOneWidget);
+  });
+
+  test('TrendPoint đọc cả cột xác suất lẫn cột details', () {
+    final p = TrendPoint.fromRow({
+      'created_at': '2026-11-14T01:00:00Z',
+      'stroke_p': 0.1,
+      'heart_p': 0.2,
+      'details': {
+        'diabetes': {'p': 0.3},
+      },
+    });
+    expect(p.stroke, 0.1);
+    expect(p.heart, 0.2);
+    expect(p.diabetes, 0.3);
+    final old = TrendPoint.fromRow({
+      'created_at': '2026-11-01T01:00:00Z',
+      'details': {},
+    });
+    expect(old.diabetes, isNull);
+  });
 }

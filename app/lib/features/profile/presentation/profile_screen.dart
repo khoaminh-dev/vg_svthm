@@ -12,6 +12,7 @@ import '../../../shared/widgets/user_avatar.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../health/data/advice_speaker.dart';
+import '../../family/presentation/family_providers.dart';
 import '../../push/push_service.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
@@ -155,6 +156,8 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
+                const _FamilySettings(),
+                const SizedBox(height: AppSpacing.lg),
                 const _NotificationSettings(),
                 const SizedBox(height: AppSpacing.lg),
                 InsetGroup(
@@ -259,6 +262,64 @@ class _NotificationSettings extends ConsumerWidget {
             notifier.save(prefs.copyWith(updates: v));
           },
         ),
+      ],
+    );
+  }
+}
+
+/// Nhóm "Gia đình": mời người thân theo dõi mình, theo dõi người thân, và công tắc chế độ theo dõi.
+class _FamilySettings extends ConsumerWidget {
+  const _FamilySettings();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final watchers = ref.watch(watchersProvider);
+    final watched = ref.watch(watchedLinksProvider);
+    const titleStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 17);
+    return InsetGroup(
+      key: const Key('family-settings'),
+      dividerIndent: 0,
+      children: [
+        ListTile(
+          key: const Key('profile-invite'),
+          minTileHeight: 64,
+          leading: Icon(Icons.family_restroom_outlined, color: scheme.primary),
+          title: const Text('Mời người thân theo dõi bác', style: titleStyle),
+          subtitle: Text(
+            watchers.isEmpty
+                ? 'Con xem được sức khoẻ của bác từ xa'
+                : '${watchers.length} người đang theo dõi',
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push(Routes.familyInvite),
+        ),
+        ListTile(
+          key: const Key('profile-join'),
+          minTileHeight: 64,
+          leading: Icon(Icons.person_add_alt_1_outlined, color: scheme.primary),
+          title: const Text('Theo dõi người thân', style: titleStyle),
+          subtitle: Text(
+            watched.isEmpty
+                ? 'Nhập mã của cha mẹ'
+                : 'Đang theo dõi ${watched.length} người',
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push(Routes.familyJoin),
+        ),
+        if (watched.isNotEmpty)
+          SwitchListTile(
+            key: const Key('profile-watch-mode'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            secondary: Icon(Icons.visibility_outlined, color: scheme.primary),
+            title: const Text('Chế độ theo dõi người thân', style: titleStyle),
+            subtitle: const Text('Trang chủ hiện tình hình của cha mẹ'),
+            value: ref.watch(watchModeProvider),
+            onChanged: (v) {
+              Analytics.track('watch_mode', {'on': v});
+              ref.read(watchModeProvider.notifier).set(v);
+            },
+          ),
       ],
     );
   }
