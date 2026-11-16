@@ -35,7 +35,12 @@ const elderTiles = [
   ElderTile('measure', Icons.monitor_heart_outlined, 'Đo huyết áp', 'measure'),
   ElderTile('meds', Icons.medication_outlined, 'Thuốc', 'meds'),
   ElderTile('health', Icons.favorite_border_rounded, 'Sức khoẻ', 'health'),
-  ElderTile('messages', Icons.chat_bubble_outline_rounded, 'Tin nhắn', 'messages'),
+  ElderTile(
+    'messages',
+    Icons.chat_bubble_outline_rounded,
+    'Tin nhắn',
+    'messages',
+  ),
   ElderTile('community', Icons.groups_2_outlined, 'Cộng đồng', 'community'),
   ElderTile('relax', Icons.smart_display_outlined, 'Thư giãn', 'fun'),
 ];
@@ -94,7 +99,12 @@ class ElderHomeScreen extends ConsumerWidget {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
                 children: [
                   Row(
                     children: [
@@ -102,12 +112,19 @@ class ElderHomeScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(greetingFor(now), style: theme.textTheme.titleMedium?.copyWith(color: AppColors.textMuted)),
+                            Text(
+                              greetingFor(now),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
                             Text(
                               user?.displayName ?? 'Viegrand',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ],
                         ),
@@ -120,7 +137,11 @@ class ElderHomeScreen extends ConsumerWidget {
                           child: GestureDetector(
                             key: const Key('elder-avatar'),
                             onTap: () => context.go(Routes.profile),
-                            child: UserAvatar(name: user.displayName, imageUrl: user.avatarUrl, radius: 26),
+                            child: UserAvatar(
+                              name: user.displayName,
+                              imageUrl: user.avatarUrl,
+                              radius: 26,
+                            ),
                           ),
                         ),
                     ],
@@ -128,9 +149,29 @@ class ElderHomeScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.md),
                   const _VyCard(),
                   const SizedBox(height: 12),
-                  _DoseCard(dose: dose, due: due),
-                  const SizedBox(height: 12),
-                  _BpCard(latest: latest),
+                  if (due) ...[
+                    _DoseCard(dose: dose, due: true),
+                    const SizedBox(height: 12),
+                    _BpCard(latest: latest),
+                  ] else
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _DoseCard(
+                              dose: dose,
+                              due: false,
+                              compact: true,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _BpCard(latest: latest, compact: true),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: AppSpacing.md),
                   GridView.count(
                     key: const Key('elder-grid'),
@@ -140,13 +181,24 @@ class ElderHomeScreen extends ConsumerWidget {
                     childAspectRatio: 1.85,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: [for (final t in elderTiles) _TileButton(tile: t, onTap: () => _open(context, ref, t))],
+                    children: [
+                      for (final t in elderTiles)
+                        _TileButton(
+                          tile: t,
+                          onTap: () => _open(context, ref, t),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.md, 4, AppSpacing.md, AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                4,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
               child: SosHoldButton(onTriggered: () => _sendSos(context, ref)),
             ),
           ],
@@ -178,24 +230,35 @@ class _VyCard extends ConsumerWidget {
             ref.read(voiceControllerProvider.notifier).toggle();
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 14,
+            ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
-                const VyOrb(size: 76),
+                const VyOrb(size: 128),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Nói với Vy', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(
+                        'Nói với Vy',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         'Chạm rồi nói: đo huyết áp, hỏi về thuốc, nhắn tin cho con.',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -244,7 +307,11 @@ class _TileButton extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.navyDeep),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navyDeep,
+                  ),
                 ),
               ],
             ),
@@ -257,10 +324,15 @@ class _TileButton extends StatelessWidget {
 
 /// Thuốc kế tiếp. Đến giờ thì có nút "Đã uống" thật to; chưa tới giờ thì chạm để xem lịch.
 class _DoseCard extends ConsumerStatefulWidget {
-  const _DoseCard({required this.dose, required this.due});
+  const _DoseCard({
+    required this.dose,
+    required this.due,
+    this.compact = false,
+  });
 
   final Dose? dose;
   final bool due;
+  final bool compact;
 
   @override
   ConsumerState<_DoseCard> createState() => _DoseCardState();
@@ -292,12 +364,24 @@ class _DoseCardState extends ConsumerState<_DoseCard> {
         key: const Key('elder-dose-none'),
         width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppColors.border)),
-        child: Row(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.medication_outlined, size: 32, color: AppColors.navy),
-            const SizedBox(width: 12),
-            Expanded(child: Text('Hôm nay không còn cữ thuốc nào', style: theme.textTheme.titleMedium)),
+            Icon(
+              Icons.medication_outlined,
+              size: widget.compact ? 28 : 32,
+              color: AppColors.navy,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Hôm nay không còn cữ thuốc nào',
+              style: theme.textTheme.titleMedium,
+            ),
           ],
         ),
       );
@@ -328,13 +412,34 @@ class _DoseCardState extends ConsumerState<_DoseCard> {
             children: [
               Text(
                 widget.due ? 'Đến giờ uống thuốc' : 'Thuốc kế tiếp',
-                style: theme.textTheme.titleSmall?.copyWith(color: fg.withValues(alpha: 0.85), fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: fg.withValues(alpha: 0.85),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
-                '${d.hm} · ${d.bag ? 'Túi ${d.label}' : d.label}',
-                style: theme.textTheme.headlineSmall?.copyWith(color: fg, fontWeight: FontWeight.w800),
+                widget.compact
+                    ? d.hm
+                    : '${d.hm} · ${d.bag ? 'Túi ${d.label}' : d.label}',
+                style:
+                    (widget.compact
+                            ? theme.textTheme.displaySmall
+                            : theme.textTheme.headlineSmall)
+                        ?.copyWith(
+                          color: fg,
+                          fontWeight: FontWeight.w800,
+                          height: 1.05,
+                        ),
               ),
+              if (widget.compact)
+                Text(
+                  d.bag ? 'Túi ${d.label}' : d.label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               if (widget.due) ...[
                 const SizedBox(height: 12),
                 SizedBox(
@@ -342,10 +447,19 @@ class _DoseCardState extends ConsumerState<_DoseCard> {
                   height: 64,
                   child: FilledButton.icon(
                     key: Key('elder-dose-taken-${d.id}'),
-                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.navy),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.navy,
+                    ),
                     onPressed: _busy ? null : () => _taken(d),
                     icon: const Icon(Icons.check_rounded, size: 30),
-                    label: const Text('Đã uống', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                    label: const Text(
+                      'Đã uống',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -358,9 +472,10 @@ class _DoseCardState extends ConsumerState<_DoseCard> {
 }
 
 class _BpCard extends StatelessWidget {
-  const _BpCard({required this.latest});
+  const _BpCard({required this.latest, this.compact = false});
 
   final dynamic latest;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -375,42 +490,108 @@ class _BpCard extends StatelessWidget {
         key: const Key('elder-bp'),
         width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: AppColors.border)),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: compact
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Huyết áp gần nhất', style: theme.textTheme.titleSmall?.copyWith(color: AppColors.textMuted)),
+                  Text(
+                    'Huyết áp gần nhất',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     r == null ? '--/--' : '${r.systolic}/${r.diastolic}',
-                    style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800, height: 1.05),
-                  ),
-                ],
-              ),
-            ),
-            if (r != null)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: (r.category.color as Color).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(999)),
-                    child: Text(
-                      r.category.label as String,
-                      style: TextStyle(color: r.category.color as Color, fontSize: 17, fontWeight: FontWeight.w800),
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.05,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(formatDateTime(r.measuredAt as DateTime), style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
+                  if (r != null)
+                    Text(
+                      r.category.label as String,
+                      style: TextStyle(
+                        color: r.category.color as Color,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    )
+                  else
+                    Text(
+                      'Chưa có lần đo nào',
+                      style: theme.textTheme.bodyMedium,
+                    ),
                 ],
               )
-            else
-              Text('Chưa có lần đo nào', style: theme.textTheme.bodyLarge),
-          ],
-        ),
+            : Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Huyết áp gần nhất',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          r == null ? '--/--' : '${r.systolic}/${r.diastolic}',
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            height: 1.05,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (r != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (r.category.color as Color).withValues(
+                              alpha: 0.15,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            r.category.label as String,
+                            style: TextStyle(
+                              color: r.category.color as Color,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatDateTime(r.measuredAt as DateTime),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      'Chưa có lần đo nào',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                ],
+              ),
       ),
     );
   }
