@@ -30,6 +30,9 @@ import '../../features/family/presentation/family_join_screen.dart';
 import '../../features/family/presentation/family_person_screen.dart';
 import '../../features/family/presentation/home_entry.dart';
 import '../../features/health/presentation/screens/health_history_screen.dart';
+import '../../features/meds/domain/meds_models.dart';
+import '../../features/meds/presentation/med_plan_edit_screen.dart';
+import '../../features/meds/presentation/med_plan_list_screen.dart';
 import '../../features/health/presentation/screens/health_setup_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -107,6 +110,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const CommunityScreen(),
       ),
       GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
+      GoRoute(
+        path: Routes.medsPlans,
+        builder: (_, s) =>
+            MedPlanListScreen(ownerId: s.pathParameters['owner']!),
+      ),
+      GoRoute(
+        path: Routes.medsPlan,
+        builder: (_, s) => MedPlanEditScreen(
+          ownerId: s.pathParameters['owner']!,
+          existing: s.extra is MedPlan ? s.extra as MedPlan : null,
+        ),
+      ),
       GoRoute(
         path: Routes.familyJoin,
         builder: (_, _) => const FamilyJoinScreen(),

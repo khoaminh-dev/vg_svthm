@@ -7,6 +7,7 @@ import '../../../core/router/routes.dart';
 import '../../../shared/widgets/pill_nav_bar.dart';
 import '../../../shared/widgets/vy_button.dart';
 import '../../family/presentation/family_providers.dart';
+import '../../meds/presentation/meds_providers.dart';
 import '../../voice/presentation/voice_controller.dart';
 
 /// Khung bốn tab chính: Trang chủ · Tin nhắn · (Vy) · Sức khoẻ · Hồ sơ.
@@ -53,26 +54,28 @@ class MainShell extends ConsumerWidget {
     final shown = watch ? [watchFirst, ...items.skip(1)] : items;
     final found = Routes.tabs.indexOf(path);
     final index = found < 0 ? 0 : found;
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: PillNavBar(
-        items: shown,
-        index: index,
-        onSelected: (i) {
-          if (i == index) return;
-          Analytics.track('tab', {'to': Routes.tabs[i]});
-          context.go(Routes.tabs[i]);
-        },
-        // Trang chủ đã có blob Vy lớn, nên không lặp lại ở thanh dưới.
-        center: path == Routes.home
-            ? null
-            : VyButton(
-                size: 60,
-                onTap: () {
-                  Analytics.track('open_vy_from_nav');
-                  ref.read(voiceControllerProvider.notifier).toggle();
-                },
-              ),
+    return MedsSyncHost(
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: PillNavBar(
+          items: shown,
+          index: index,
+          onSelected: (i) {
+            if (i == index) return;
+            Analytics.track('tab', {'to': Routes.tabs[i]});
+            context.go(Routes.tabs[i]);
+          },
+          // Trang chủ đã có blob Vy lớn, nên không lặp lại ở thanh dưới.
+          center: path == Routes.home
+              ? null
+              : VyButton(
+                  size: 60,
+                  onTap: () {
+                    Analytics.track('open_vy_from_nav');
+                    ref.read(voiceControllerProvider.notifier).toggle();
+                  },
+                ),
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import '../../../../shared/widgets/ios_style.dart';
 import '../../../../shared/widgets/status_chip.dart';
 import '../../../health/presentation/providers/health_providers.dart';
 import '../../../health/presentation/widgets/risk_view.dart';
+import '../../../meds/presentation/meds_view.dart';
 import '../../domain/bp_models.dart';
 import '../providers/bp_providers.dart';
 import '../widgets/bp_chart.dart';
@@ -115,6 +116,16 @@ class BpScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    2: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        'Thuốc',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   },
                   onValueChanged: (v) {
                     if (v == null) return;
@@ -125,7 +136,9 @@ class BpScreen extends ConsumerWidget {
               ),
             ),
             Expanded(
-              child: tab == 1
+              child: tab == 2
+                  ? const MedsView()
+                  : tab == 1
                   ? const RiskView()
                   : RefreshIndicator(
                       onRefresh: () async =>
@@ -192,14 +205,21 @@ class BpScreen extends ConsumerWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.end,
                                       children: [
-                                        Text(
-                                          '${latest.systolic}/${latest.diastolic}',
-                                          style: TextStyle(
-                                            fontSize: 64,
-                                            height: 1,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -1.5,
-                                            color: latest.category.color,
+                                        // FittedBox: số lớn tự thu nhỏ khi hàng không đủ chỗ (3 chữ số, chữ hệ thống to), không tràn.
+                                        Flexible(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              '${latest.systolic}/${latest.diastolic}',
+                                              style: TextStyle(
+                                                fontSize: 64,
+                                                height: 1,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: -1.5,
+                                                color: latest.category.color,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 8),

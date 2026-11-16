@@ -13,6 +13,7 @@ import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
+import '../../meds/presentation/meds_providers.dart';
 import '../../voice/presentation/voice_controller.dart';
 
 /// Ảnh nền theo thời điểm trong ngày (ảnh CC0, nguồn ghi ở docs/CREDITS.md).
@@ -33,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final readings = ref.watch(bpReadingsProvider);
     final risk = ref.watch(latestRiskProvider).value;
+    final nextDose = ref.watch(nextDoseProvider);
     final now = DateTime.now();
     const shadow = [Shadow(color: Color(0x66000000), blurRadius: 12)];
 
@@ -235,6 +237,50 @@ class HomeScreen extends ConsumerWidget {
                                     const SizedBox(width: 8),
                                     Text(
                                       'Nguy cơ: ${risk.level.label}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        shadows: shadow,
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Colors.white70,
+                                      size: 22,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (nextDose != null) ...[
+                            const SizedBox(height: 12),
+                            Semantics(
+                              button: true,
+                              label:
+                                  'Thuốc: ${nextDose.what} lúc ${nextDose.hm}. Mở lịch thuốc',
+                              excludeSemantics: true,
+                              child: GestureDetector(
+                                key: const Key('home-meds'),
+                                onTap: () {
+                                  Analytics.track('tap_feature', {
+                                    'feature': 'meds',
+                                  });
+                                  ref.read(healthTabProvider.notifier).set(2);
+                                  context.go(Routes.bp);
+                                },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.medication_outlined,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Thuốc: ${nextDose.hm} túi ${nextDose.label}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 18,

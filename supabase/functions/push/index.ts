@@ -248,6 +248,17 @@ async function handleNudge(b: Record<string, unknown>) {
   })));
 }
 
+async function handleMedsChanged(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const carer = String(b.carer_id ?? '');
+  if (!owner || !carer) return { skipped: 'bad_request' };
+  const [carerName, tokens] = await Promise.all([nameOf(carer), tokensOf([owner])]);
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: `${carerName} vừa đổi lịch uống thuốc của bác`, body: 'Bác mở Viegrand để xem lịch mới nhé.', data: { type: 'meds' } },
+  })));
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method', { status: 405 });
   if (!PUSH_SECRET || req.headers.get('x-push-secret') !== PUSH_SECRET) return new Response('unauthorized', { status: 401 });
@@ -259,6 +270,7 @@ Deno.serve(async (req) => {
       : b.type === 'bp_alert' ? await handleBpAlert(b)
       : b.type === 'family_link' ? await handleLink(b)
       : b.type === 'nudge' ? await handleNudge(b)
+      : b.type === 'meds_changed' ? await handleMedsChanged(b)
       : { skipped: 'type' };
     return new Response(JSON.stringify(out), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {

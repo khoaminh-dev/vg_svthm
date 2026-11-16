@@ -414,4 +414,5 @@ Lịch hẹn khám tổng quát, nhật ký triệu chứng và ghi chú, báo c
 | 1e | Đổi cách làm | Không ép bước mời trong thiết lập; "Thiết lập hộ" = con cài trên máy cha mẹ rồi vào Hồ sơ, Mời người thân |
 | 1f | Xong một phần | Cảnh báo huyết áp rất cao, báo liên kết, nhờ đo từ xa (migration 0023). Chưa có: Vy hiểu "mẹ", mất liên lạc |
 | 1g | Xong | Nhật ký gia đình (`family_audit`) và thông báo liên kết |
-| 2-5 | Chưa | |
+| 2 | Xong (1.0.19) | Thuốc nhập tay, báo thức cục bộ (đã thử kêu đúng giờ trên emulator, bản release chạy tốt), con xem tuân thủ. Chưa: nhắc sắp hết, thông báo đẩy dự phòng khi báo thức không kêu |
+| 3-5 | Chưa | |

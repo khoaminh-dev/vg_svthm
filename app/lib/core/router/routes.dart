@@ -23,6 +23,11 @@ abstract final class Routes {
   static const familyInvite = '/family/invite';
   static const familyAudit = '/family/audit';
   static const familyPerson = '/family/person/:id';
+  static const medsPlans = '/meds/plans/:owner';
+  static const medsPlan = '/meds/plan/:owner';
+  static String medsPlanListFor(String owner) => '/meds/plans/$owner';
+  static String medsPlanFor(String owner, {String? planId}) =>
+      '/meds/plan/$owner';
   static String familyPersonPath(String id) => '/family/person/$id';
 
   /// Bốn tab chính (có thanh điều hướng dưới). Màn "Sức khoẻ" dùng đường dẫn `/bp`.

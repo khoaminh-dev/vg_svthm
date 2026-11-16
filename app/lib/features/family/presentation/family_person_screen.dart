@@ -8,6 +8,10 @@ import '../../bp/presentation/widgets/bp_chart.dart';
 import '../../health/domain/health_models.dart';
 import '../../health/presentation/widgets/risk_charts.dart';
 import '../domain/family_status.dart';
+import '../../../core/router/routes.dart';
+import '../../meds/domain/meds_models.dart';
+import '../../meds/presentation/meds_providers.dart';
+import '../domain/family_models.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
 
@@ -120,6 +124,10 @@ class FamilyPersonScreen extends ConsumerWidget {
                     ],
                   ),
           ),
+          if (link != null && link.can(FamilyPerm.medsView)) ...[
+            const SizedBox(height: AppSpacing.md),
+            _MedsCard(link: link),
+          ],
           if (risk != null &&
               (risk.strokeP != null || risk.heartP != null)) ...[
             const SizedBox(height: AppSpacing.md),
@@ -296,6 +304,135 @@ class _ProfileChips extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [for (final t in tags) Chip(label: Text(t))],
+    );
+  }
+}
+
+/// Thuốc của người thân: các cữ hôm nay đã uống chưa, 7 ngày qua, và nút sửa lịch (nếu được phép).
+class _MedsCard extends ConsumerWidget {
+  const _MedsCard({required this.link});
+
+  final FamilyLink link;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final doses = ref.watch(personDosesProvider(link.otherId));
+    final plans = ref.watch(personPlansProvider(link.otherId));
+    final now = DateTime.now();
+    final today = startOfDay(now);
+
+    Widget body;
+    if (doses.hasError) {
+      body = Text(
+        'Chưa tải được lịch thuốc.',
+        style: theme.textTheme.bodyMedium,
+      );
+    } else if (!doses.hasValue) {
+      body = const SizedBox(
+        height: 40,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else {
+      final all = doses.value!;
+      final todays = [
+        for (final d in all)
+          if (!d.dueAt.isBefore(today) &&
+              d.dueAt.isBefore(today.add(const Duration(days: 1))))
+            d,
+      ];
+      final past = [
+        for (final d in all)
+          if (d.dueAt.isAfter(today.subtract(const Duration(days: 7))) &&
+              !d.dueAt.isAfter(now))
+            d,
+      ];
+      final a = Adherence.of(past, now);
+      final hasPlan = (plans.value ?? const <MedPlan>[]).any((p) => p.active);
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (todays.isEmpty)
+            Text(
+              hasPlan
+                  ? 'Hôm nay không có cữ thuốc nào.'
+                  : 'Chưa có lịch thuốc.',
+              key: const Key('person-meds-none'),
+              style: theme.textTheme.bodyLarge,
+            ),
+          for (final d in todays)
+            Padding(
+              key: Key('person-dose-${d.id}'),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Text(
+                    d.hm,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      d.bag ? 'Túi ${d.label}' : d.label,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ),
+                  _doseStatus(d.stateAt(now), theme),
+                ],
+              ),
+            ),
+          if (a.total > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '7 ngày qua: uống ${a.taken}/${a.total} cữ (${(a.rate! * 100).round()}%)',
+                key: const Key('person-adherence'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
+    return FamCard(
+      title: 'Thuốc hôm nay',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          body,
+          if (link.can(FamilyPerm.medsEdit)) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const Key('person-meds-manage'),
+              onPressed: () =>
+                  context.push(Routes.medsPlanListFor(link.otherId)),
+              icon: const Icon(Icons.edit_calendar_outlined),
+              label: const Text('Xem và sửa lịch thuốc'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static Widget _doseStatus(DoseState s, ThemeData theme) {
+    final (String text, Color color) = switch (s) {
+      DoseState.taken => ('Đã uống', AppColors.levelGood),
+      DoseState.skipped => ('Bỏ qua', AppColors.textMuted),
+      DoseState.missed => ('Chưa uống', AppColors.levelDanger),
+      DoseState.due => ('Đến giờ', AppColors.navy),
+      DoseState.upcoming => ('Sắp tới', AppColors.textMuted),
+    };
+    return Text(
+      text,
+      style: theme.textTheme.titleSmall?.copyWith(
+        color: color,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }

@@ -21,9 +21,12 @@ import 'package:vg_svthm/features/family/presentation/family_providers.dart';
 import 'package:vg_svthm/features/health/data/health_repository.dart';
 import 'package:vg_svthm/features/health/domain/health_models.dart';
 import 'package:vg_svthm/features/health/presentation/providers/health_providers.dart';
+import 'package:vg_svthm/features/meds/domain/meds_models.dart';
+import 'package:vg_svthm/features/meds/presentation/meds_providers.dart';
 import 'package:vg_svthm/features/push/push_service.dart';
 
 import 'health_test.dart' show FakeHealthRepository;
+import 'meds_test.dart' show FakeMeds, dose;
 
 class FakeFamily implements FamilyRepository {
   FakeFamily({List<FamilyLink>? links}) : links = links ?? [];
@@ -137,6 +140,7 @@ Widget host(
   required FakeFamily fam,
   FakeBp? bpRepo,
   HealthRepository? health,
+  FakeMeds? meds,
 }) => ProviderScope(
   key: UniqueKey(),
   overrides: [
@@ -148,6 +152,7 @@ Widget host(
     healthRepositoryProvider.overrideWithValue(
       health ?? FakeHealthRepository(),
     ),
+    medsRepositoryProvider.overrideWithValue(meds ?? FakeMeds()),
   ],
   child: MaterialApp(theme: AppTheme.light, home: child),
 );
@@ -578,4 +583,115 @@ void main() {
     );
     expect(find.text('09:05 ngày 16/11'), findsOneWidget);
   });
+  testWidgets(
+    'chi tiết người thân: thuốc hôm nay, tuân thủ 7 ngày, nút sửa lịch theo quyền',
+    (t) async {
+      bigScreen(t);
+      final n = DateTime.now();
+      final meds = FakeMeds(
+        doses: [
+          dose(
+            'a',
+            'Sáng',
+            DateTime(n.year, n.month, n.day, 0, 5),
+            status: 'taken',
+          ),
+          dose(
+            'b',
+            'Tối',
+            DateTime(
+              n.year,
+              n.month,
+              n.day,
+            ).add(const Duration(hours: 23, minutes: 59)),
+          ),
+          dose(
+            'c',
+            'Sáng',
+            DateTime(
+              n.year,
+              n.month,
+              n.day,
+            ).subtract(const Duration(days: 1)).add(const Duration(hours: 7)),
+            status: 'missed',
+          ),
+        ],
+        plans: [
+          MedPlan(
+            id: 'p',
+            title: 'Đơn',
+            startDate: DateTime(n.year, n.month, n.day),
+            slots: const [MedSlot(label: 'Sáng', time: '07:00')],
+          ),
+        ],
+      );
+      final bpRepo = FakeBp({
+        'p1': [bp(120, 80, DateTime.now().subtract(const Duration(hours: 1)))],
+      });
+
+      await t.pumpWidget(
+        host(
+          const FamilyPersonScreen(ownerId: 'p1'),
+          fam: FakeFamily(links: [link('l1')]),
+          bpRepo: bpRepo,
+          meds: meds,
+        ),
+      );
+      await t.pumpAndSettle();
+      await t.scrollUntilVisible(
+        find.byKey(const Key('person-adherence')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Thuốc hôm nay'), findsOneWidget);
+      expect(find.byKey(const Key('person-dose-a')), findsOneWidget);
+      expect(find.text('Đã uống'), findsOneWidget);
+      expect(find.text('Sắp tới'), findsOneWidget);
+      expect(
+        find.textContaining('7 ngày qua: uống 1/2 cữ (50%)'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('person-meds-manage')), findsOneWidget);
+
+      // Không có quyền sửa thuốc thì không có nút sửa lịch; không có quyền xem thuốc thì không có cả thẻ.
+      final noEdit = link(
+        'l1',
+        perms: {
+          FamilyPerm.health: true,
+          FamilyPerm.medsView: true,
+          FamilyPerm.medsEdit: false,
+        },
+      );
+      await t.pumpWidget(
+        host(
+          const FamilyPersonScreen(ownerId: 'p1'),
+          fam: FakeFamily(links: [noEdit]),
+          bpRepo: bpRepo,
+          meds: meds,
+        ),
+      );
+      await t.pumpAndSettle();
+      await t.scrollUntilVisible(
+        find.byKey(const Key('person-adherence')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.byKey(const Key('person-meds-manage')), findsNothing);
+
+      final noView = link(
+        'l1',
+        perms: {FamilyPerm.health: true, FamilyPerm.medsView: false},
+      );
+      await t.pumpWidget(
+        host(
+          const FamilyPersonScreen(ownerId: 'p1'),
+          fam: FakeFamily(links: [noView]),
+          bpRepo: bpRepo,
+          meds: meds,
+        ),
+      );
+      await t.pumpAndSettle();
+      expect(find.text('Thuốc hôm nay'), findsNothing);
+    },
+  );
 }
