@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/user_avatar.dart';
+import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
@@ -32,13 +33,11 @@ class ElderTile {
 
 const elderTiles = [
   ElderTile('measure', Icons.monitor_heart_outlined, 'Đo huyết áp', 'measure'),
-  ElderTile('vy', Icons.mic_none_rounded, 'Nói với Vy', 'vy'),
   ElderTile('meds', Icons.medication_outlined, 'Thuốc', 'meds'),
   ElderTile('health', Icons.favorite_border_rounded, 'Sức khoẻ', 'health'),
   ElderTile('messages', Icons.chat_bubble_outline_rounded, 'Tin nhắn', 'messages'),
   ElderTile('community', Icons.groups_2_outlined, 'Cộng đồng', 'community'),
   ElderTile('relax', Icons.smart_display_outlined, 'Thư giãn', 'fun'),
-  ElderTile('profile', Icons.person_outline_rounded, 'Hồ sơ', 'profile'),
 ];
 
 /// Trang chủ cho người cao tuổi: chữ to, ô lớn, mỗi ô một việc; thuốc kế tiếp và SOS luôn thấy.
@@ -51,8 +50,6 @@ class ElderHomeScreen extends ConsumerWidget {
     switch (t.key) {
       case 'measure':
         context.push(Routes.measure);
-      case 'vy':
-        ref.read(voiceControllerProvider.notifier).toggle();
       case 'meds':
         ref.read(healthTabProvider.notifier).set(2);
         context.go(Routes.bp);
@@ -65,8 +62,6 @@ class ElderHomeScreen extends ConsumerWidget {
         context.push(Routes.community);
       case 'relax':
         context.push(Routes.entertainment);
-      case 'profile':
-        context.go(Routes.profile);
     }
   }
 
@@ -131,6 +126,8 @@ class ElderHomeScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
+                  const _VyCard(),
+                  const SizedBox(height: 12),
                   _DoseCard(dose: dose, due: due),
                   const SizedBox(height: 12),
                   _BpCard(latest: latest),
@@ -153,6 +150,59 @@ class ElderHomeScreen extends ConsumerWidget {
               child: SosHoldButton(onTriggered: () => _sendSos(context, ref)),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Vy là trung tâm của app: thẻ lớn ở đầu trang chủ, chạm để nói.
+class _VyCard extends ConsumerWidget {
+  const _VyCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: 'Nói chuyện với Vy. Chạm rồi nói',
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          key: const Key('elder-vy'),
+          borderRadius: BorderRadius.circular(24),
+          onTap: () {
+            Analytics.track('tap_feature', {'feature': 'vy', 'shell': 'elder'});
+            ref.read(voiceControllerProvider.notifier).toggle();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const VyOrb(size: 76),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nói với Vy', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Chạm rồi nói: đo huyết áp, hỏi về thuốc, nhắn tin cho con.',
+                        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

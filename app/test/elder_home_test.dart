@@ -25,6 +25,13 @@ Widget hostElder(FakeMeds meds) => ProviderScope(
   child: MaterialApp(theme: AppTheme.light, home: const ElderHomeScreen()),
 );
 
+/// Quả cầu Vy chuyển động liên tục nên pumpAndSettle không bao giờ yên: bơm vài khung hình.
+Future<void> pump(WidgetTester t) async {
+  for (var i = 0; i < 6; i++) {
+    await t.pump(const Duration(milliseconds: 200));
+  }
+}
+
 void bigScreen(WidgetTester t) {
   t.view.physicalSize = const Size(1080, 2400);
   t.view.devicePixelRatio = 2.5;
@@ -32,17 +39,21 @@ void bigScreen(WidgetTester t) {
 }
 
 void main() {
-  testWidgets('trang chủ người cao tuổi: 8 ô lớn, SOS, không thanh điều hướng', (t) async {
+  testWidgets('trang chủ người cao tuổi: thẻ Vy, 6 ô lớn, SOS, không thanh điều hướng', (t) async {
     bigScreen(t);
     await t.pumpWidget(hostElder(FakeMeds()));
-    await t.pumpAndSettle();
+    await pump(t);
     expect(find.byKey(const Key('elder-home')), findsOneWidget);
+    expect(find.byKey(const Key('elder-vy')), findsOneWidget, reason: 'Vy luôn hiện ở đầu trang chủ');
+    expect(find.text('Nói với Vy'), findsOneWidget);
     for (final tile in elderTiles) {
       expect(find.byKey(Key('elder-tile-${tile.key}')), findsOneWidget, reason: tile.label);
     }
     expect(find.text('Tin nhắn'), findsOneWidget);
     expect(find.text('Cộng đồng'), findsOneWidget);
     expect(find.text('Thư giãn'), findsOneWidget);
+    expect(elderTiles.length, 6);
+    expect(find.byKey(const Key('elder-avatar')), findsOneWidget, reason: 'Hồ sơ mở bằng avatar');
     expect(find.byType(SosHoldButton), findsOneWidget);
     expect(find.byKey(const Key('elder-dose-none')), findsOneWidget);
     expect(find.text('--/--'), findsOneWidget);
@@ -53,10 +64,10 @@ void main() {
     final n = DateTime.now();
     final meds = FakeMeds(doses: [dose('d1', 'Sáng', n.subtract(const Duration(minutes: 10)))]);
     await t.pumpWidget(hostElder(meds));
-    await t.pumpAndSettle();
+    await pump(t);
     expect(find.text('Đến giờ uống thuốc'), findsOneWidget);
     await t.tap(find.byKey(const Key('elder-dose-taken-d1')));
-    await t.pumpAndSettle();
+    await pump(t);
     expect(meds.calls, contains('taken:d1'));
   });
 
@@ -64,7 +75,7 @@ void main() {
     bigScreen(t);
     final meds = FakeMeds(doses: [dose('d2', 'Tối', DateTime.now().add(const Duration(hours: 3)))]);
     await t.pumpWidget(hostElder(meds));
-    await t.pumpAndSettle();
+    await pump(t);
     expect(find.text('Thuốc kế tiếp'), findsOneWidget);
     expect(find.byKey(const Key('elder-dose-taken-d2')), findsNothing);
   });
