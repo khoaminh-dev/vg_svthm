@@ -115,12 +115,22 @@ async function sendAll(targets: { token: string; msg: Msg }[]) {
   return { sent, removed: dead.length };
 }
 
-type Prefs = { user_id: string; messages: boolean; updates: boolean; show_text: boolean; family_alerts?: boolean };
+type Prefs = {
+  user_id: string;
+  messages: boolean;
+  updates: boolean;
+  show_text: boolean;
+  family_alerts?: boolean;
+  dose_alerts?: boolean;
+  digest?: boolean;
+  quiet_start?: string | null;
+  quiet_end?: string | null;
+};
 
 async function prefsFor(userIds: string[]): Promise<Map<string, Prefs>> {
   const m = new Map<string, Prefs>();
   if (!userIds.length) return m;
-  const rows = await select<Prefs[]>(`push_prefs?user_id=in.(${userIds.join(',')})&select=user_id,messages,updates,show_text,family_alerts`);
+  const rows = await select<Prefs[]>(`push_prefs?user_id=in.(${userIds.join(',')})&select=user_id,messages,updates,show_text,family_alerts,dose_alerts,digest,quiet_start,quiet_end`);
   for (const p of rows) m.set(p.user_id, p);
   return m;
 }
@@ -259,6 +269,169 @@ async function handleMedsChanged(b: Record<string, unknown>) {
   })));
 }
 
+// ---------- Giai đoạn 4: lưới an toàn, SOS, tóm tắt, nhắc hẹn ----------
+
+/** Giờ yên tĩnh của người nhận (theo múi giờ của họ). Chỉ áp cho thông báo thường, KHÔNG áp cho SOS và huyết áp rất cao. */
+function inQuiet(p: Prefs | undefined, tz: string | undefined, now = new Date()): boolean {
+  if (!p?.quiet_start || !p?.quiet_end) return false;
+  let hm: string;
+  try {
+    hm = new Intl.DateTimeFormat('en-GB', { timeZone: tz || 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+  } catch {
+    return false;
+  }
+  const cur = hm.slice(0, 5);
+  const a = p.quiet_start.slice(0, 5);
+  const b = p.quiet_end.slice(0, 5);
+  if (a === b) return false;
+  return a < b ? cur >= a && cur < b : cur >= a || cur < b; // qua nửa đêm: 22:00-06:00
+}
+
+async function tzOf(userIds: string[]): Promise<Map<string, string>> {
+  const m = new Map<string, string>();
+  if (!userIds.length) return m;
+  const rows = await select<{ id: string; timezone: string | null }[]>(`profiles?id=in.(${userIds.join(',')})&select=id,timezone`);
+  for (const r of rows) if (r.timezone) m.set(r.id, r.timezone);
+  return m;
+}
+
+/** Con đang liên kết với `owner` và có đủ các quyền trong `perms`. */
+async function carersOf(owner: string, perms: string[]): Promise<string[]> {
+  const links = await select<{ carer_id: string; perms: Record<string, boolean> }[]>(
+    `family_links?owner_id=eq.${owner}&status=eq.active&select=carer_id,perms`,
+  );
+  return links.filter((l) => perms.every((k) => l.perms?.[k] === true)).map((l) => l.carer_id);
+}
+
+const hhmm = (iso: string, tz: string) => {
+  try {
+    return new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+  } catch {
+    return '';
+  }
+};
+
+type DoseRef = { label: string; at: string };
+const dosesOf = (b: Record<string, unknown>): DoseRef[] =>
+  (Array.isArray(b.doses) ? b.doses : [])
+    .map((d) => ({ label: String((d as DoseRef).label ?? ''), at: String((d as DoseRef).at ?? '') }))
+    .filter((d) => d.label);
+
+// Quá 15 phút chưa uống: nhắc lại cho chính cha mẹ. Không bao giờ nói "uống bù".
+async function handleDoseNudge(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const doses = dosesOf(b);
+  if (!owner || !doses.length) return { skipped: 'bad_request' };
+  const tokens = await tokensOf([owner]);
+  const bags = doses.map((d) => `túi ${d.label}`).join(', ');
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: 'Đã quá giờ uống thuốc', body: `Bác chưa bấm "Đã uống" cho ${bags}. Bác uống rồi thì bấm xác nhận nhé.`, data: { type: 'meds' } },
+  })));
+}
+
+// Quá 45 phút: báo con có quyền alerts + meds_view, tôn trọng "báo khi quên thuốc" và giờ yên tĩnh.
+async function handleDoseMissed(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const doses = dosesOf(b);
+  if (!owner || !doses.length) return { skipped: 'bad_request' };
+  const carers = await carersOf(owner, ['alerts', 'meds_view']);
+  if (!carers.length) return { sent: 0 };
+  const [name, tokens, prefs, tz, ownerTz] = await Promise.all([nameOf(owner), tokensOf(carers), prefsFor(carers), tzOf(carers), tzOf([owner])]);
+  const oz = ownerTz.get(owner) ?? 'Asia/Ho_Chi_Minh';
+  const what = doses.map((d) => `túi ${d.label}${d.at ? ` (${hhmm(d.at, oz)})` : ''}`).join(', ');
+  return sendAll(
+    tokens
+      .filter((t) => prefs.get(t.user_id)?.dose_alerts !== false && !inQuiet(prefs.get(t.user_id), tz.get(t.user_id)))
+      .map((t) => ({
+        token: t.token,
+        msg: { title: `${name} chưa uống thuốc`, body: `${what} vẫn chưa uống sau 45 phút. Bấm để xem và gọi.`, data: { type: 'family_alert', owner_id: owner } },
+      })),
+  );
+}
+
+// SOS: mọi con có alerts, bất kể tuỳ chọn thông báo hay giờ yên tĩnh.
+async function handleSos(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const sosId = String(b.sos_id ?? '');
+  if (!owner || !sosId) return { skipped: 'bad_request' };
+  const carers = await carersOf(owner, ['alerts']);
+  if (!carers.length) return { sent: 0 };
+  const [name, tokens] = await Promise.all([nameOf(owner), tokensOf(carers)]);
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: `SOS: ${name} cần giúp`, body: `${name} vừa bấm nút SOS. Bấm để xem và gọi ngay.`, data: { type: 'sos', sos_id: sosId, owner_id: owner } },
+  })));
+}
+
+async function handleSosAck(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const sosId = String(b.sos_id ?? '');
+  if (!owner || !sosId) return { skipped: 'bad_request' };
+  const carers = await carersOf(owner, ['alerts']);
+  const ownerName = await nameOf(owner);
+  const data = { type: 'sos', sos_id: sosId, owner_id: owner };
+  if (b.event === 'cancelled') {
+    const tokens = await tokensOf(carers);
+    return sendAll(tokens.map((t) => ({
+      token: t.token,
+      msg: { title: `${ownerName} đã huỷ SOS`, body: 'Bấm nhầm hoặc đã ổn. Bạn vẫn có thể gọi hỏi thăm.', data },
+    })));
+  }
+  const carer = String(b.carer_id ?? '');
+  if (!carer) return { skipped: 'bad_request' };
+  const carerName = await nameOf(carer);
+  const others = carers.filter((c) => c !== carer);
+  const [carerTokens, ownerTokens] = await Promise.all([tokensOf(others), tokensOf([owner])]);
+  return sendAll([
+    ...carerTokens.map((t) => ({
+      token: t.token,
+      msg: { title: `${carerName} đã nhận SOS của ${ownerName}`, body: 'Đã có người nhận, bạn không cần gọi trùng.', data },
+    })),
+    ...ownerTokens.map((t) => ({
+      token: t.token,
+      msg: { title: `${carerName} đã nhận được tin của bác`, body: `${carerName} sẽ liên lạc với bác ngay.`, data },
+    })),
+  ]);
+}
+
+// Tóm tắt cuối ngày: chỉ con đã bật, không gửi trong giờ yên tĩnh.
+async function handleDigest(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const text = String(b.text ?? '');
+  if (!owner || !text) return { skipped: 'bad_request' };
+  const carers = await carersOf(owner, ['alerts']);
+  if (!carers.length) return { sent: 0 };
+  const [name, tokens, prefs, tz] = await Promise.all([nameOf(owner), tokensOf(carers), prefsFor(carers), tzOf(carers)]);
+  return sendAll(
+    tokens
+      .filter((t) => prefs.get(t.user_id)?.digest === true && !inQuiet(prefs.get(t.user_id), tz.get(t.user_id)))
+      .map((t) => ({ token: t.token, msg: { title: `${name} hôm nay`, body: text, data: { type: 'family_alert', owner_id: owner } } })),
+  );
+}
+
+// Sắp hết túi / sắp tái khám: cho cha mẹ và con có meds_view.
+async function handleMedReminder(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  if (!owner) return { skipped: 'bad_request' };
+  const title = String(b.title ?? 'đơn thuốc');
+  const recheck = b.kind === 'recheck';
+  const carers = await carersOf(owner, ['meds_view']);
+  const [name, ownerTokens, carerTokens, prefs, tz] = await Promise.all([nameOf(owner), tokensOf([owner]), tokensOf(carers), prefsFor(carers), tzOf(carers)]);
+  const ownerMsg: Msg = recheck
+    ? { title: 'Sắp đến ngày tái khám', body: `Còn 2 ngày nữa là đến hẹn tái khám (${title}). Bác nhớ đi khám nhé.`, data: { type: 'meds' } }
+    : { title: 'Sắp hết thuốc', body: `${title}: còn 3 túi nữa là hết. Bác nhờ con hoặc đến nhà thuốc lấy thêm nhé.`, data: { type: 'meds' } };
+  const carerMsg: Msg = recheck
+    ? { title: `${name} sắp đến ngày tái khám`, body: `Còn 2 ngày nữa (${title}).`, data: { type: 'family_alert', owner_id: owner } }
+    : { title: `${name} sắp hết thuốc`, body: `${title}: còn 3 túi.`, data: { type: 'family_alert', owner_id: owner } };
+  return sendAll([
+    ...ownerTokens.map((t) => ({ token: t.token, msg: ownerMsg })),
+    ...carerTokens
+      .filter((t) => prefs.get(t.user_id)?.dose_alerts !== false && !inQuiet(prefs.get(t.user_id), tz.get(t.user_id)))
+      .map((t) => ({ token: t.token, msg: carerMsg })),
+  ]);
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method', { status: 405 });
   if (!PUSH_SECRET || req.headers.get('x-push-secret') !== PUSH_SECRET) return new Response('unauthorized', { status: 401 });
@@ -271,6 +444,12 @@ Deno.serve(async (req) => {
       : b.type === 'family_link' ? await handleLink(b)
       : b.type === 'nudge' ? await handleNudge(b)
       : b.type === 'meds_changed' ? await handleMedsChanged(b)
+      : b.type === 'dose_nudge' ? await handleDoseNudge(b)
+      : b.type === 'dose_missed' ? await handleDoseMissed(b)
+      : b.type === 'sos' ? await handleSos(b)
+      : b.type === 'sos_ack' ? await handleSosAck(b)
+      : b.type === 'digest' ? await handleDigest(b)
+      : b.type === 'med_reminder' ? await handleMedReminder(b)
       : { skipped: 'type' };
     return new Response(JSON.stringify(out), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {

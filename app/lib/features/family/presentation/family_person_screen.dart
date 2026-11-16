@@ -12,6 +12,8 @@ import '../../../core/router/routes.dart';
 import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../domain/family_models.dart';
+import '../../safety/presentation/safety_providers.dart';
+import '../../safety/presentation/sos_widgets.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
 
@@ -127,6 +129,10 @@ class FamilyPersonScreen extends ConsumerWidget {
           if (link != null && link.can(FamilyPerm.medsView)) ...[
             const SizedBox(height: AppSpacing.md),
             _MedsCard(link: link),
+          ],
+          if (link != null && (link.can(FamilyPerm.health) || link.can('alerts'))) ...[
+            const SizedBox(height: AppSpacing.md),
+            _EmergencyCardTile(link: link),
           ],
           if (risk != null &&
               (risk.strokeP != null || risk.heartP != null)) ...[
@@ -432,6 +438,46 @@ class _MedsCard extends ConsumerWidget {
       style: theme.textTheme.titleSmall?.copyWith(
         color: color,
         fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+/// Thẻ y tế khẩn cấp của người thân (nhóm máu, dị ứng, liên hệ), và nút sửa nếu con có quyền sửa hồ sơ.
+class _EmergencyCardTile extends ConsumerWidget {
+  const _EmergencyCardTile({required this.link});
+
+  final FamilyLink link;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final card = ref.watch(emergencyCardProvider(link.otherId));
+    return FamCard(
+      key: const Key('person-emergency'),
+      title: 'Thẻ y tế khẩn cấp',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (card.hasError)
+            const Text('Chưa tải được thẻ.')
+          else if (!card.hasValue)
+            const SizedBox(height: 32, child: Center(child: CircularProgressIndicator()))
+          else ...[
+            EmergencyCardView(card: card.value),
+            const SizedBox(height: 10),
+            CallButtons(
+              card: card.value,
+              ownerLabel: (link.otherName ?? '').trim().isNotEmpty ? link.otherName : (link.otherUsername ?? 'người thân'),
+            ),
+          ],
+          if (link.can('profile_edit'))
+            OutlinedButton.icon(
+              key: const Key('person-emergency-edit'),
+              onPressed: () => context.push(Routes.emergencyCardFor(link.otherId)),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Điền hoặc sửa thẻ'),
+            ),
+        ],
       ),
     );
   }

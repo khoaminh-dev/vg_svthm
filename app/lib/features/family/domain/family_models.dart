@@ -142,6 +142,7 @@ class AuditEntry {
       'view_location' => '$who đã xem vị trí của bạn',
       'edit_meds' => '$who đã sửa lịch uống thuốc',
       'edit_profile' => '$who đã sửa hồ sơ sức khoẻ',
+      'edit_emergency_card' => '$who đã sửa thẻ y tế khẩn cấp',
       _ => '$who: $action',
     };
   }

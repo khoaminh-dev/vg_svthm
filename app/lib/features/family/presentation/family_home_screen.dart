@@ -11,6 +11,7 @@ import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../chat/presentation/providers/chat_controller.dart';
+import '../../safety/presentation/safety_providers.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
@@ -39,9 +40,11 @@ class FamilyHomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const _SosBanners(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
+                  ref.invalidate(openSosProvider);
                   ref.invalidate(familyLinksProvider);
                   for (final l in links) {
                     ref
@@ -281,6 +284,59 @@ class PersonCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Băng đỏ: có người thân đang bấm SOS mà chưa ai nhận.
+class _SosBanners extends ConsumerWidget {
+  const _SosBanners();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref.watch(openSosProvider).value ?? const [];
+    final links = ref.watch(watchedLinksProvider);
+    if (open.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: [
+        for (final e in open)
+          Builder(
+            builder: (context) {
+              final matches = links.where((l) => l.otherId == e.ownerId);
+              if (matches.isEmpty) return const SizedBox.shrink();
+              final l = matches.first;
+              final name = (l.otherName ?? '').trim().isNotEmpty ? l.otherName! : (l.otherUsername ?? 'Người thân');
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.md, 4, AppSpacing.md, 8),
+                child: Material(
+                  color: AppColors.levelDanger,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    key: Key('family-sos-${e.id}'),
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => context.push(Routes.sosFor(e.id)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.sos_rounded, color: Colors.white, size: 30),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '$name đang cần giúp. Bấm để xem và gọi',
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, color: Colors.white),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }

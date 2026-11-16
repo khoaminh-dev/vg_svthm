@@ -14,6 +14,9 @@ import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
 import '../../meds/presentation/meds_providers.dart';
+import '../../safety/presentation/safety_providers.dart';
+import '../../safety/presentation/sos_screen.dart';
+import '../../safety/presentation/sos_widgets.dart';
 import '../../voice/presentation/voice_controller.dart';
 
 /// Ảnh nền theo thời điểm trong ngày (ảnh CC0, nguồn ghi ở docs/CREDITS.md).
@@ -359,7 +362,12 @@ class HomeScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: AppSpacing.lg),
+                          const SizedBox(height: 10),
+                          if (user != null)
+                            SosHoldButton(
+                              onTriggered: () => _sendSos(context, ref),
+                            ),
+                          const SizedBox(height: AppSpacing.md),
                         ],
                       ),
                     ),
@@ -371,6 +379,18 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Gửi SOS rồi mở màn SOS. Mất mạng thì vẫn mở màn để bác gọi 115.
+  Future<void> _sendSos(BuildContext context, WidgetRef ref) async {
+    Analytics.track('sos_trigger');
+    String id;
+    try {
+      id = await ref.read(safetyRepositoryProvider).triggerSos();
+    } catch (_) {
+      id = sosFailedId;
+    }
+    if (context.mounted) context.push(Routes.sosFor(id));
   }
 }
 

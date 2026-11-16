@@ -262,8 +262,79 @@ class _NotificationSettings extends ConsumerWidget {
             notifier.save(prefs.copyWith(updates: v));
           },
         ),
+        if (ref.watch(watchedLinksProvider).isNotEmpty) ...[
+          SwitchListTile(
+            key: const Key('push-dose-alerts'),
+            contentPadding: pad,
+            secondary: Icon(Icons.medication_outlined, color: scheme.primary),
+            title: const Text('Báo khi người thân quên thuốc', style: titleStyle),
+            subtitle: const Text('Cũng báo khi sắp hết thuốc, sắp tái khám'),
+            value: prefs.doseAlerts,
+            onChanged: (v) {
+              Analytics.track('push_toggle', {'kind': 'dose_alerts', 'on': v});
+              notifier.save(prefs.copyWith(doseAlerts: v));
+            },
+          ),
+          SwitchListTile(
+            key: const Key('push-digest'),
+            contentPadding: pad,
+            secondary: Icon(Icons.summarize_outlined, color: scheme.primary),
+            title: const Text('Tóm tắt cuối ngày', style: titleStyle),
+            subtitle: const Text('Khoảng 20:00: huyết áp và số cữ thuốc đã uống'),
+            value: prefs.digest,
+            onChanged: (v) {
+              Analytics.track('push_toggle', {'kind': 'digest', 'on': v});
+              notifier.save(prefs.copyWith(digest: v));
+            },
+          ),
+          ListTile(
+            key: const Key('push-quiet'),
+            contentPadding: pad,
+            minTileHeight: 64,
+            leading: Icon(Icons.bedtime_outlined, color: scheme.primary),
+            title: const Text('Giờ yên tĩnh', style: titleStyle),
+            subtitle: Text(
+              prefs.hasQuiet
+                  ? '${prefs.quietStart} đến ${prefs.quietEnd}. SOS và huyết áp rất cao vẫn báo.'
+                  : 'Không dùng. Chạm để chọn giờ không muốn bị báo.',
+            ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _pickQuiet(context, prefs, notifier),
+          ),
+        ],
       ],
     );
+  }
+
+  Future<void> _pickQuiet(BuildContext context, PushPrefs prefs, PushPrefsNotifier notifier) async {
+    TimeOfDay parse(String? s, TimeOfDay d) {
+      if (s == null) return d;
+      final p = s.split(':');
+      return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+    }
+
+    String fmt(TimeOfDay t) =>
+        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    Widget h24(BuildContext c, Widget? w) => MediaQuery(
+      data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true),
+      child: w!,
+    );
+    final start = await showTimePicker(
+      context: context,
+      helpText: 'Bắt đầu yên tĩnh từ',
+      initialTime: parse(prefs.quietStart, const TimeOfDay(hour: 22, minute: 0)),
+      builder: h24,
+    );
+    if (start == null || !context.mounted) return;
+    final end = await showTimePicker(
+      context: context,
+      helpText: 'Yên tĩnh đến',
+      initialTime: parse(prefs.quietEnd, const TimeOfDay(hour: 6, minute: 0)),
+      builder: h24,
+    );
+    if (end == null) return;
+    Analytics.track('push_quiet_set');
+    notifier.save(prefs.copyWith(quiet: (start: fmt(start), end: fmt(end))));
   }
 }
 
@@ -293,6 +364,18 @@ class _FamilySettings extends ConsumerWidget {
           ),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => context.push(Routes.familyInvite),
+        ),
+        ListTile(
+          key: const Key('profile-emergency-card'),
+          minTileHeight: 64,
+          leading: Icon(Icons.medical_information_outlined, color: scheme.primary),
+          title: const Text('Thẻ y tế khẩn cấp', style: titleStyle),
+          subtitle: const Text('Nhóm máu, dị ứng, người liên hệ. Hiện khi bấm SOS'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            final me = ref.read(currentUserProvider)?.id;
+            if (me != null) context.push(Routes.emergencyCardFor(me));
+          },
         ),
         ListTile(
           key: const Key('profile-join'),

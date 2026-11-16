@@ -416,4 +416,37 @@ Lịch hẹn khám tổng quát, nhật ký triệu chứng và ghi chú, báo c
 | 1g | Xong | Nhật ký gia đình (`family_audit`) và thông báo liên kết |
 | 2 | Xong (1.0.19) | Thuốc nhập tay, báo thức cục bộ (đã thử kêu đúng giờ trên emulator, bản release chạy tốt), con xem tuân thủ. Chưa: nhắc sắp hết, thông báo đẩy dự phòng khi báo thức không kêu |
 | 3 | Xong (1.0.20), chưa thử với đơn thật | Chụp ảnh nhập thuốc: ML Kit trên máy, che thông tin cá nhân, `api/ocr.ts` chế độ `med_text` (không phải Edge Function: khoá mô hình nằm ở biến môi trường Vercel, không ở `provider_keys`), kiểm chứng bằng chứng ở máy chủ, màn kiểm tra rồi mới lưu. **Chưa đo độ đúng**: cần 10-20 đơn thật đã che tên. Chưa có: từ điển tên thuốc |
-| 4-5 | Chưa | |
+| 4 | Xong (1.0.21), chưa thử trên máy thật | Migration `0026`, kiểm thử `safety_rls.sql` (đạt). Lưới an toàn 15/45 phút, SOS (giữ 3 giây, nhận, huỷ), thẻ y tế khẩn cấp, giờ yên tĩnh, tóm tắt cuối ngày, nhắc sắp hết/tái khám. Chưa: vị trí kèm SOS, SMS, nhận SOS khi con tắt hẳn thông báo của máy |
+| 5 | Chưa | Bản đồ |
+
+## 16. Kế hoạch chi tiết giai đoạn 4 (lưới an toàn, SOS, chất lượng thông báo)
+
+Quyết định đã chọn (không hỏi lại): không gửi SMS; SOS chưa kèm vị trí (vị trí làm ở giai đoạn 5, cột `lat/lng` đã chừa sẵn); giữ nút SOS 3 giây; con nhận SOS không cần mở khoá thêm gì; mọi việc chạy bằng pg_cron + hàm SQL, **không thêm Edge Function mới** (hàm `push` có sẵn thêm các loại thông báo).
+
+### 16.1 Lưới an toàn thuốc (máy chủ)
+| Điều kiện | Việc làm |
+|---|---|
+| `pending`, quá giờ 15 phút, `escalation = 0`, không đang hoãn | Gửi cha mẹ "Đã quá giờ uống thuốc" (không bao giờ nói uống bù); `escalation = 1` |
+| `pending`, quá giờ 45 phút, `escalation < 2`, còn trong cửa sổ | Gửi mọi con có `alerts` + `meds_view` (bỏ qua ai tắt "báo khi quên thuốc" hoặc đang trong giờ yên tĩnh); `escalation = 2` |
+| Nhiều cữ cùng quá hạn một lượt | Gộp thành một thông báo cho mỗi người (chống dồn dập) |
+Hàm `meds_escalate()` chạy mỗi phút (pg_cron), dùng chỉ mục từng phần `dose_events_pending_idx`. Bấm "Nhắc lại sau 15 phút" đặt `escalation = 0` nên được nhắc lại đúng một lần nữa.
+
+### 16.2 SOS
+- Bảng `sos_events` (chủ, thời điểm, `lat/lng` rỗng, `open|handled`, người nhận). RLS: chủ và con có `alerts` xem; **ghi chỉ qua hàm**.
+- `trigger_sos()`: chủ gọi; trong 2 phút chỉ có một SOS mở (bấm lại không gửi lại). Đẩy tới mọi con có `alerts`, **bỏ qua giờ yên tĩnh và tuỳ chọn thông báo**.
+- `ack_sos(id)`: con đầu tiên bấm "Tôi đã nhận" thì những người còn lại và cha mẹ thấy "Minh đã nhận".
+- `cancel_sos(id)`: chủ huỷ khi bấm nhầm ("Tôi ổn, bấm nhầm"); các con nhận "đã huỷ".
+- App cha mẹ: nút đỏ trên Trang chủ, **giữ 3 giây** (vòng tiến trình, rung, không bấm thoáng qua được). Sau khi gửi: màn SOS với nút **Gọi 115**, nút gọi người thân trong thẻ khẩn cấp, danh sách con đã được báo, trạng thái "đã nhận", nút "Tôi ổn, bấm nhầm". Chưa có người thân liên kết thì vẫn hiện màn này và nói rõ "chưa báo cho ai", để bác gọi 115.
+- App con: thông báo `sos` mở màn SOS của người đó (thẻ khẩn cấp, thuốc đang dùng, nút Gọi, "Tôi đã nhận"); trang Gia đình có băng đỏ khi có SOS đang mở.
+
+### 16.3 Thẻ y tế khẩn cấp
+Bảng `emergency_cards` (nhóm máu, dị ứng, bệnh nền, số điện thoại của bác, tối đa 3 người liên hệ, ghi chú). Chủ và con có `profile_edit` sửa được (ghi nhật ký gia đình); con có `health` hoặc `alerts` xem được. Hiện khi bấm SOS và ở trang chi tiết người thân. Thuốc đang dùng lấy từ lịch thuốc, không nhập lại. App **không** suy luận gì từ thẻ này.
+
+### 16.4 Chất lượng thông báo
+- `push_prefs` thêm: `dose_alerts` (mặc định bật), `digest` (mặc định tắt), `quiet_start`, `quiet_end` (theo múi giờ của người nhận). Giờ yên tĩnh áp cho "quên thuốc", tóm tắt, nhắc hẹn; **không** áp cho SOS và huyết áp từ 180/120.
+- Tóm tắt cuối ngày: 20:00-20:30 giờ của cha mẹ, một lần mỗi ngày, "Hôm nay: 128/80, uống 3/3 cữ" (hoặc "chưa đo huyết áp").
+- Nhắc sắp hết túi (còn đúng 3 túi) và nhắc tái khám (còn 2 ngày): 09:00-09:30 giờ của cha mẹ, gửi cha mẹ và các con có `meds_view`. Bảng `notice_log` chống gửi trùng.
+- Cài đặt trong Hồ sơ: công tắc "Báo khi bác quên thuốc", "Tóm tắt cuối ngày", chọn giờ yên tĩnh.
+
+### 16.5 Kiểm thử
+`supabase/tests/safety_rls.sql` (SOS mở một lần, nhận chỉ một người, người ngoài không thấy, thẻ khẩn cấp theo quyền, `meds_escalate` đúng mốc 15 và 45 phút kể cả khi hoãn); test Flutter cho nút giữ 3 giây, màn SOS, cài đặt.

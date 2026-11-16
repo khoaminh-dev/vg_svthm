@@ -33,6 +33,8 @@ import '../../features/health/presentation/screens/health_history_screen.dart';
 import '../../features/meds/domain/meds_models.dart';
 import '../../features/meds/presentation/med_plan_edit_screen.dart';
 import '../../features/meds/presentation/med_scan_screen.dart';
+import '../../features/safety/presentation/emergency_card_screen.dart';
+import '../../features/safety/presentation/sos_screen.dart';
 import '../../features/meds/presentation/med_plan_list_screen.dart';
 import '../../features/health/presentation/screens/health_setup_screen.dart';
 
@@ -122,6 +124,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ownerId: s.pathParameters['owner']!,
           existing: s.extra is MedPlan ? s.extra as MedPlan : null,
         ),
+      ),
+      GoRoute(
+        path: Routes.sos,
+        builder: (_, s) => SosScreen(sosId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: Routes.emergencyCard,
+        builder: (_, s) =>
+            EmergencyCardScreen(ownerId: s.pathParameters['owner']!),
       ),
       GoRoute(
         path: Routes.medsScan,

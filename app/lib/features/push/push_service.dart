@@ -109,6 +109,11 @@ class PushService {
             : null;
       case 'nudge':
         return Routes.measure;
+      case 'sos':
+        final sos = data['sos_id'];
+        return sos is String && sos.isNotEmpty ? Routes.sosFor(sos) : null;
+      case 'meds':
+        return Routes.bp;
       default:
         return null;
     }
@@ -133,18 +138,56 @@ class PushPrefs {
     this.messages = true,
     this.updates = true,
     this.showText = false,
+    this.familyAlerts = true,
+    this.doseAlerts = true,
+    this.digest = false,
+    this.quietStart,
+    this.quietEnd,
   });
 
   final bool messages;
   final bool updates;
   final bool showText;
 
-  PushPrefs copyWith({bool? messages, bool? updates, bool? showText}) =>
-      PushPrefs(
-        messages: messages ?? this.messages,
-        updates: updates ?? this.updates,
-        showText: showText ?? this.showText,
-      );
+  /// Cảnh báo về người thân (huyết áp cao, liên kết...).
+  final bool familyAlerts;
+
+  /// Báo khi người thân quên thuốc, sắp hết thuốc, sắp tái khám.
+  final bool doseAlerts;
+
+  /// Tóm tắt cuối ngày về người thân.
+  final bool digest;
+
+  /// Giờ yên tĩnh "HH:MM" (áp cho thông báo thường, không áp cho SOS và huyết áp rất cao).
+  final String? quietStart;
+  final String? quietEnd;
+
+  bool get hasQuiet => quietStart != null && quietEnd != null;
+
+  PushPrefs copyWith({
+    bool? messages,
+    bool? updates,
+    bool? showText,
+    bool? familyAlerts,
+    bool? doseAlerts,
+    bool? digest,
+    ({String? start, String? end})? quiet,
+  }) => PushPrefs(
+    messages: messages ?? this.messages,
+    updates: updates ?? this.updates,
+    showText: showText ?? this.showText,
+    familyAlerts: familyAlerts ?? this.familyAlerts,
+    doseAlerts: doseAlerts ?? this.doseAlerts,
+    digest: digest ?? this.digest,
+    quietStart: quiet != null ? quiet.start : quietStart,
+    quietEnd: quiet != null ? quiet.end : quietEnd,
+  );
+}
+
+/// "22:00:00" -> "22:00".
+String? _hm(Object? v) {
+  if (v is! String || v.length < 5) return null;
+  return v.substring(0, 5);
 }
 
 class PushPrefsNotifier extends AsyncNotifier<PushPrefs> {
@@ -156,7 +199,7 @@ class PushPrefsNotifier extends AsyncNotifier<PushPrefs> {
       final row = await ref
           .read(supabaseClientProvider)
           .from('push_prefs')
-          .select('messages, updates, show_text')
+          .select('messages, updates, show_text, family_alerts, dose_alerts, digest, quiet_start, quiet_end')
           .eq('user_id', uid)
           .maybeSingle();
       if (row == null) return const PushPrefs();
@@ -164,6 +207,11 @@ class PushPrefsNotifier extends AsyncNotifier<PushPrefs> {
         messages: row['messages'] as bool? ?? true,
         updates: row['updates'] as bool? ?? true,
         showText: row['show_text'] as bool? ?? false,
+        familyAlerts: row['family_alerts'] as bool? ?? true,
+        doseAlerts: row['dose_alerts'] as bool? ?? true,
+        digest: row['digest'] as bool? ?? false,
+        quietStart: _hm(row['quiet_start']),
+        quietEnd: _hm(row['quiet_end']),
       );
     } catch (_) {
       return const PushPrefs();
@@ -181,6 +229,11 @@ class PushPrefsNotifier extends AsyncNotifier<PushPrefs> {
         'messages': next.messages,
         'updates': next.updates,
         'show_text': next.showText,
+        'family_alerts': next.familyAlerts,
+        'dose_alerts': next.doseAlerts,
+        'digest': next.digest,
+        'quiet_start': next.quietStart,
+        'quiet_end': next.quietEnd,
       });
     } catch (_) {
       state = before; // không lưu được thì trả công tắc về như cũ

@@ -25,6 +25,10 @@ abstract final class Routes {
   static const familyPerson = '/family/person/:id';
   static const medsPlans = '/meds/plans/:owner';
   static const medsPlan = '/meds/plan/:owner';
+  static const sos = '/sos/:id';
+  static String sosFor(String id) => '/sos/$id';
+  static const emergencyCard = '/emergency/:owner';
+  static String emergencyCardFor(String owner) => '/emergency/$owner';
   static const medsScan = '/meds/scan/:owner';
   static String medsScanFor(String owner) => '/meds/scan/$owner';
   static String medsPlanListFor(String owner) => '/meds/plans/$owner';
