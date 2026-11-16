@@ -7,7 +7,7 @@ import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dar
 import 'package:vg_svthm/features/auth/presentation/screens/register_screen.dart';
 import 'package:vg_svthm/features/family/presentation/family_invite_screen.dart';
 import 'package:vg_svthm/features/family/presentation/family_providers.dart';
-import 'package:vg_svthm/features/home/presentation/home_screen.dart';
+import 'package:vg_svthm/features/home/presentation/elder_home_screen.dart';
 
 import 'auth_flow_test.dart' show FakeAuthRepository, settle;
 
@@ -37,7 +37,7 @@ void main() {
     await settle(t);
     expect(repo.lastRole, AppRole.elder);
     expect(repo.lastForParent, false);
-    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(ElderHomeScreen), findsOneWidget);
     // Có vai trò rồi thì không hỏi lại.
     expect(find.byKey(const Key('choose-role')), findsNothing);
   });
@@ -61,7 +61,7 @@ void main() {
     expect(repo.lastForParent, true);
     // Đã tới màn mời (route /family/invite): có nút/ô tạo mã mời.
     expect(find.byType(FamilyInviteScreen), findsOneWidget);
-    expect(find.byType(HomeScreen), findsNothing);
+    expect(find.byType(ElderHomeScreen), findsNothing);
   });
 
   testWidgets('đăng ký: bắt buộc chọn vai trò', (t) async {

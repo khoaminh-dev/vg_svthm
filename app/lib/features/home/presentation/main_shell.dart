@@ -6,6 +6,8 @@ import '../../../core/analytics/analytics.dart';
 import '../../../core/router/routes.dart';
 import '../../../shared/widgets/pill_nav_bar.dart';
 import '../../../shared/widgets/vy_button.dart';
+import '../../auth/domain/auth_user.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
 import '../../family/presentation/family_providers.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../../voice/presentation/voice_controller.dart';
@@ -50,7 +52,28 @@ class MainShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final watch = ref.watch(effectiveWatchModeProvider);
+    final role = ref.watch(currentUserProvider.select((u) => u?.role));
+    if (role == AppRole.elder) {
+      // Người cao tuổi: không thanh điều hướng; ở ngoài trang chủ có thanh "Về trang chủ" thật to (và nút Vy).
+      return MedsSyncHost(
+        child: Scaffold(
+          body: child,
+          bottomNavigationBar: path == Routes.home
+              ? null
+              : _BackHomeBar(
+                  onHome: () {
+                    Analytics.track('elder_back_home');
+                    context.go(Routes.home);
+                  },
+                  onVy: () {
+                    Analytics.track('open_vy_from_nav');
+                    ref.read(voiceControllerProvider.notifier).toggle();
+                  },
+                ),
+        ),
+      );
+    }
+    final watch = role == AppRole.family || ref.watch(effectiveWatchModeProvider);
     final shown = watch ? [watchFirst, ...items.skip(1)] : items;
     final found = Routes.tabs.indexOf(path);
     final index = found < 0 ? 0 : found;
@@ -75,6 +98,45 @@ class MainShell extends ConsumerWidget {
                     ref.read(voiceControllerProvider.notifier).toggle();
                   },
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Thanh dưới của người cao tuổi: một nút "Về trang chủ" rất to và nút Vy.
+class _BackHomeBar extends StatelessWidget {
+  const _BackHomeBar({required this.onHome, required this.onVy});
+
+  final VoidCallback onHome;
+  final VoidCallback onVy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 8,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 60,
+                  child: FilledButton.icon(
+                    key: const Key('elder-back-home'),
+                    onPressed: onHome,
+                    icon: const Icon(Icons.home_rounded, size: 28),
+                    label: const Text('Về trang chủ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              SizedBox(width: 60, height: 60, child: Center(child: VyButton(size: 56, onTap: onVy))),
+            ],
+          ),
         ),
       ),
     );

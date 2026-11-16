@@ -10,10 +10,9 @@ import '../domain/safety_models.dart';
 
 /// Gọi điện (ghi đè được khi kiểm thử).
 final phoneLauncherProvider = Provider<Future<void> Function(String)>(
-  (ref) =>
-      (String number) async {
-        await launchUrl(Uri.parse('tel:${dialable(number)}'));
-      },
+  (ref) => (String number) async {
+    await launchUrl(Uri.parse('tel:${dialable(number)}'));
+  },
 );
 
 /// Nút SOS phải GIỮ đủ [hold] mới gửi, để không bấm thoáng qua hay bấm nhầm. Có vòng tiến trình và rung.
@@ -74,7 +73,9 @@ class _SosHoldButtonState extends State<SosHoldButton>
           ),
           FilledButton(
             key: const Key('sos-confirm'),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.levelDanger),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.levelDanger,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Gọi SOS'),
           ),
@@ -123,24 +124,31 @@ class _SosHoldButtonState extends State<SosHoldButton>
                     ),
                   ),
                   Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.sos_rounded, color: Colors.white, size: 26),
-                        const SizedBox(width: 10),
-                        Text(
-                          _c.isAnimating
-                              ? 'Giữ thêm ${(widget.hold.inMilliseconds * (1 - _c.value) / 1000).ceil()} giây…'
-                              : _hint
-                              ? 'Giữ đủ 3 giây để gọi SOS'
-                              : 'Giữ 3 giây để gọi SOS',
-                          style: const TextStyle(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.sos_rounded,
                             color: Colors.white,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
+                            size: 26,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 10),
+                          Text(
+                            _c.isAnimating
+                                ? 'Giữ thêm ${(widget.hold.inMilliseconds * (1 - _c.value) / 1000).ceil()} giây…'
+                                : _hint
+                                ? 'Giữ đủ 3 giây để gọi SOS'
+                                : 'Giữ 3 giây để gọi SOS',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -179,10 +187,20 @@ class EmergencyCardView extends ConsumerWidget {
               children: [
                 SizedBox(
                   width: 96,
-                  child: Text(k, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted)),
+                  child: Text(
+                    k,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                 ),
                 Expanded(
-                  child: Text(v, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    v,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -199,17 +217,27 @@ class EmergencyCardView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Thẻ y tế khẩn cấp', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            'Thẻ y tế khẩn cấp',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           if (c == null || c.isEmpty)
-            Text('Chưa điền thẻ y tế khẩn cấp.', key: const Key('emergency-empty'), style: theme.textTheme.bodyLarge)
+            Text(
+              'Chưa điền thẻ y tế khẩn cấp.',
+              key: const Key('emergency-empty'),
+              style: theme.textTheme.bodyLarge,
+            )
           else ...[
             row('Nhóm máu', c.bloodType),
             row('Dị ứng', c.allergies),
             row('Bệnh nền', c.conditions),
             row('Ghi chú', c.note),
           ],
-          if (medsTexts.isNotEmpty) row('Thuốc đang dùng', medsTexts.join('; ')),
+          if (medsTexts.isNotEmpty)
+            row('Thuốc đang dùng', medsTexts.join('; ')),
         ],
       ),
     );

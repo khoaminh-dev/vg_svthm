@@ -9,7 +9,7 @@ import 'package:vg_svthm/features/auth/domain/auth_user.dart';
 import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:vg_svthm/features/auth/presentation/screens/complete_profile_screen.dart';
 import 'package:vg_svthm/features/auth/presentation/screens/login_screen.dart';
-import 'package:vg_svthm/features/home/presentation/home_screen.dart';
+import 'package:vg_svthm/features/home/presentation/elder_home_screen.dart';
 
 class FakeAuthRepository implements AuthRepository {
   final _controller = StreamController<AuthChange>.broadcast();
@@ -100,8 +100,8 @@ void main() {
 
     await repo.signIn(email: 'a@b.co', password: '12345678');
     await settle(tester);
-    expect(find.byType(HomeScreen), findsOneWidget);
-    expect(find.text('Chạm để nói với Vy'), findsOneWidget);
+    expect(find.byType(ElderHomeScreen), findsOneWidget);
+    expect(find.text('Nói với Vy'), findsOneWidget);
 
     await repo.signOut();
     await settle(tester);
@@ -128,6 +128,6 @@ void main() {
     expect(find.byKey(const Key('choose-role')), findsOneWidget);
     await tester.tap(find.byKey(const Key('role-continue')));
     await settle(tester);
-    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(ElderHomeScreen), findsOneWidget);
   });
 }
