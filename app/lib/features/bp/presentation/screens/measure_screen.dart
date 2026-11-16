@@ -9,7 +9,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../shared/widgets/status_chip.dart';
+import '../../../../core/analytics/analytics.dart';
+import '../../../health/data/advice_speaker.dart';
+import '../../../health/presentation/widgets/risk_charts.dart';
 import '../../../health/domain/health_models.dart';
 import '../../../health/presentation/providers/health_providers.dart';
 import '../../../health/presentation/risk_texts.dart';
@@ -92,9 +94,12 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
     }
   }
 
+  late final AdviceSpeaker _speaker = ref.read(adviceSpeakerProvider);
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _speaker.stop();
     _cam?.dispose();
     super.dispose();
   }
@@ -285,7 +290,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
               child: switch (m.step) {
-                MeasureStep.done => _ResultPanel(m: m),
+                MeasureStep.done => MeasureResultPanel(m: m),
                 MeasureStep.failed => const _RetakeButton(),
                 _ => _Controls(
                   enabled: live && c != null && c.value.isInitialized,
@@ -444,16 +449,33 @@ class _Controls extends StatelessWidget {
   }
 }
 
-/// Kết quả: số lớn, mức bằng chữ, nhận xét, đã tự lưu.
-class _ResultPanel extends ConsumerWidget {
-  const _ResultPanel({required this.m});
+/// Kết quả đo: số lớn, biểu đồ cột mức huyết áp (kiểu sóng wifi), đã tự lưu. Lời khuyên do máy đọc,
+/// muốn nghe lại hoặc xem chữ thì bấm nút nhỏ. Nguy cơ hiện bằng vòng tròn % theo từng vấn đề.
+class MeasureResultPanel extends ConsumerStatefulWidget {
+  const MeasureResultPanel({super.key, required this.m});
   final MeasureState m;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MeasureResultPanel> createState() => _MeasureResultPanelState();
+}
+
+class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
+  bool _showAdvice = false;
+
+  /// Câu máy đọc: lời khuyên theo số đo, rồi nguy cơ nếu từ "cần chú ý" trở lên.
+  String _spoken(RiskResult? risk) {
+    final advice = widget.m.advice ?? '';
+    if (risk == null || !risk.level.worthMentioning) return advice;
+    return '$advice ${riskSpokenDetailed(risk)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.m;
     final r = m.reading!;
     final text = Theme.of(context).textTheme;
     final risk = ref.watch(riskRunnerProvider).value;
+    final showRisk = risk != null && risk.level.worthMentioning;
     return Container(
       key: const Key('measure-result'),
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -490,50 +512,123 @@ class _ResultPanel extends ConsumerWidget {
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              StatusChip(label: r.category.label, color: r.category.color),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.check_circle_rounded,
-                size: 18,
-                color: AppColors.levelGood,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                m.saving ? 'Đang lưu…' : 'Đã tự lưu',
-                style: text.bodyMedium,
+              BpBars(category: r.category),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mức huyết áp',
+                      style: text.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                    Text(
+                      r.category.label,
+                      key: const Key('bp-category'),
+                      style: text.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: r.category.color,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          size: 18,
+                          color: AppColors.levelGood,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          m.saving ? 'Đang lưu…' : 'Đã tự lưu',
+                          style: text.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(m.advice ?? '', style: text.bodyLarge),
-          // Mức thấp thì im lặng (chỉ chấm nhỏ ở Trang chủ); từ "cần chú ý" trở lên mới nói ngay tại đây.
-          if (risk != null && risk.level.worthMentioning) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('advice-replay'),
+                    onPressed: () {
+                      Analytics.track('measure_advice_replay');
+                      ref.read(adviceSpeakerProvider).replace(_spoken(risk));
+                    },
+                    icon: const Icon(Icons.volume_up_rounded),
+                    label: const Text('Nghe lại'),
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const Key('advice-show'),
+                onPressed: () => setState(() => _showAdvice = !_showAdvice),
+                child: Text(_showAdvice ? 'Ẩn chữ' : 'Xem chữ'),
+              ),
+            ],
+          ),
+          if (_showAdvice) ...[
+            Text(
+              key: const Key('advice-text'),
+              '${m.advice ?? ''}${showRisk ? '\n\n${riskSentence(risk.level)}' : ''}',
+              style: text.bodyLarge,
+            ),
             const SizedBox(height: AppSpacing.sm),
+          ],
+          // Mức thấp thì im lặng (chỉ chấm nhỏ ở Trang chủ); từ "cần chú ý" trở lên mới hiện ngay tại đây.
+          if (showRisk) ...[
+            const SizedBox(height: AppSpacing.xs),
             Container(
               key: const Key('measure-risk'),
+              width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                color: risk.level.color.withValues(alpha: 0.12),
+                color: risk.level.color.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Nguy cơ: ${risk.level.label}',
+                    'Nguy cơ sức khoẻ',
                     style: text.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: risk.level.color,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(riskSentence(risk.level), style: text.bodyLarge),
+                  const SizedBox(height: AppSpacing.sm),
+                  RiskDonuts(result: risk, size: 92),
+                  if (risk.reasons.contains('hypertension')) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Center(
+                      child: Chip(
+                        key: const Key('risk-tag-hypertension'),
+                        avatar: Icon(
+                          Icons.monitor_heart_outlined,
+                          size: 18,
+                          color: risk.level.color,
+                        ),
+                        label: const Text('Tăng huyết áp'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
-                    'Bản thử nghiệm, chỉ để tham khảo.',
+                    risk.ageOutOfRange
+                        ? '* $ageNote Bản thử nghiệm, chỉ để tham khảo.'
+                        : 'Ước tính từ hồ sơ và các lần đo. Bản thử nghiệm, chỉ để tham khảo.',
                     style: text.bodySmall?.copyWith(color: AppColors.textMuted),
                   ),
                   if (risk.level == RiskLevel.urgent) ...[

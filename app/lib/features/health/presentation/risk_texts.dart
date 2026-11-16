@@ -68,6 +68,19 @@ String riskSpoken(RiskLevel l) => switch (l) {
   RiskLevel.urgent => 'Huyết áp của bác đang rất cao. Nếu bác đau ngực, yếu liệt hoặc nói khó, hãy gọi 115 ngay.',
 };
 
+/// Câu máy đọc về nguy cơ: nêu tên vấn đề ở mức đáng chú ý rồi lời khuyên; không đọc số %.
+String riskSpokenDetailed(RiskResult r) {
+  if (r.level == RiskLevel.urgent) return riskSpoken(r.level);
+  String word(RiskLevel l) => l == RiskLevel.attention ? 'cần chú ý' : 'cao';
+  final parts = <String>[
+    if (r.strokeLevel.worthMentioning)
+      'Nguy cơ đột quỵ ở mức ${word(r.strokeLevel)}.',
+    if (r.heartLevel.worthMentioning)
+      'Nguy cơ tim mạch ở mức ${word(r.heartLevel)}.',
+  ];
+  return [...parts, riskSpoken(r.level)].join(' ');
+}
+
 String reasonText(String code, RiskResult r) => switch (code) {
   'bp_high_now' =>
     'Huyết áp lần đo gần nhất khá cao (${r.systolic}/${r.diastolic})',

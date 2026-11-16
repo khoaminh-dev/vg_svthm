@@ -11,6 +11,7 @@ import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../health/data/advice_speaker.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
 class ProfileScreen extends ConsumerWidget {
@@ -125,6 +126,29 @@ class ProfileScreen extends ConsumerWidget {
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () => context.push(Routes.healthProfile),
                       ),
+                    ),
+                    SwitchListTile(
+                      key: const Key('profile-speak'),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      secondary: Icon(
+                        Icons.volume_up_outlined,
+                        color: scheme.primary,
+                      ),
+                      title: const Text(
+                        'Đọc lời khuyên sau khi đo',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 17,
+                        ),
+                      ),
+                      subtitle: const Text('Máy tự đọc to cho bác nghe'),
+                      value: ref.watch(speakAdviceProvider).value ?? true,
+                      onChanged: (v) {
+                        Analytics.track('speak_advice_toggle', {'on': v});
+                        ref.read(speakAdviceProvider.notifier).set(v);
+                      },
                     ),
                   ],
                 ),

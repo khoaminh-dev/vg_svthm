@@ -12,6 +12,7 @@ import '../../../bp/presentation/providers/bp_providers.dart';
 import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
 import '../risk_texts.dart';
+import 'risk_charts.dart';
 
 Future<void> callEmergency() => launchUrl(Uri.parse('tel:115'));
 
@@ -235,7 +236,10 @@ class _RiskViewState extends ConsumerState<RiskView> {
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
-              _LevelBar(level: lv),
+              if (r.strokeP != null || r.heartP != null)
+                RiskDonuts(result: r)
+              else
+                _LevelBar(level: lv),
               const SizedBox(height: AppSpacing.md),
               Text(
                 riskSentence(lv),

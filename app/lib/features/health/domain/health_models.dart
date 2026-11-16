@@ -106,7 +106,17 @@ class RiskResult {
     this.ageOutOfRange = false,
     this.hypertensionDerived = false,
     this.id,
+    this.strokeP,
+    this.strokeLevel = RiskLevel.low,
+    this.heartP,
+    this.heartLevel = RiskLevel.low,
   });
+
+  /// Xác suất ước tính (0..1) và mức của từng mô hình; null nếu bản ghi cũ không có.
+  final double? strokeP;
+  final RiskLevel strokeLevel;
+  final double? heartP;
+  final RiskLevel heartLevel;
 
   /// Id lần đánh giá (bảng `health_assessments`), dùng để gắn phản hồi của người dùng.
   final String? id;
@@ -144,6 +154,10 @@ class RiskResult {
       ageOutOfRange: m['ageOutOfRange'] as bool? ?? false,
       hypertensionDerived: m['hypertensionDerived'] as bool? ?? false,
       id: id ?? m['id'] as String?,
+      strokeP: ((m['stroke'] as Map?)?['p'] as num?)?.toDouble(),
+      strokeLevel: RiskLevel.of((m['stroke'] as Map?)?['level'] as String?),
+      heartP: ((m['heart'] as Map?)?['p'] as num?)?.toDouble(),
+      heartLevel: RiskLevel.of((m['heart'] as Map?)?['level'] as String?),
     );
   }
 }
