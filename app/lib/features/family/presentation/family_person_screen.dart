@@ -74,7 +74,10 @@ class FamilyPersonScreen extends ConsumerWidget {
       final latest = readings.isEmpty ? null : readings.first;
       body = ListView(
         key: const Key('person-view'),
-        padding: const EdgeInsets.only(top: 4, bottom: 48),
+        padding: const EdgeInsets.only(
+          top: 4,
+          bottom: 120,
+        ), // chừa chỗ cho nút Vy nổi
         children: [
           if (status != null) _Banner(status: status),
           const SizedBox(height: AppSpacing.md),
@@ -122,7 +125,22 @@ class FamilyPersonScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.md),
             FamCard(
               title: 'Nguy cơ sức khoẻ (ước tính)',
-              child: RiskDonuts(result: risk, size: 96),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RiskDonuts(result: risk, size: 96),
+                  if (risk.ageOutOfRange) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      '* Với người trên 70 tuổi, đánh giá tim mạch có thể thấp hơn thực tế.',
+                      key: const Key('person-age-note'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
           if (readings.length >= 2) ...[

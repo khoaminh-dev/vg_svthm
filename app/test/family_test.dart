@@ -500,6 +500,7 @@ void main() {
           strokeP: 0.12,
           strokeLevel: RiskLevel.high,
           heartP: 0.25,
+          ageOutOfRange: true,
           heartLevel: RiskLevel.attention,
         ),
       );
@@ -523,6 +524,7 @@ void main() {
       expect(find.text('150/95 mmHg'), findsOneWidget);
       expect(find.textContaining('Mạch 74'), findsOneWidget);
       expect(find.byKey(const Key('person-banner')), findsOneWidget);
+      expect(find.byKey(const Key('person-age-note')), findsOneWidget);
       expect(
         find.text('Huyết áp cao hai lần liên tiếp (150/95)'),
         findsOneWidget,
