@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/update/presentation/update_gate.dart';
+import 'shared/widgets/logo_intro.dart';
 import 'features/voice/presentation/voice_overlay.dart';
 
 class App extends ConsumerWidget {
@@ -17,8 +18,10 @@ class App extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       routerConfig: ref.watch(routerProvider),
-      builder: (context, child) => UpdateGate(
-        child: VoiceOverlay(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => LogoIntro(
+        child: UpdateGate(
+          child: VoiceOverlay(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }
