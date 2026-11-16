@@ -61,6 +61,22 @@ test('cleanMedParse: thuốc bịa hoặc đoạn trích sai bị đánh none, t
   assert.equal(r.prn[0].status, 'ok');
 });
 
+test('cleanMedParse gộp các cữ cùng tên thành một túi', () => {
+  const r = cleanMedParse(
+    {
+      slots: [
+        { label: 'Sáng', meal: 'after_meal', evidence: 'Sáng: Amlodipin 5mg', items: [{ name: 'Amlodipin', evidence: 'Amlodipin 5mg x 1 viên' }] },
+        { label: 'sáng', meal: 'with_meal', evidence: 'Sáng: Metformin 500mg', items: [{ name: 'Metformin', evidence: 'Metformin 500mg x 1 viên' }] },
+        { label: 'Tối', meal: null, evidence: 'Tối: Metformin', items: [] },
+      ],
+    },
+    TEXT,
+  );
+  assert.equal(r.slots.length, 2);
+  assert.deepEqual(r.slots[0].items.map((i) => i.name), ['Amlodipin', 'Metformin']);
+  assert.equal(r.slots[0].meal, null); // hai chỉ dẫn khác nhau
+});
+
 test('cleanMedParse chịu được đầu ra rác', () => {
   for (const bad of [null, 'x', 5, [], { slots: 'a', prn: 3 }, { slots: [null, 1, {}], days: 'ba' }]) {
     const r = cleanMedParse(bad, TEXT);

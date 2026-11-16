@@ -74,7 +74,9 @@ export function checkEvidence(evidence: string, hayNorm: string): Status {
   return approxDistance(e, hayNorm) <= allowed ? 'fuzzy' : 'none';
 }
 
-const worst = (a: Status, b: Status): Status => (a === 'none' || b === 'none' ? 'none' : a === 'fuzzy' || b === 'fuzzy' ? 'fuzzy' : 'ok');
+const RANK: Record<Status, number> = { none: 0, fuzzy: 1, ok: 2 };
+
+const worst =(a: Status, b: Status): Status => (a === 'none' || b === 'none' ? 'none' : a === 'fuzzy' || b === 'fuzzy' ? 'fuzzy' : 'ok');
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
@@ -106,7 +108,16 @@ export function cleanMedParse(parsed: unknown, sourceText: string): ParsedPlan {
       const status = worst(checkEvidence(ev, hay), checkEvidence(name, hay));
       items.push({ name, strength: str(i.strength, 30) || null, qty, unit, evidence: ev, status });
     }
-    slots.push({ label, meal, evidence, status: checkEvidence(evidence, hay), items });
+    const status = checkEvidence(evidence, hay);
+    // Mô hình hay trả mỗi thuốc một cữ cùng tên ("Sáng" hai lần). Một cữ là MỘT túi, nên gộp theo tên.
+    const same = slots.find((x) => normText(x.label) === normText(label));
+    if (same) {
+      same.items.push(...items);
+      same.meal = same.meal === meal ? meal : null; // hai chỉ dẫn ăn uống khác nhau thì để trống cho người kiểm tra
+      if (RANK[status] > RANK[same.status]) same.status = status;
+      continue;
+    }
+    slots.push({ label, meal, evidence, status, items });
   }
 
   const prn: ParsedPrn[] = [];
