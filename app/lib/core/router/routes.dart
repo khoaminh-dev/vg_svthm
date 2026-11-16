@@ -25,6 +25,8 @@ abstract final class Routes {
   static const familyPerson = '/family/person/:id';
   static const medsPlans = '/meds/plans/:owner';
   static const medsPlan = '/meds/plan/:owner';
+  static const medsScan = '/meds/scan/:owner';
+  static String medsScanFor(String owner) => '/meds/scan/$owner';
   static String medsPlanListFor(String owner) => '/meds/plans/$owner';
   static String medsPlanFor(String owner, {String? planId}) =>
       '/meds/plan/$owner';

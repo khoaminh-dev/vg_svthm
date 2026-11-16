@@ -169,6 +169,15 @@ class _MedsViewState extends ConsumerState<MedsView> {
                     : () => context.push(Routes.medsPlanFor(me)),
                 child: const Text('Thêm lịch thuốc'),
               ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const Key('meds-scan'),
+                onPressed: me == null
+                    ? null
+                    : () => context.push(Routes.medsScanFor(me)),
+                icon: const Icon(Icons.photo_camera_outlined),
+                label: const Text('Chụp đơn thuốc'),
+              ),
             ],
           ),
         ),
@@ -257,6 +266,22 @@ class _MedsViewState extends ConsumerState<MedsView> {
               : () => context.push(Routes.medsPlanListFor(me)),
           icon: const Icon(Icons.edit_calendar_outlined),
           label: const Text('Xem và sửa lịch thuốc'),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          8,
+          AppSpacing.md,
+          0,
+        ),
+        child: OutlinedButton.icon(
+          key: const Key('meds-scan-more'),
+          onPressed: me == null
+              ? null
+              : () => context.push(Routes.medsScanFor(me)),
+          icon: const Icon(Icons.photo_camera_outlined),
+          label: const Text('Chụp đơn thuốc mới'),
         ),
       ),
       Padding(

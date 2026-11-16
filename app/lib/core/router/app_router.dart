@@ -32,6 +32,7 @@ import '../../features/family/presentation/home_entry.dart';
 import '../../features/health/presentation/screens/health_history_screen.dart';
 import '../../features/meds/domain/meds_models.dart';
 import '../../features/meds/presentation/med_plan_edit_screen.dart';
+import '../../features/meds/presentation/med_scan_screen.dart';
 import '../../features/meds/presentation/med_plan_list_screen.dart';
 import '../../features/health/presentation/screens/health_setup_screen.dart';
 
@@ -121,6 +122,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           ownerId: s.pathParameters['owner']!,
           existing: s.extra is MedPlan ? s.extra as MedPlan : null,
         ),
+      ),
+      GoRoute(
+        path: Routes.medsScan,
+        builder: (_, s) => MedScanScreen(ownerId: s.pathParameters['owner']!),
       ),
       GoRoute(
         path: Routes.familyJoin,

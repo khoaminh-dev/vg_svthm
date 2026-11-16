@@ -8,13 +8,34 @@ import '../../../core/router/routes.dart';
 import '../../../core/supabase/supabase_providers.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
+import 'package:image_picker/image_picker.dart';
+
 import '../data/med_alarm_service.dart';
+import '../data/med_scan_client.dart';
 import '../data/meds_repository.dart';
 import '../domain/meds_models.dart';
 
 final medsRepositoryProvider = Provider<MedsRepository>(
   (ref) => SupabaseMedsRepository(ref.watch(supabaseClientProvider)),
 );
+
+final medScanClientProvider = Provider<MedScanClient>(
+  (ref) => MedScanClient(
+    accessToken: () =>
+        ref.read(supabaseClientProvider).auth.currentSession?.accessToken,
+  ),
+);
+
+/// Chọn ảnh đơn thuốc từ camera hoặc thư viện; trả về đường dẫn tệp hoặc null nếu bỏ qua. Ghi đè được khi kiểm thử.
+final medPhotoPickerProvider =
+    Provider<Future<String?> Function({required bool camera})>(
+      (ref) =>
+          ({required bool camera}) async => (await ImagePicker().pickImage(
+            source: camera ? ImageSource.camera : ImageSource.gallery,
+            maxWidth: 2400,
+            imageQuality: 90,
+          ))?.path,
+    );
 
 final medAlarmServiceProvider = Provider<MedAlarmService>(
   (ref) => MedAlarmService(),

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
 import { requireUser, rateLimit } from './_lib/auth.js';
-import { groqVision } from './_lib/providers/groq.js';
+import { groqChat, groqVision } from './_lib/providers/groq.js';
+import { MAX_TEXT, MED_SYSTEM, cleanMedParse } from './_lib/meds/parse.js';
 import { bodyObject, sendError } from './_lib/http.js';
 
 // Vercel giới hạn body ~4.5 MB; ảnh base64 lớn hơn mức này sẽ bị từ chối.
@@ -44,7 +45,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!uid) return;
   if (!(await rateLimit(uid, 'ocr', 6, Number(process.env.OCR_DAILY_LIMIT ?? 30)))) return res.status(429).json({ error: 'rate_limited' });
 
-  const { image, mime, mode } = (bodyObject(req) ?? {}) as { image?: string; mime?: string; mode?: string };
+  const { image, mime, mode, text } = (bodyObject(req) ?? {}) as { image?: string; mime?: string; mode?: string; text?: string };
+
+  // Đơn thuốc: chỉ nhận CHỮ đã che thông tin cá nhân trên máy (không nhận ảnh). Gộp vào đây để không thêm hàm Vercel.
+  if (mode === 'med_text') {
+    if (typeof text !== 'string' || text.trim().length < 10) return res.status(400).json({ error: 'bad_request' });
+    if (text.length > MAX_TEXT) return res.status(413).json({ error: 'text_too_large' });
+    try {
+      const out = await groqChat(
+        [
+          { role: 'system', content: MED_SYSTEM },
+          { role: 'user', content: text },
+        ],
+        { json: true, temperature: 0, maxTokens: 1800 },
+      );
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(out);
+      } catch {
+        return res.status(502).json({ error: 'bad_model_output' });
+      }
+      return res.status(200).json(cleanMedParse(parsed, text));
+    } catch (e) {
+      return sendError(res, e);
+    }
+  }
+
   if (typeof image !== 'string' || image.length === 0) return res.status(400).json({ error: 'bad_request' });
   if (image.length > MAX_BASE64_CHARS) return res.status(413).json({ error: 'image_too_large' });
   const type = mime === 'image/png' ? 'image/png' : 'image/jpeg';

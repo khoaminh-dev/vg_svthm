@@ -68,6 +68,17 @@ class MedPlanListScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            key: const Key('plans-scan'),
+            tooltip: 'Chụp đơn thuốc',
+            icon: const Icon(Icons.photo_camera_outlined),
+            onPressed: () async {
+              await context.push(Routes.medsScanFor(ownerId));
+              ref.invalidate(personPlansProvider(ownerId));
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('plan-new'),

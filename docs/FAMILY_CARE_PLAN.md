@@ -415,4 +415,5 @@ Lịch hẹn khám tổng quát, nhật ký triệu chứng và ghi chú, báo c
 | 1f | Xong một phần | Cảnh báo huyết áp rất cao, báo liên kết, nhờ đo từ xa (migration 0023). Chưa có: Vy hiểu "mẹ", mất liên lạc |
 | 1g | Xong | Nhật ký gia đình (`family_audit`) và thông báo liên kết |
 | 2 | Xong (1.0.19) | Thuốc nhập tay, báo thức cục bộ (đã thử kêu đúng giờ trên emulator, bản release chạy tốt), con xem tuân thủ. Chưa: nhắc sắp hết, thông báo đẩy dự phòng khi báo thức không kêu |
-| 3-5 | Chưa | |
+| 3 | Xong (1.0.20), chưa thử với đơn thật | Chụp ảnh nhập thuốc: ML Kit trên máy, che thông tin cá nhân, `api/ocr.ts` chế độ `med_text` (không phải Edge Function: khoá mô hình nằm ở biến môi trường Vercel, không ở `provider_keys`), kiểm chứng bằng chứng ở máy chủ, màn kiểm tra rồi mới lưu. **Chưa đo độ đúng**: cần 10-20 đơn thật đã che tên. Chưa có: từ điển tên thuốc |
+| 4-5 | Chưa | |
