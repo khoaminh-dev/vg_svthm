@@ -1,3 +1,21 @@
+/// Vai trò quyết định bộ khung giao diện: người cao tuổi hoặc người thân (chăm sóc).
+enum AppRole {
+  elder('elder', 'Người cao tuổi'),
+  family('family', 'Người thân');
+
+  const AppRole(this.code, this.label);
+
+  final String code;
+  final String label;
+
+  static AppRole? of(Object? code) {
+    for (final r in values) {
+      if (r.code == code) return r;
+    }
+    return null;
+  }
+}
+
 /// Người dùng đã đăng nhập (không phụ thuộc Supabase).
 class AuthUser {
   const AuthUser({
@@ -6,6 +24,8 @@ class AuthUser {
     this.fullName,
     this.username,
     this.avatarUrl,
+    this.role,
+    this.installForParent = false,
   });
 
   final String id;
@@ -13,6 +33,12 @@ class AuthUser {
   final String? fullName;
   final String? username;
   final String? avatarUrl;
+
+  /// Chưa chọn vai trò (tài khoản cũ hoặc đăng nhập Google lần đầu): app hỏi "Bạn là ai?".
+  final AppRole? role;
+
+  /// Đăng ký bằng lựa chọn "cài hộ cho cha mẹ": sau khi vào app, đưa tới màn mời người thân một lần.
+  final bool installForParent;
 
   /// Chưa chọn tên người dùng (thường là tài khoản Google mới).
   bool get needsProfile => username == null || username!.isEmpty;

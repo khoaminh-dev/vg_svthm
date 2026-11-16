@@ -12,6 +12,9 @@ class Analytics {
 
   static String? currentScreen;
 
+  /// Vai trò hiện tại (`elder`/`family`), gắn vào mọi sự kiện để phân tích theo vai trò.
+  static String? role;
+
   /// Gửi khi đủ chừng này sự kiện hoặc sau [_flushEvery], tuỳ cái nào đến trước.
   static const _batchSize = 20;
   static const _flushEvery = Duration(seconds: 10);
@@ -40,7 +43,7 @@ class Analytics {
         return;
       }
       if (_queue.length >= _maxQueue) _queue.removeAt(0);
-      _queue.add({'name': name, 'screen': currentScreen, 'props': props});
+      _queue.add({'name': name, 'screen': currentScreen, 'props': {if (role != null) 'role': role, ...props}});
       if (_queue.length >= _batchSize) {
         flush();
       } else {

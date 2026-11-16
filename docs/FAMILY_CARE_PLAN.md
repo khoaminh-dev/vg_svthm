@@ -450,3 +450,28 @@ Bảng `emergency_cards` (nhóm máu, dị ứng, bệnh nền, số điện tho
 
 ### 16.5 Kiểm thử
 `supabase/tests/safety_rls.sql` (SOS mở một lần, nhận chỉ một người, người ngoài không thấy, thẻ khẩn cấp theo quyền, `meds_escalate` đúng mốc 15 và 45 phút kể cả khi hoãn); test Flutter cho nút giữ 3 giây, màn SOS, cài đặt.
+
+## 17. Tách giao diện theo vai trò (người cao tuổi / người thân)
+
+### 17.1 Vì sao (dữ liệu dùng thật, 56 tài khoản, ngày 16/11/2026)
+- **Tin nhắn** là tab được mở nhiều nhất sau Trang chủ (190 lần chuyển tab, 45 người); **Sức khoẻ** 155 lần (34 người); **Hồ sơ** 89 lần (25 người). **Cộng đồng** có 35 người dùng, **Giải trí** chỉ 10 người, **Vy** 33 người, đo huyết áp 36 người.
+- Chức năng gia đình gần như không ai dùng: 2 mã mời được tạo, 1 liên kết, 1 người đặt lịch thuốc. Chỉ 6 hồ sơ sức khoẻ được điền. Một phần vì chức năng mới, một phần vì **nằm sâu trong Hồ sơ** và giao diện chỉ viết cho một kiểu người dùng ("bác" ở khắp nơi).
+- Giới hạn: bảng sự kiện không ghi tuổi hay vai trò, nên chưa phân biệt được người cao tuổi với người thân trong số liệu. Phản hồi bằng lời của tester chưa có trong hệ thống. Sau khi có vai trò sẽ ghi vai trò vào mọi sự kiện để lần sau phân tích được.
+- Kết luận: **Tin nhắn và Cộng đồng phải giữ trong giao diện người cao tuổi**; Giải trí đưa vào ô "Thư giãn" riêng, không chiếm chỗ chính; chức năng gia đình phải là thứ đầu tiên người thân thấy.
+
+### 17.2 Quyết định
+- Mỗi tài khoản có **một** vai trò tại một thời điểm (`elder` hoặc `family`), chọn lúc đăng ký, đổi trong Hồ sơ. Dữ liệu và liên kết không đổi khi đổi vai trò.
+- Có lựa chọn thứ ba lúc đăng ký: **"Tôi cài hộ cho cha mẹ"** → tạo tài khoản người cao tuổi rồi đưa thẳng tới màn mời người thân (mã 6 số) để con nhập ở máy của con.
+- Vai trò lưu ở metadata phiên đăng nhập (đọc đồng bộ để chuyển hướng) và sao lên `profiles.role` (hàm `set_my_role`, migration `0027`).
+- **Tài khoản cũ**: chưa có vai trò thì lần mở app kế tiếp hiện màn "Bạn là ai?" một lần, có chọn sẵn theo dữ liệu (đang theo dõi người khác thì Người thân, còn lại Người cao tuổi). Không gán ngẫu nhiên, vì gán sai thì người cao tuổi nhận giao diện người thân.
+- Người thân không bị ép điền hồ sơ sức khoẻ của chính mình.
+- Giao diện người cao tuổi: lưới ô lớn, không thanh điều hướng, gồm Đo huyết áp, Nói với Vy, Thuốc và sức khoẻ, Tin nhắn, Cộng đồng, Thư giãn; thuốc kế tiếp với nút "Đã uống" và SOS luôn ở trang chủ. Giao diện người thân: 4 tab Gia đình, Cảnh báo, Tin nhắn, Tôi.
+
+### 17.3 Các bước
+| Bước | Nội dung | Kích cỡ |
+|---|---|---|
+| A | **Xong (1.0.24).** Cột vai trò, chọn lúc đăng ký (cả 3 lựa chọn), màn "Bạn là ai?" cho tài khoản cũ và Google, đổi trong Hồ sơ, người thân bỏ bước hồ sơ sức khoẻ, ghi vai trò vào sự kiện | S |
+| B | Bộ khung người cao tuổi (lưới ô lớn, chữ to, Thư giãn) | L |
+| C | Bộ khung người thân (4 tab, tab Cảnh báo, câu chữ trung tính, mục "Sức khoẻ của tôi") | M |
+| D | Thông báo mở đúng khung theo vai trò, Vy theo vai trò, thử với người dùng thật | M |
+

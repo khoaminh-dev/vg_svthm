@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/supabase/supabase_providers.dart';
+import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/domain/bp_models.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
@@ -47,6 +48,9 @@ class WatchModeNotifier extends Notifier<bool> {
   @override
   bool build() {
     _uid = ref.watch(currentUserProvider.select((u) => u?.id));
+    // Đã có vai trò thì vai trò quyết định (người thân luôn ở chế độ theo dõi).
+    final role = ref.watch(currentUserProvider.select((u) => u?.role));
+    if (role != null) return role == AppRole.family;
     if (_uid != null) _load(_uid!);
     return false;
   }

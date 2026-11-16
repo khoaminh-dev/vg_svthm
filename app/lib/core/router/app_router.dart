@@ -32,6 +32,8 @@ import '../../features/family/presentation/home_entry.dart';
 import '../../features/health/presentation/screens/health_history_screen.dart';
 import '../../features/meds/domain/meds_models.dart';
 import '../../features/meds/presentation/med_plan_edit_screen.dart';
+import '../../features/auth/domain/auth_user.dart';
+import '../../features/auth/presentation/screens/choose_role_screen.dart';
 import '../../features/meds/presentation/med_scan_screen.dart';
 import '../../features/safety/presentation/emergency_card_screen.dart';
 import '../../features/safety/presentation/sos_screen.dart';
@@ -41,6 +43,7 @@ import '../../features/health/presentation/screens/health_setup_screen.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
   final refresh = ValueNotifier<int>(0);
+  final guidedInstall = <String>{};
   ref.onDispose(refresh.dispose);
 
   ref.listen(authChangesProvider, (_, _) => refresh.value++);
@@ -66,16 +69,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (user.needsProfile) {
         return loc == Routes.completeProfile ? null : Routes.completeProfile;
       }
+      // Chưa chọn vai trò (tài khoản cũ, đăng nhập Google lần đầu): hỏi "Bạn là ai?" một lần.
+      if (user.role == null) {
+        return loc == Routes.chooseRole ? null : Routes.chooseRole;
+      }
       // Chưa có hồ sơ sức khoẻ (người mới, hoặc người cũ vừa cập nhật app): bắt nhập một lần.
       // Chỉ chặn khi đã tải xong và chắc chắn chưa có; đang tải hay lỗi mạng thì không chặn.
+      // Người thân không bị ép điền hồ sơ sức khoẻ của chính mình.
       final hp = ref.read(healthProfileProvider);
       final missing =
-          !hp.isLoading && !hp.hasError && hp.hasValue && hp.value == null;
+          user.role != AppRole.family &&
+          !hp.isLoading &&
+          !hp.hasError &&
+          hp.hasValue &&
+          hp.value == null;
       if (missing) {
         return loc == Routes.healthSetup ? null : Routes.healthSetup;
       }
       if (loc == Routes.healthSetup && hp.hasValue && hp.value != null)
         return Routes.home;
+      // Cài hộ cho cha mẹ: lần đầu vào app thì dẫn thẳng tới màn mời người thân (một lần mỗi lần mở app).
+      if (user.installForParent &&
+          loc == Routes.home &&
+          guidedInstall.add(user.id)) {
+        return Routes.familyInvite;
+      }
       // Đã đăng nhập: không ở lại các trang đăng nhập/đăng ký.
       if (Routes.publicRoutes.contains(loc) || loc == Routes.completeProfile) {
         return Routes.home;
@@ -124,6 +142,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ownerId: s.pathParameters['owner']!,
           existing: s.extra is MedPlan ? s.extra as MedPlan : null,
         ),
+      ),
+      GoRoute(
+        path: Routes.chooseRole,
+        builder: (_, _) => const ChooseRoleScreen(),
+      ),
+      GoRoute(
+        path: Routes.chooseRoleChange,
+        builder: (_, _) => const ChooseRoleScreen(change: true),
       ),
       GoRoute(
         path: Routes.sos,

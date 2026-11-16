@@ -44,6 +44,8 @@ class SupabaseAuthRepository implements AuthRepository {
     required String password,
     required String fullName,
     required String username,
+    AppRole? role,
+    bool forParent = false,
   }) => _guard(() async {
     final res = await _auth.signUp(
       email: email.trim(),
@@ -52,6 +54,8 @@ class SupabaseAuthRepository implements AuthRepository {
       data: {
         'full_name': fullName.trim(),
         'username': username.trim().toLowerCase(),
+        if (role != null) 'role': role.code,
+        if (forParent) 'install_for': 'parent',
       },
     );
     // Email đã đăng ký: Supabase không báo lỗi mà trả về user không có identity.
@@ -114,6 +118,26 @@ class SupabaseAuthRepository implements AuthRepository {
   });
 
   @override
+  Future<void> setRole(AppRole role, {bool forParent = false}) => _guard(() async {
+    // Metadata trước (app đọc đồng bộ từ đây để chuyển hướng), rồi sao lên hồ sơ cho phía máy chủ.
+    await _auth.updateUser(
+      sb.UserAttributes(
+        data: {'role': role.code, 'install_for': forParent ? 'parent' : ''},
+      ),
+    );
+    try {
+      await _client.rpc('set_my_role', params: {'p_role': role.code});
+    } catch (_) {
+      // Bản sao ở hồ sơ chỉ phục vụ thống kê; app vẫn dùng metadata.
+    }
+  });
+
+  @override
+  Future<void> clearInstallGuide() => _guard(() async {
+    await _auth.updateUser(sb.UserAttributes(data: {'install_for': ''}));
+  });
+
+  @override
   Future<void> signOut() => _guard(_auth.signOut);
 
   AuthUser? _toUser(sb.User? u) => u == null
@@ -126,6 +150,8 @@ class SupabaseAuthRepository implements AuthRepository {
           avatarUrl:
               (u.userMetadata?['avatar_url'] ?? u.userMetadata?['picture'])
                   as String?,
+          role: AppRole.of(u.userMetadata?['role']),
+          installForParent: u.userMetadata?['install_for'] == 'parent',
         );
 
   Future<T> _guard<T>(Future<T> Function() run) async {

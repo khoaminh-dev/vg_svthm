@@ -15,7 +15,15 @@ abstract interface class AuthRepository {
     required String password,
     required String fullName,
     required String username,
+    AppRole? role,
+    bool forParent = false,
   });
+
+  /// Chọn hoặc đổi vai trò. [forParent]: cài hộ cho cha mẹ (kèm một lần dẫn tới màn mời người thân).
+  Future<void> setRole(AppRole role, {bool forParent = false});
+
+  /// Đã dẫn người dùng tới màn mời người thân, không dẫn lại nữa.
+  Future<void> clearInstallGuide();
 
   /// Đăng nhập bằng Google. Trả về `false` nếu người dùng huỷ.
   Future<bool> signInWithGoogle();

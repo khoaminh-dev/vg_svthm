@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/auth_scaffold.dart';
 import '../../../../shared/widgets/password_field.dart';
 import '../providers/auth_controller.dart';
+import 'choose_role_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -26,6 +27,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  String? _roleKey;
+  bool _roleMissing = false;
 
   @override
   void dispose() {
@@ -38,10 +41,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final valid = _formKey.currentState!.validate();
+    if (_roleKey == null) setState(() => _roleMissing = true);
+    if (!valid || _roleKey == null) return;
+    final choice = roleChoices.firstWhere((c) => c.key == _roleKey);
     final needsConfirm = await ref
         .read(authControllerProvider.notifier)
-        .signUp(_email.text, _password.text, _name.text, _username.text);
+        .signUp(
+          _email.text,
+          _password.text,
+          _name.text,
+          _username.text,
+          role: choice.role,
+          forParent: choice.forParent,
+        );
     if (!mounted || needsConfirm == null) return;
 
     showAppSnackBar(
@@ -115,6 +128,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 24),
+            Text('Bạn là ai?', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            RoleChoiceList(
+              selected: _roleKey,
+              onSelect: (c) => setState(() {
+                _roleKey = c.key;
+                _roleMissing = false;
+              }),
+            ),
+            if (_roleMissing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Hãy chọn một vai trò để tiếp tục.',
+                  key: const Key('role-missing'),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w600),
+                ),
+              ),
+            const SizedBox(height: 14),
             AppButton(label: 'Đăng ký', loading: loading, onPressed: _submit),
           ],
         ),

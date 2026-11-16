@@ -111,6 +111,8 @@ bool hidesVyButton(String path) =>
     Routes.tabs.contains(path) ||
     path == Routes.measure ||
     path == Routes.healthSetup ||
+    path == Routes.chooseRole ||
+    path == Routes.chooseRoleChange ||
     path == Routes.healthProfile ||
     path.startsWith('${Routes.rooms}/');
 

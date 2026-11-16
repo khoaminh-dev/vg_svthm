@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_failure.dart';
+import '../../domain/auth_user.dart';
 import 'auth_providers.dart';
 
 /// Thực hiện các hành động xác thực; state là trạng thái loading/lỗi của hành động gần nhất.
@@ -19,8 +20,10 @@ class AuthController extends AsyncNotifier<void> {
     String email,
     String password,
     String fullName,
-    String username,
-  ) async {
+    String username, {
+    AppRole? role,
+    bool forParent = false,
+  }) async {
     bool? needsConfirm;
     final ok = await _run(() async {
       final repo = ref.read(authRepositoryProvider);
@@ -32,10 +35,17 @@ class AuthController extends AsyncNotifier<void> {
         password: password,
         fullName: fullName,
         username: username,
+        role: role,
+        forParent: forParent,
       );
     });
     return ok ? needsConfirm : null;
   }
+
+  /// Chọn hoặc đổi vai trò.
+  Future<bool> setRole(AppRole role, {bool forParent = false}) => _run(
+    () => ref.read(authRepositoryProvider).setRole(role, forParent: forParent),
+  );
 
   /// `true` nếu đăng nhập xong; `false` nếu huỷ hoặc lỗi (lỗi nằm trong state).
   Future<bool> signInWithGoogle() async {

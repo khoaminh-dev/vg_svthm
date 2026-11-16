@@ -366,6 +366,15 @@ class _FamilySettings extends ConsumerWidget {
           onTap: () => context.push(Routes.familyInvite),
         ),
         ListTile(
+          key: const Key('profile-role'),
+          minTileHeight: 64,
+          leading: Icon(Icons.swap_horiz_rounded, color: scheme.primary),
+          title: const Text('Vai trò', style: titleStyle),
+          subtitle: Text(ref.watch(currentUserProvider)?.role?.label ?? 'Chưa chọn'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push(Routes.chooseRoleChange),
+        ),
+        ListTile(
           key: const Key('profile-emergency-card'),
           minTileHeight: 64,
           leading: Icon(Icons.medical_information_outlined, color: scheme.primary),
@@ -390,7 +399,7 @@ class _FamilySettings extends ConsumerWidget {
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => context.push(Routes.familyJoin),
         ),
-        if (watched.isNotEmpty)
+        if (watched.isNotEmpty && ref.watch(currentUserProvider)?.role == null)
           SwitchListTile(
             key: const Key('profile-watch-mode'),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16),

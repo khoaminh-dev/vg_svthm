@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vg_svthm/app.dart';
@@ -27,7 +28,14 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> signIn({required String email, required String password}) async =>
-      _set(const AuthUser(id: '1', email: 'a@b.co', fullName: 'An', username: 'an'));
+      _set(AuthUser(id: '1', email: 'a@b.co', fullName: 'An', username: 'an', role: startRole));
+
+  /// Vai trò của tài khoản đăng nhập thử (null = tài khoản cũ chưa chọn vai trò).
+  AppRole? startRole = AppRole.elder;
+  bool startInstallForParent = false;
+  AppRole? lastRole;
+  bool? lastForParent;
+  int guideCleared = 0;
 
   /// Mô phỏng tài khoản Google mới: chưa có username.
   void signInGoogleNoProfile() => _set(const AuthUser(id: '2', email: 'g@b.co', fullName: 'Gee'));
@@ -41,7 +49,24 @@ class FakeAuthRepository implements AuthRepository {
     required String password,
     required String fullName,
     required String username,
+    AppRole? role,
+    bool forParent = false,
   }) async => false;
+
+  @override
+  Future<void> setRole(AppRole role, {bool forParent = false}) async {
+    lastRole = role;
+    lastForParent = forParent;
+    final u = _user!;
+    _set(AuthUser(id: u.id, email: u.email, fullName: u.fullName, username: u.username, role: role, installForParent: forParent));
+  }
+
+  @override
+  Future<void> clearInstallGuide() async {
+    guideCleared++;
+    final u = _user;
+    if (u != null) _set(AuthUser(id: u.id, email: u.email, fullName: u.fullName, username: u.username, role: u.role));
+  }
 
   @override
   Future<bool> signInWithGoogle() async => true;
@@ -98,6 +123,10 @@ void main() {
     expect(find.byType(CompleteProfileScreen), findsOneWidget);
 
     await repo.completeProfile(username: 'gee', displayName: 'Gee');
+    await settle(tester);
+    // Chưa chọn vai trò: hỏi "Bạn là ai?" trước khi vào trang chủ.
+    expect(find.byKey(const Key('choose-role')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('role-continue')));
     await settle(tester);
     expect(find.byType(HomeScreen), findsOneWidget);
   });

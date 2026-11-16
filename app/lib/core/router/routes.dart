@@ -3,6 +3,8 @@ abstract final class Routes {
   static const login = '/login';
   static const register = '/register';
   static const completeProfile = '/complete-profile';
+  static const chooseRole = '/choose-role';
+  static const chooseRoleChange = '/choose-role/change';
   static const rooms = '/rooms';
   static const room = '/rooms/:id';
   static String roomPath(String id) => '/rooms/$id';
