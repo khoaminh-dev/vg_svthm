@@ -50,7 +50,7 @@ class MedAlarmService {
       tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
       await _p.initialize(
         const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('@drawable/ic_stat_viegrand'),
         ),
         onDidReceiveNotificationResponse: (r) => onTap?.call(r.payload),
       );
