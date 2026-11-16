@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/analytics/analytics.dart';
 import 'core/config/env.dart';
+import 'features/push/push_service.dart';
 import 'shared/widgets/config_error_screen.dart';
 
 Future<void> main() async {
@@ -20,5 +23,8 @@ Future<void> main() async {
     publishableKey: Env.supabaseAnonKey,
   );
   Analytics.init();
-  runApp(const ProviderScope(child: App()));
+  final container = ProviderContainer();
+  runApp(UncontrolledProviderScope(container: container, child: const App()));
+  // Thông báo đẩy khởi động sau khi giao diện lên, không làm chậm lúc mở app.
+  unawaited(container.read(pushServiceProvider).start());
 }

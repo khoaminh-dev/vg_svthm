@@ -12,6 +12,7 @@ import '../../../shared/widgets/user_avatar.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../health/data/advice_speaker.dart';
+import '../../push/push_service.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
 class ProfileScreen extends ConsumerWidget {
@@ -42,6 +43,7 @@ class ProfileScreen extends ConsumerWidget {
     );
     if (ok != true) return;
     Analytics.track('tap_sign_out');
+    await ref.read(pushServiceProvider).unregister();
     await ref.read(authControllerProvider.notifier).signOut();
   }
 
@@ -153,6 +155,8 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
+                const _NotificationSettings(),
+                const SizedBox(height: AppSpacing.lg),
                 InsetGroup(
                   dividerIndent: 0,
                   children: [
@@ -195,6 +199,67 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Mục "Thông báo": bật/tắt thông báo tin nhắn, thông báo bản cập nhật, và việc hiện nội dung tin trên màn hình khoá.
+class _NotificationSettings extends ConsumerWidget {
+  const _NotificationSettings();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final prefs = ref.watch(pushPrefsProvider).value ?? const PushPrefs();
+    final notifier = ref.read(pushPrefsProvider.notifier);
+    const pad = EdgeInsets.symmetric(horizontal: 16);
+    const titleStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 17);
+    return InsetGroup(
+      key: const Key('notification-settings'),
+      dividerIndent: 0,
+      children: [
+        SwitchListTile(
+          key: const Key('push-messages'),
+          contentPadding: pad,
+          secondary: Icon(Icons.notifications_outlined, color: scheme.primary),
+          title: const Text('Thông báo tin nhắn', style: titleStyle),
+          subtitle: const Text('Báo khi có người nhắn cho bác'),
+          value: prefs.messages,
+          onChanged: (v) {
+            Analytics.track('push_toggle', {'kind': 'messages', 'on': v});
+            notifier.save(prefs.copyWith(messages: v));
+          },
+        ),
+        SwitchListTile(
+          key: const Key('push-show-text'),
+          contentPadding: pad,
+          secondary: Icon(Icons.visibility_outlined, color: scheme.primary),
+          title: const Text('Hiện nội dung tin nhắn', style: titleStyle),
+          subtitle: const Text('Tắt thì chỉ hiện tên người nhắn'),
+          value: prefs.showText,
+          onChanged: prefs.messages
+              ? (v) {
+                  Analytics.track('push_toggle', {
+                    'kind': 'show_text',
+                    'on': v,
+                  });
+                  notifier.save(prefs.copyWith(showText: v));
+                }
+              : null,
+        ),
+        SwitchListTile(
+          key: const Key('push-updates'),
+          contentPadding: pad,
+          secondary: Icon(Icons.system_update_outlined, color: scheme.primary),
+          title: const Text('Thông báo bản cập nhật', style: titleStyle),
+          subtitle: const Text('Báo khi Viegrand có bản mới'),
+          value: prefs.updates,
+          onChanged: (v) {
+            Analytics.track('push_toggle', {'kind': 'updates', 'on': v});
+            notifier.save(prefs.copyWith(updates: v));
+          },
+        ),
+      ],
     );
   }
 }
