@@ -646,7 +646,8 @@ void main() {
       expect(find.text('Thuốc hôm nay'), findsOneWidget);
       expect(find.byKey(const Key('person-dose-a')), findsOneWidget);
       expect(find.text('Đã uống'), findsOneWidget);
-      expect(find.text('Sắp tới'), findsOneWidget);
+      // Cữ cuối ngày là 'Sắp tới', hoặc 'Đến giờ' nếu đang chạy test sát nửa đêm (nằm trong cửa sổ sớm).
+    expect(find.textContaining(RegExp('Sắp tới|Đến giờ')), findsOneWidget);
       expect(
         find.textContaining('7 ngày qua: uống 1/2 cữ (50%)'),
         findsOneWidget,

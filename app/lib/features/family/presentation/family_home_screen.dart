@@ -12,6 +12,8 @@ import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../chat/presentation/providers/chat_controller.dart';
 import '../../safety/presentation/safety_providers.dart';
+import '../../meds/domain/meds_models.dart';
+import '../../meds/presentation/meds_providers.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
@@ -239,6 +241,7 @@ class PersonCard extends ConsumerWidget {
                 ),
               ),
             ],
+            if (link.can(FamilyPerm.medsView)) _MedsLine(link: link),
             if (risk != null && risk.level.worthMentioning) ...[
               const SizedBox(height: 4),
               Text(
@@ -262,9 +265,26 @@ class PersonCard extends ConsumerWidget {
                       Icons.chat_bubble_outline_rounded,
                       size: 20,
                     ),
-                    label: const Text('Nhắn tin'),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Nhắn tin')),
                   ),
                 ),
+                if (link.can(FamilyPerm.medsView)) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: Key('meds-${link.otherId}'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      // Có quyền sửa thuốc thì vào thẳng danh sách đơn (xem và sửa); không thì xem ở trang chi tiết.
+                      onPressed: () => link.can(FamilyPerm.medsEdit)
+                          ? context.push(Routes.medsPlanListFor(link.otherId))
+                          : context.push(Routes.familyPersonPath(link.otherId)),
+                      icon: const Icon(Icons.medication_outlined, size: 20),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Thuốc')),
+                    ),
+                  ),
+                ],
                 if (link.can(FamilyPerm.health)) ...[
                   const SizedBox(width: 8),
                   Expanded(
@@ -275,7 +295,7 @@ class PersonCard extends ConsumerWidget {
                       ),
                       onPressed: () => _nudge(context, ref),
                       icon: const Icon(Icons.favorite_border_rounded, size: 20),
-                      label: const Text('Nhờ đo'),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Nhờ đo')),
                     ),
                   ),
                 ],
@@ -283,6 +303,61 @@ class PersonCard extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Một dòng tóm tắt thuốc hôm nay của người thân: đã uống mấy cữ, cữ nào chưa uống.
+class _MedsLine extends ConsumerWidget {
+  const _MedsLine({required this.link});
+
+  final FamilyLink link;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final doses = ref.watch(personDosesProvider(link.otherId));
+    final plans = ref.watch(personPlansProvider(link.otherId));
+    if (!doses.hasValue) return const SizedBox.shrink();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todays = [
+      for (final d in doses.value!)
+        if (!d.dueAt.isBefore(today) && d.dueAt.isBefore(today.add(const Duration(days: 1)))) d,
+    ];
+    String text;
+    Color? color;
+    if (todays.isEmpty) {
+      final has = (plans.value ?? const []).any((p) => p.active);
+      text = has ? 'Thuốc: hôm nay không có cữ nào' : 'Thuốc: chưa có lịch';
+    } else {
+      var taken = 0;
+      var total = 0;
+      final missed = <String>[];
+      for (final d in todays) {
+        final st = d.stateAt(now);
+        if (st == DoseState.skipped) continue;
+        if (st == DoseState.upcoming) {
+          total++;
+          continue;
+        }
+        total++;
+        if (st == DoseState.taken) taken++;
+        if (st == DoseState.missed) missed.add(d.bag ? 'túi ${d.label}' : d.label);
+      }
+      text = 'Thuốc hôm nay: uống $taken/$total cữ';
+      if (missed.isNotEmpty) {
+        text += ' · chưa uống ${missed.join(', ')}';
+        color = AppColors.levelWatch;
+      }
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        text,
+        key: Key('person-meds-${link.otherId}'),
+        style: theme.textTheme.bodyMedium?.copyWith(color: color, fontWeight: color == null ? null : FontWeight.w600),
       ),
     );
   }

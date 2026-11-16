@@ -88,6 +88,9 @@ void main() {
       expect(items.map((a) => a.level), [AlertLevel.red, AlertLevel.orange, AlertLevel.info]);
       expect(items[1].detail, contains('Anh Nam đã nhận'));
       expect(items.first.sosId, 's1');
+      // Chính mình nhận thì hiện 'Bạn đã nhận'.
+      final mine = buildAlerts(links: links, bp: const {}, doses: const {}, sos: [e('s2', handled: true, by: 'me', minutes: 60)], now: now, myId: 'me');
+      expect(mine.single.detail, startsWith('Bạn đã nhận'));
     });
 
     test('tôn trọng quyền: thiếu health, meds_view, alerts thì không thấy huyết áp, thuốc, SOS', () {

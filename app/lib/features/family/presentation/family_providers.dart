@@ -150,5 +150,12 @@ final alertsFeedProvider = FutureProvider.autoDispose<List<AlertItem>>((ref) asy
   try {
     sos = await ref.watch(safetyRepositoryProvider).recentSos();
   } catch (_) {}
-  return buildAlerts(links: links, bp: bp, doses: doses, sos: sos, now: DateTime.now());
+  return buildAlerts(
+    links: links,
+    bp: bp,
+    doses: doses,
+    sos: sos,
+    now: DateTime.now(),
+    myId: ref.read(currentUserProvider)?.id,
+  );
 });

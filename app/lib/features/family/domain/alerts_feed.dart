@@ -47,6 +47,7 @@ List<AlertItem> buildAlerts({
   required List<SosEvent> sos,
   required DateTime now,
   int days = 7,
+  String? myId,
 }) {
   final since = now.subtract(Duration(days: days));
   final out = <AlertItem>[];
@@ -105,7 +106,7 @@ List<AlertItem> buildAlerts({
       detail = 'Đã huỷ (bấm nhầm hoặc đã ổn)';
       level = AlertLevel.info;
     } else if (e.handled) {
-      detail = '${nameOf(e.handledBy ?? '')} đã nhận lúc ${_hm(e.handledAt ?? e.createdAt)}';
+      detail = '${e.handledBy != null && e.handledBy == myId ? 'Bạn' : nameOf(e.handledBy ?? '')} đã nhận lúc ${_hm(e.handledAt ?? e.createdAt)}';
       level = AlertLevel.orange;
     } else {
       detail = 'Chưa ai nhận. Bấm để xem và gọi ngay';
