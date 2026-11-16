@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
+import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../health/data/advice_speaker.dart';
@@ -73,7 +74,7 @@ class ProfileScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 120),
               children: [
-                const LargeTitle('Hồ sơ'),
+                LargeTitle(user?.role == AppRole.family ? 'Tôi' : 'Hồ sơ'),
                 if (user != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Center(
@@ -146,7 +147,7 @@ class ProfileScreen extends ConsumerWidget {
                           fontSize: 17,
                         ),
                       ),
-                      subtitle: const Text('Máy tự đọc to cho bác nghe'),
+                      subtitle: Text(user?.role == AppRole.family ? 'Máy tự đọc to cho bạn nghe' : 'Máy tự đọc to cho bác nghe'),
                       value: ref.watch(speakAdviceProvider).value ?? true,
                       onChanged: (v) {
                         Analytics.track('speak_advice_toggle', {'on': v});
@@ -226,7 +227,7 @@ class _NotificationSettings extends ConsumerWidget {
           contentPadding: pad,
           secondary: Icon(Icons.notifications_outlined, color: scheme.primary),
           title: const Text('Thông báo tin nhắn', style: titleStyle),
-          subtitle: const Text('Báo khi có người nhắn cho bác'),
+          subtitle: Text(ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.family ? 'Báo khi có người nhắn cho bạn' : 'Báo khi có người nhắn cho bác'),
           value: prefs.messages,
           onChanged: (v) {
             Analytics.track('push_toggle', {'kind': 'messages', 'on': v});
@@ -347,11 +348,13 @@ class _FamilySettings extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final watchers = ref.watch(watchersProvider);
     final watched = ref.watch(watchedLinksProvider);
+    final isFamily = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.family;
     const titleStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 17);
     return InsetGroup(
       key: const Key('family-settings'),
       dividerIndent: 0,
       children: [
+        if (!isFamily)
         ListTile(
           key: const Key('profile-invite'),
           minTileHeight: 64,
@@ -365,6 +368,16 @@ class _FamilySettings extends ConsumerWidget {
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => context.push(Routes.familyInvite),
         ),
+        if (isFamily)
+          ListTile(
+            key: const Key('profile-my-health'),
+            minTileHeight: 64,
+            leading: Icon(Icons.favorite_border_rounded, color: scheme.primary),
+            title: const Text('Sức khoẻ của tôi', style: titleStyle),
+            subtitle: const Text('Huyết áp và lịch thuốc của chính bạn'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.go(Routes.bp),
+          ),
         ListTile(
           key: const Key('profile-role'),
           minTileHeight: 64,
@@ -374,6 +387,7 @@ class _FamilySettings extends ConsumerWidget {
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => context.push(Routes.chooseRoleChange),
         ),
+        if (!isFamily)
         ListTile(
           key: const Key('profile-emergency-card'),
           minTileHeight: 64,
@@ -390,7 +404,7 @@ class _FamilySettings extends ConsumerWidget {
           key: const Key('profile-join'),
           minTileHeight: 64,
           leading: Icon(Icons.person_add_alt_1_outlined, color: scheme.primary),
-          title: const Text('Theo dõi người thân', style: titleStyle),
+          title: Text(isFamily ? 'Thêm người thân để theo dõi' : 'Theo dõi người thân', style: titleStyle),
           subtitle: Text(
             watched.isEmpty
                 ? 'Nhập mã của cha mẹ'

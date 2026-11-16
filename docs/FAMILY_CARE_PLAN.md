@@ -472,6 +472,6 @@ Bảng `emergency_cards` (nhóm máu, dị ứng, bệnh nền, số điện tho
 |---|---|---|
 | A | **Xong (1.0.24).** Cột vai trò, chọn lúc đăng ký (cả 3 lựa chọn), màn "Bạn là ai?" cho tài khoản cũ và Google, đổi trong Hồ sơ, người thân bỏ bước hồ sơ sức khoẻ, ghi vai trò vào sự kiện | S |
 | B | **Xong (1.0.25).** Bộ khung người cao tuổi (lưới ô lớn, chữ to, Thư giãn) | L |
-| C | Bộ khung người thân (4 tab, tab Cảnh báo, câu chữ trung tính, mục "Sức khoẻ của tôi") | M |
+| C | **Xong (1.0.28).** Bộ khung người thân (4 tab, tab Cảnh báo, câu chữ trung tính, mục "Sức khoẻ của tôi"). Chưa: chấm báo số cảnh báo chưa đọc, đánh dấu đã xem | M |
 | D | Thông báo mở đúng khung theo vai trò, Vy theo vai trò, thử với người dùng thật | M |
 

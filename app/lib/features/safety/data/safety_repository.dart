@@ -18,6 +18,9 @@ abstract interface class SafetyRepository {
   /// Các SOS đang mở của những người tôi theo dõi (RLS tự lọc theo quyền `alerts`).
   Future<List<SosEvent>> openSos();
 
+  /// SOS trong [days] ngày qua của những người tôi theo dõi (cả đã nhận, đã huỷ), mới nhất trước.
+  Future<List<SosEvent>> recentSos({int days = 7});
+
   Future<EmergencyCard?> card(String ownerId);
 
   Future<void> saveCard(String ownerId, EmergencyCard card);
@@ -71,6 +74,24 @@ class SupabaseSafetyRepository implements SafetyRepository {
               .toIso8601String(),
         )
         .order('created_at', ascending: false);
+    return [
+      for (final r in rows)
+        if (r['owner_id'] != me) SosEvent.fromMap(r),
+    ];
+  });
+
+  @override
+  Future<List<SosEvent>> recentSos({int days = 7}) => _guard(() async {
+    final me = _client.auth.currentUser?.id;
+    final rows = await _client
+        .from('sos_events')
+        .select()
+        .gt(
+          'created_at',
+          DateTime.now().toUtc().subtract(Duration(days: days)).toIso8601String(),
+        )
+        .order('created_at', ascending: false)
+        .limit(50);
     return [
       for (final r in rows)
         if (r['owner_id'] != me) SosEvent.fromMap(r),

@@ -41,6 +41,12 @@ abstract final class Routes {
   /// Bốn tab chính (có thanh điều hướng dưới). Màn "Sức khoẻ" dùng đường dẫn `/bp`.
   static const tabs = [home, rooms, bp, profile];
 
+  /// Màn Cảnh báo của người thân.
+  static const alerts = '/alerts';
+
+  /// Bốn tab của người thân: Gia đình · Cảnh báo · Tin nhắn · Tôi (Sức khoẻ của chính mình nằm trong "Tôi").
+  static const familyTabs = [home, alerts, rooms, profile];
+
   /// Các trang không cần đăng nhập.
   static const publicRoutes = {login, register};
 }

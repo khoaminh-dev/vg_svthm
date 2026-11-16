@@ -89,4 +89,21 @@ void main() {
     addTearDown(c2.dispose);
     expect(c2.read(watchModeProvider), isFalse);
   });
+
+  testWidgets('người thân: vào màn Gia đình với 4 tab Gia đình, Cảnh báo, Tin nhắn, Tôi; người cao tuổi không có thanh tab', (t) async {
+    await boot(t, role: AppRole.family);
+    expect(find.byType(ElderHomeScreen), findsNothing);
+    for (final label in ['Gia đình', 'Cảnh báo', 'Tin nhắn', 'Tôi']) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
+    expect(find.text('Sức khoẻ'), findsNothing, reason: 'Sức khoẻ của chính mình nằm trong Tôi');
+    expect(find.text('Hồ sơ'), findsNothing);
+  });
+
+  testWidgets('người cao tuổi không có thanh điều hướng dưới', (t) async {
+    await boot(t, role: AppRole.elder);
+    expect(find.byType(ElderHomeScreen), findsOneWidget);
+    expect(find.text('Cảnh báo'), findsNothing);
+    expect(find.text('Trang chủ'), findsNothing);
+  });
 }

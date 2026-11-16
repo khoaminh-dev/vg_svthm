@@ -58,6 +58,9 @@ class FakeSafety implements SafetyRepository {
   Future<List<SosEvent>> openSos() async => [if (event != null && event!.open) event!];
 
   @override
+  Future<List<SosEvent>> recentSos({int days = 7}) async => [if (event != null) event!];
+
+  @override
   Future<EmergencyCard?> card(String ownerId) async => cardData;
 
   @override

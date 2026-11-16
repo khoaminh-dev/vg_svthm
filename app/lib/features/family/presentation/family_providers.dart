@@ -9,6 +9,11 @@ import '../../bp/presentation/providers/bp_providers.dart';
 import '../../health/domain/health_models.dart';
 import '../../health/presentation/providers/health_providers.dart';
 import '../data/family_repository.dart';
+import '../../meds/domain/meds_models.dart';
+import '../../meds/presentation/meds_providers.dart';
+import '../../safety/domain/safety_models.dart';
+import '../../safety/presentation/safety_providers.dart';
+import '../domain/alerts_feed.dart';
 import '../domain/family_models.dart';
 import '../domain/family_status.dart';
 
@@ -126,3 +131,24 @@ final personStatusProvider = Provider.autoDispose
         ),
       );
     });
+
+/// Cảnh báo gần đây của những người tôi theo dõi (7 ngày), tổng hợp từ huyết áp, thuốc và SOS.
+final alertsFeedProvider = FutureProvider.autoDispose<List<AlertItem>>((ref) async {
+  final links = ref.watch(watchedLinksProvider);
+  if (links.isEmpty) return const <AlertItem>[];
+  final bp = <String, List<BpReading>>{};
+  final doses = <String, List<Dose>>{};
+  await Future.wait([
+    for (final l in links) ...[
+      if (l.can(FamilyPerm.health))
+        ref.watch(personBpProvider(l.otherId).future).then((v) => bp[l.otherId] = v).catchError((_) => <BpReading>[]),
+      if (l.can(FamilyPerm.medsView))
+        ref.watch(personDosesProvider(l.otherId).future).then((v) => doses[l.otherId] = v).catchError((_) => <Dose>[]),
+    ],
+  ]);
+  var sos = <SosEvent>[];
+  try {
+    sos = await ref.watch(safetyRepositoryProvider).recentSos();
+  } catch (_) {}
+  return buildAlerts(links: links, bp: bp, doses: doses, sos: sos, now: DateTime.now());
+});

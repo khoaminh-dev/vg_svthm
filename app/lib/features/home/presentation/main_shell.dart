@@ -27,6 +27,30 @@ class MainShell extends ConsumerWidget {
     label: 'Gia đình',
   );
 
+  /// Bốn tab của người thân.
+  static const familyItems = [
+    PillNavItem(
+      icon: Icons.family_restroom_outlined,
+      selectedIcon: Icons.family_restroom_rounded,
+      label: 'Gia đình',
+    ),
+    PillNavItem(
+      icon: Icons.notifications_none_rounded,
+      selectedIcon: Icons.notifications_rounded,
+      label: 'Cảnh báo',
+    ),
+    PillNavItem(
+      icon: Icons.chat_bubble_outline_rounded,
+      selectedIcon: Icons.chat_bubble_rounded,
+      label: 'Tin nhắn',
+    ),
+    PillNavItem(
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+      label: 'Tôi',
+    ),
+  ];
+
   static const items = [
     PillNavItem(
       icon: Icons.home_outlined,
@@ -73,10 +97,13 @@ class MainShell extends ConsumerWidget {
         ),
       );
     }
-    final watch = role == AppRole.family || ref.watch(effectiveWatchModeProvider);
-    final shown = watch ? [watchFirst, ...items.skip(1)] : items;
-    final found = Routes.tabs.indexOf(path);
-    final index = found < 0 ? 0 : found;
+    final isFamily = role == AppRole.family;
+    final watch = isFamily || ref.watch(effectiveWatchModeProvider);
+    final shown = isFamily ? familyItems : (watch ? [watchFirst, ...items.skip(1)] : items);
+    final tabs = isFamily ? Routes.familyTabs : Routes.tabs;
+    final found = tabs.indexOf(path);
+    // Sức khoẻ của chính mình (/bp) nằm trong tab "Tôi" của người thân.
+    final index = found >= 0 ? found : (isFamily && path == Routes.bp ? 3 : 0);
     return MedsSyncHost(
       child: Scaffold(
         body: child,
@@ -85,8 +112,8 @@ class MainShell extends ConsumerWidget {
           index: index,
           onSelected: (i) {
             if (i == index) return;
-            Analytics.track('tab', {'to': Routes.tabs[i]});
-            context.go(Routes.tabs[i]);
+            Analytics.track('tab', {'to': tabs[i]});
+            context.go(tabs[i]);
           },
           // Trang chủ đã có blob Vy lớn, nên không lặp lại ở thanh dưới.
           center: path == Routes.home

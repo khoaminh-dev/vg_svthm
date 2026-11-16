@@ -109,6 +109,7 @@ double dockBottomFor(String path) => 24;
 /// còn trong phòng chat Vy nằm ở thanh trên.
 bool hidesVyButton(String path) =>
     Routes.tabs.contains(path) ||
+    path == Routes.alerts ||
     path == Routes.measure ||
     path == Routes.healthSetup ||
     path == Routes.chooseRole ||

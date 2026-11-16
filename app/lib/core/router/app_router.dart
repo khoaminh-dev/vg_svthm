@@ -34,6 +34,7 @@ import '../../features/meds/domain/meds_models.dart';
 import '../../features/meds/presentation/med_plan_edit_screen.dart';
 import '../../features/auth/domain/auth_user.dart';
 import '../../features/auth/presentation/screens/choose_role_screen.dart';
+import '../../features/family/presentation/alerts_screen.dart';
 import '../../features/meds/presentation/med_scan_screen.dart';
 import '../../features/safety/presentation/emergency_card_screen.dart';
 import '../../features/safety/presentation/sos_screen.dart';
@@ -112,6 +113,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const RoomListScreen(),
           ),
           GoRoute(path: Routes.bp, builder: (_, _) => const BpScreen()),
+          GoRoute(path: Routes.alerts, builder: (_, _) => const AlertsScreen()),
           GoRoute(
             path: Routes.profile,
             builder: (_, _) => const ProfileScreen(),
