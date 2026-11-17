@@ -34,6 +34,26 @@ DetectionData _lying({double to = 12}) {
   return DetectionData.parse(_doc(frames, duration: to));
 }
 
+/// Người đứng (cao 0.5) rồi xẹp xuống còn 0.15 trong 1 giây ở t=[at], không có giường nào gần đó.
+DetectionData _fall({double at = 2}) {
+  final frames = <Map<String, dynamic>>[];
+  for (var i = 0; i <= 20; i++) {
+    final t = i / 2;
+    final collapsed = t >= at + 1;
+    final mid = t > at && t < at + 1;
+    final y = collapsed ? 0.62 : (mid ? 0.4 : 0.2);
+    final h = collapsed ? 0.15 : (mid ? 0.3 : 0.5);
+    final w = collapsed ? 0.3 : 0.12;
+    frames.add({
+      't': t,
+      'objs': [
+        _obj(9, 'person', 0.4, y, w, h),
+      ],
+    });
+  }
+  return DetectionData.parse(_doc(frames, duration: 10));
+}
+
 class _FakePlayer implements CameraPlayer {
   _FakePlayer({this.failStart = false});
 
@@ -206,6 +226,26 @@ void main() {
       expect(const StateSummary().text, 'Chưa thấy ai');
     });
 
+    test('gần giống té ngã: khung xẹp nhanh ngoài giường là mức vàng, không bao giờ đỏ', () {
+      final a = CameraAnalysis.build(_fall());
+      final falls = a.events.where((e) => e.fall).toList();
+      expect(falls, isNotEmpty);
+      expect(falls.first.level, AlertLevel.watch);
+      expect(falls.first.text, contains('gần giống té ngã'));
+      expect(falls.first.personId, 9);
+      expect(a.events.where((e) => e.level == AlertLevel.urgent && e.fall), isEmpty);
+    });
+
+    test('nằm xuống giường từ từ không bị coi là té ngã', () {
+      final a = CameraAnalysis.build(_lying());
+      expect(a.events.where((e) => e.fall), isEmpty);
+    });
+
+    test('té ngã chỉ báo một lần trong 8 giây (không lặp mỗi khung)', () {
+      final a = CameraAnalysis.build(_fall());
+      expect(a.events.where((e) => e.fall).length, 1);
+    });
+
     test('activeAlert chỉ trả vàng/đỏ trong cửa sổ gần nhất', () {
       const events = [
         CameraEvent(t: 2, level: AlertLevel.info, text: 'a'),
@@ -268,6 +308,37 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.byKey(const Key('camera-watch')), findsOneWidget);
       expect(find.textContaining('nằm khá lâu'), findsWidgets);
+    });
+
+    testWidgets('nhật ký trực tiếp: chưa tới giờ thì chưa có, video chạy tới đâu hiện tới đó', (tester) async {
+      final b = _FakeBackend(data: _lying(to: 20));
+      await pumpScreen(tester, b);
+      await tester.pump(const Duration(milliseconds: 300));
+      // Mới bắt đầu: sự kiện nằm lâu (giây 8) chưa được hé lộ, cũng không có thanh dòng thời gian.
+      expect(find.textContaining('nằm khá lâu'), findsNothing);
+      expect(find.text('Dòng thời gian'), findsNothing);
+      expect(find.byKey(const Key('camera-log')), findsOneWidget);
+
+      b.players.last.pos = 9;
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.textContaining('nằm khá lâu'), findsWidgets);
+    });
+
+    testWidgets('gần giống té ngã hiện ở nhật ký, mức vàng, không có banner đỏ', (tester) async {
+      final b = _FakeBackend(data: _fall());
+      await pumpScreen(tester, b);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.textContaining('gần giống té ngã'), findsNothing);
+      b.players.last.pos = 3.2;
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.textContaining('gần giống té ngã'), findsWidgets);
+      expect(find.byKey(const Key('camera-watch')), findsOneWidget);
+      final banner = tester.widget<AnimatedOpacity>(
+        find.ancestor(of: find.byKey(const Key('camera-urgent')), matching: find.byType(AnimatedOpacity)).first,
+      );
+      expect(banner.opacity, 0);
     });
 
     testWidgets('nút Nhận diện bật tắt', (tester) async {

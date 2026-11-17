@@ -44,8 +44,16 @@ class DetectionPainter extends CustomPainter {
     required this.style,
     required this.appear,
     required this.seconds,
+    this.labelOf,
+    this.flagged,
     super.repaint,
   });
+
+  /// Nhãn riêng cho người (ví dụ "Người 5 · Ngồi"); null thì dùng nhãn mặc định.
+  final String Function(DetObject)? labelOf;
+
+  /// Các người đang bị đánh dấu (gần giống té ngã): khung đổi sang màu vàng.
+  final Set<int> Function()? flagged;
 
   final List<DetObject> Function() objects;
   final double aspect;
@@ -63,8 +71,11 @@ class DetectionPainter extends CustomPainter {
       ..sort((a, b) => _order(a.label).compareTo(_order(b.label)));
     final scale = 0.9 + 0.1 * appear;
     final pulse = 0.5 + 0.5 * math.sin(seconds() * 4);
+    final marked = flagged?.call() ?? const <int>{};
     for (final o in list) {
-      final c = labelColor(o.label).withValues(alpha: appear);
+      final isFlagged = o.isPerson && marked.contains(o.id);
+      final c = (isFlagged ? AppColors.levelWatch : labelColor(o.label))
+          .withValues(alpha: appear);
       var r = Rect.fromLTWH(
         video.left + o.rect.left * video.width,
         video.top + o.rect.top * video.height,
@@ -104,7 +115,10 @@ class DetectionPainter extends CustomPainter {
       } else {
         canvas.drawPath(_corners(r), stroke);
       }
-      _label(canvas, r, labelText(o.label), c, o.label == 'pillow', video);
+      final text = o.isPerson && labelOf != null
+          ? labelOf!(o)
+          : labelText(o.label);
+      _label(canvas, r, text, c, o.label == 'pillow' || isFlagged, video);
     }
   }
 

@@ -11,7 +11,7 @@ import '../../../shared/widgets/ios_style.dart';
 import '../data/camera_backend.dart';
 import '../domain/camera_events.dart';
 import '../domain/detection_data.dart';
-import 'camera_timeline.dart';
+import 'camera_levels.dart';
 import 'detection_painter.dart';
 
 enum _Phase { connecting, ready, error }
@@ -40,6 +40,20 @@ class _Live {
   );
 }
 
+/// Một dòng trong nhật ký trực tiếp: giờ thật của máy lúc sự kiện hiện ra.
+class _LogEntry {
+  const _LogEntry(this.at, this.event);
+
+  final DateTime at;
+  final CameraEvent event;
+}
+
+String _stateText(PersonState s) => switch (s) {
+  PersonState.lying => 'Nằm',
+  PersonState.sitting => 'Ngồi',
+  PersonState.standing => 'Đứng',
+};
+
 /// Màn Camera: xem camera trong nhà (demo: clip quay sẵn chạy lặp) kèm khung nhận diện, dòng sự kiện và cảnh báo.
 /// Gắn vào ứng dụng bằng `CameraScreen()`; việc cờ `camera` và vai trò người thân do chỗ gọi quyết định.
 class CameraScreen extends StatefulWidget {
@@ -67,6 +81,8 @@ class _CameraScreenState extends State<CameraScreen>
   late final List<CameraFeed> _feeds = widget.feeds ?? defaultCameraFeeds();
   final _t = ValueNotifier<double>(0);
   final _live = ValueNotifier<_Live>(const _Live(StateSummary(), null));
+  final _log = ValueNotifier<List<_LogEntry>>(const []);
+  int _next = 0; // sự kiện kế tiếp chưa hiện ra
   late final Ticker _ticker;
 
   int _index = 0;
@@ -98,6 +114,7 @@ class _CameraScreenState extends State<CameraScreen>
     _player?.dispose();
     _t.dispose();
     _live.dispose();
+    _log.dispose();
     super.dispose();
   }
 
@@ -113,6 +130,8 @@ class _CameraScreenState extends State<CameraScreen>
       _analysis = null;
     });
     _fired.clear();
+    _next = 0;
+    _log.value = const [];
     _lastT = 0;
     _t.value = 0;
     _live.value = const _Live(StateSummary(), null);
@@ -154,11 +173,24 @@ class _CameraScreenState extends State<CameraScreen>
     if (p == null || _phase != _Phase.ready) return;
     final t = p.seconds;
     // Clip lặp lại: cho phép cảnh báo kêu lại ở vòng sau.
-    if (t < _lastT - 1) _fired.clear();
+    if (t < _lastT - 1) {
+      _fired.clear();
+      _next = 0;
+    }
     _lastT = t;
     _t.value = t;
     final data = _data, analysis = _analysis;
     if (data == null || analysis == null) return;
+    // Nhật ký chỉ hiện sự kiện khi video chạy tới đó, như camera thật: không có gì được báo trước.
+    final ev = analysis.events;
+    final added = <_LogEntry>[];
+    while (_next < ev.length && ev[_next].t <= t) {
+      added.insert(0, _LogEntry(DateTime.now(), ev[_next]));
+      _next++;
+    }
+    if (added.isNotEmpty) {
+      _log.value = [...added, ..._log.value].take(20).toList();
+    }
     final live = _Live(
       StateSummary.at(data, analysis, t, videoAspect: p.aspect),
       activeAlert(analysis.events, t),
@@ -177,18 +209,14 @@ class _CameraScreenState extends State<CameraScreen>
     final data = _data, p = _player;
     if (data == null || p == null) return;
     _fired.clear();
-    setState(() {
-      _analysis = CameraAnalysis.build(
-        data,
-        thresholds: _thresholds,
-        videoAspect: p.aspect,
-      );
-    });
-  }
-
-  Future<void> _seek(double s) async {
-    await _player?.seek(s);
-    _t.value = s;
+    final analysis = CameraAnalysis.build(
+      data,
+      thresholds: _thresholds,
+      videoAspect: p.aspect,
+    );
+    // Không in lại những sự kiện đã qua.
+    _next = analysis.events.where((e) => e.t <= _t.value).length;
+    setState(() => _analysis = analysis);
   }
 
   Future<void> _openFullscreen() async {
@@ -205,6 +233,7 @@ class _CameraScreenState extends State<CameraScreen>
         builder: (_) => _FullscreenCamera(
           player: p,
           data: _data,
+          analysis: _analysis,
           t: _t,
           detect: _detect,
           style: _style,
@@ -349,7 +378,7 @@ class _CameraScreenState extends State<CameraScreen>
                   _watchLine(theme),
                   if (analysis != null && _data != null) ...[
                     const SizedBox(height: AppSpacing.md),
-                    _timelineSection(theme, analysis),
+                    _liveLog(theme),
                   ],
                 ],
               ),
@@ -412,6 +441,7 @@ class _CameraScreenState extends State<CameraScreen>
                 _Stage(
                   player: _player!,
                   data: _data,
+                  analysis: _analysis,
                   t: _t,
                   detect: _detect,
                   style: _style,
@@ -583,88 +613,75 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  Widget _timelineSection(ThemeData theme, CameraAnalysis analysis) {
-    final data = _data!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  /// Nhật ký trực tiếp: sự kiện hiện ra đúng lúc video chạy tới, mới nhất ở trên, kèm giờ thật.
+  Widget _liveLog(ThemeData theme) {
+    return ValueListenableBuilder<List<_LogEntry>>(
+      valueListenable: _log,
+      builder: (context, log, _) {
+        String two(int n) => n.toString().padLeft(2, '0');
+        return Column(
+          key: const Key('camera-log'),
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
-              child: Text(
-                'Dòng thời gian',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
+            const Text(
+              'Nhật ký trực tiếp',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
-            ValueListenableBuilder<double>(
-              valueListenable: _t,
-              builder: (_, t, _) => Text(
-                '${_mmss(t)} / ${_mmss(data.duration)}',
-                style: TextStyle(fontSize: 14, color: AppColors.textMuted),
-              ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 14,
+              children: [
+                _legend(levelColor(AlertLevel.info), 'Thông tin'),
+                _legend(levelColor(AlertLevel.watch), 'Cần chú ý'),
+                _legend(levelColor(AlertLevel.urgent), 'Khẩn cấp'),
+              ],
             ),
-          ],
-        ),
-        CameraTimeline(
-          duration: data.duration,
-          events: analysis.events,
-          position: _t,
-          onSeek: _seek,
-        ),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 14,
-          children: [
-            _legend(levelColor(AlertLevel.info), 'Thông tin'),
-            _legend(levelColor(AlertLevel.watch), 'Cần chú ý'),
-            _legend(levelColor(AlertLevel.urgent), 'Khẩn cấp'),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (analysis.events.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Chưa có sự kiện nào trong đoạn này.',
-              style: TextStyle(fontSize: 15, color: AppColors.textMuted),
-            ),
-          )
-        else
-          for (final e in analysis.events.take(24))
-            InkWell(
-              key: Key('camera-event-${e.t.toStringAsFixed(1)}'),
-              borderRadius: BorderRadius.circular(AppSpacing.radius),
-              onTap: () => _seek(e.t),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 48),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 48,
-                      child: Text(
-                        _mmss(e.t),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textMuted,
+            const SizedBox(height: AppSpacing.sm),
+            if (log.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Chưa có sự kiện nào. Sự kiện sẽ hiện ở đây khi camera phát hiện.',
+                  style: TextStyle(fontSize: 15, color: AppColors.textMuted),
+                ),
+              )
+            else
+              for (final e in log)
+                ConstrainedBox(
+                  key: Key('camera-event-${e.at.microsecondsSinceEpoch}'),
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        child: Text(
+                          '${two(e.at.hour)}:${two(e.at.minute)}:${two(e.at.second)}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
-                    ),
-                    Icon(
-                      e.level == AlertLevel.info
-                          ? Icons.circle
-                          : Icons.warning_amber_rounded,
-                      size: e.level == AlertLevel.info ? 12 : 20,
-                      color: levelColor(e.level),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(e.text, style: const TextStyle(fontSize: 16)),
-                    ),
-                  ],
+                      Icon(
+                        e.event.level == AlertLevel.info
+                            ? Icons.circle
+                            : Icons.warning_amber_rounded,
+                        size: e.event.level == AlertLevel.info ? 12 : 20,
+                        color: levelColor(e.event.level),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          e.event.text,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -678,10 +695,6 @@ class _CameraScreenState extends State<CameraScreen>
   );
 }
 
-String _mmss(double s) {
-  final v = s.isNaN || s < 0 ? 0 : s.floor();
-  return '${v ~/ 60}:${(v % 60).toString().padLeft(2, '0')}';
-}
 
 const _pillText = TextStyle(color: Colors.white, fontSize: 12);
 
@@ -838,6 +851,7 @@ class _Stage extends StatelessWidget {
   const _Stage({
     required this.player,
     required this.data,
+    required this.analysis,
     required this.t,
     required this.detect,
     required this.style,
@@ -845,6 +859,7 @@ class _Stage extends StatelessWidget {
 
   final CameraPlayer player;
   final DetectionData? data;
+  final CameraAnalysis? analysis;
   final ValueListenable<double> t;
   final bool detect;
   final BoxStyle style;
@@ -852,6 +867,7 @@ class _Stage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = data;
+    final a = analysis;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -875,6 +891,35 @@ class _Stage extends StatelessWidget {
                   style: style,
                   appear: v,
                   seconds: () => t.value,
+                  labelOf: (o) {
+                    final now = t.value;
+                    final fall =
+                        a?.events.any(
+                          (e) =>
+                              e.fall &&
+                              e.personId == o.id &&
+                              now >= e.t &&
+                              now - e.t <= 4,
+                        ) ??
+                        false;
+                    if (fall) return 'Người ${o.id} · Gần giống té ngã';
+                    final st =
+                        a?.stateOf(o.id, now) ??
+                        classifyAt(
+                          o,
+                          d.objectsAt(now),
+                          videoAspect: player.aspect,
+                        );
+                    return 'Người ${o.id} · ${_stateText(st)}';
+                  },
+                  flagged: () => {
+                    for (final e in a?.events ?? const <CameraEvent>[])
+                      if (e.fall &&
+                          e.personId != null &&
+                          t.value >= e.t &&
+                          t.value - e.t <= 4)
+                        e.personId!,
+                  },
                   repaint: t,
                 ),
               ),
@@ -889,6 +934,7 @@ class _FullscreenCamera extends StatelessWidget {
   const _FullscreenCamera({
     required this.player,
     required this.data,
+    required this.analysis,
     required this.t,
     required this.detect,
     required this.style,
@@ -897,6 +943,7 @@ class _FullscreenCamera extends StatelessWidget {
 
   final CameraPlayer player;
   final DetectionData? data;
+  final CameraAnalysis? analysis;
   final ValueListenable<double> t;
   final bool detect;
   final BoxStyle style;
@@ -909,7 +956,7 @@ class _FullscreenCamera extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _Stage(player: player, data: data, t: t, detect: detect, style: style),
+          _Stage(player: player, data: data, analysis: analysis, t: t, detect: detect, style: style),
           const Positioned(left: 16, top: 12, child: _LiveBadge()),
           Positioned(
             left: 16,

@@ -14,6 +14,9 @@ class AlertThresholds {
     required this.lyingWatchSeconds,
     required this.sittingWatchSeconds,
     required this.absentUrgentSeconds,
+    this.fallWindowSeconds = 1.6,
+    this.fallDropRatio = 0.30,
+    this.fallMinDown = 0.04,
   });
 
   /// Một trạng thái phải giữ ổn định ngần này mới được tính (chống chớp).
@@ -21,6 +24,12 @@ class AlertThresholds {
   final double lyingWatchSeconds;
   final double sittingWatchSeconds;
   final double absentUrgentSeconds;
+
+  /// "Gần giống té ngã": trong [fallWindowSeconds] giây chiều cao khung người giảm từ [fallDropRatio] trở lên
+  /// và tâm khung tụt xuống từ [fallMinDown] (theo chiều cao khung hình), mà không phải đang đặt mình lên giường.
+  final double fallWindowSeconds;
+  final double fallDropRatio;
+  final double fallMinDown;
 
   static const real = AlertThresholds(
     lyingWatchSeconds: 3 * 3600,
@@ -42,6 +51,7 @@ class CameraEvent {
     required this.text,
     this.personId,
     this.state,
+    this.fall = false,
   });
 
   /// Giây trong clip.
@@ -50,6 +60,22 @@ class CameraEvent {
   final String text;
   final int? personId;
   final PersonState? state;
+
+  /// Sự kiện "gần giống té ngã" (mức vàng, không bao giờ khẩn cấp).
+  final bool fall;
+}
+
+/// Phần diện tích khung người nằm trên giường (0..1), lớn nhất trong các giường.
+double bedOverlap(DetObject person, Iterable<DetObject> beds) {
+  final r = person.rect;
+  if (r.width <= 0 || r.height <= 0) return 0;
+  var overlap = 0.0;
+  for (final b in beds) {
+    final i = r.intersect(b.rect);
+    if (i.width <= 0 || i.height <= 0) continue;
+    overlap = math.max(overlap, (i.width * i.height) / (r.width * r.height));
+  }
+  return overlap;
 }
 
 /// Phân loại tư thế của một người so với các giường trong cùng khung hình.
@@ -62,12 +88,7 @@ PersonState classifyPerson(
   final r = person.rect;
   if (r.width <= 0 || r.height <= 0) return PersonState.standing;
   final aspect = (r.width * videoAspect) / r.height;
-  var overlap = 0.0;
-  for (final b in beds) {
-    final i = r.intersect(b.rect);
-    if (i.width <= 0 || i.height <= 0) continue;
-    overlap = math.max(overlap, (i.width * i.height) / (r.width * r.height));
-  }
+  final overlap = bedOverlap(person, beds);
   if (aspect >= 1.2 && overlap >= 0.4) return PersonState.lying;
   if (aspect >= 0.55 && overlap >= 0.25) return PersonState.sitting;
   return PersonState.standing;
@@ -90,6 +111,8 @@ class _Track {
   double candidateSince = 0;
   double lastSeen = -1e9;
   bool watched = false;
+  final recent = <(double, double, double)>[]; // (giây, chiều cao khung, y tâm khung)
+  double lastFall = -1e9;
 }
 
 /// Kết quả phân tích cả clip: các sự kiện theo thời gian và trạng thái đã ổn định của từng người.
@@ -124,6 +147,7 @@ class CameraAnalysis {
     final history = <int, List<(double, PersonState)>>{};
     double lastPersonAt = 0;
     var absentFlagged = false;
+    double lastFallAny = -1e9; // nhiều người cùng "ngã" một lúc thường là khung nhiễu, chỉ báo một lần
     final frames = data.frames;
 
     for (final f in frames) {
@@ -146,8 +170,41 @@ class CameraAnalysis {
       for (final p in people) {
         final s = classifyAt(p, f.objects, videoAspect: videoAspect);
         final tr = tracks.putIfAbsent(p.id, _Track.new);
-        if (f.t - tr.lastSeen > 1.5) tr.candidate = null;
+        if (f.t - tr.lastSeen > 1.5) {
+          tr.candidate = null;
+          tr.recent.clear();
+        }
         tr.lastSeen = f.t;
+
+        // Gần giống té ngã: khung người xẹp xuống nhanh và tụt xuống, không phải nằm lên giường. Chỉ mức vàng.
+        tr.recent
+          ..add((f.t, p.rect.height, p.rect.center.dy))
+          ..removeWhere((e) => f.t - e.$1 > thresholds.fallWindowSeconds);
+        if (f.t - tr.lastFall >= 8 &&
+            f.t - lastFallAny >= 5 &&
+            tr.recent.length >= 2) {
+          var top = tr.recent.first;
+          for (final e in tr.recent) {
+            if (e.$2 > top.$2) top = e;
+          }
+          final drop = top.$2 <= 0 ? 0.0 : (top.$2 - p.rect.height) / top.$2;
+          final down = p.rect.center.dy - top.$3;
+          if (drop >= thresholds.fallDropRatio &&
+              down >= thresholds.fallMinDown &&
+              bedOverlap(p, f.objects.where((o) => o.isBed)) < 0.25) {
+            tr.lastFall = f.t;
+            lastFallAny = f.t;
+            events.add(
+              CameraEvent(
+                t: f.t,
+                level: AlertLevel.watch,
+                text: 'Người ${p.id} có dấu hiệu gần giống té ngã',
+                personId: p.id,
+                fall: true,
+              ),
+            );
+          }
+        }
 
         if (s == tr.committed) {
           tr.candidate = null;
