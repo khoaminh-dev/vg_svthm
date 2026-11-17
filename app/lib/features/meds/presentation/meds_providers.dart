@@ -7,6 +7,8 @@ import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/supabase/supabase_providers.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../bp/data/bp_reminder_service.dart';
+import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -122,6 +124,14 @@ class _MedsSyncHostState extends ConsumerState<MedsSyncHost>
   }
 
   void _onTap(String? payload) {
+    if (payload == BpReminderService.payload) {
+      // Bấm thông báo nhắc đo huyết áp: mở thẳng màn đo.
+      BpReminderService.trackOpened();
+      Future<void>.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) ref.read(routerProvider).go(Routes.measure);
+      });
+      return;
+    }
     if (payload != MedAlarmService.payload) return;
     // Mở màn Thuốc (mục thứ ba của tab Sức khoẻ).
     Future<void>.delayed(const Duration(milliseconds: 400), () {
@@ -150,6 +160,6 @@ class _MedsSyncHostState extends ConsumerState<MedsSyncHost>
       if (doses != null)
         unawaited(ref.read(medAlarmServiceProvider).sync(doses));
     });
-    return widget.child;
+    return BpReminderHost(child: widget.child);
   }
 }
