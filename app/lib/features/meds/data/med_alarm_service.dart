@@ -43,7 +43,16 @@ class MedAlarmService {
     ),
   );
 
-  Future<void> init({void Function(String? payload)? onTap}) async {
+  /// Id từ đây trở lên dành cho các thông báo khác (nhắc đo huyết áp); báo thức thuốc chỉ dùng id nhỏ hơn.
+  static const reservedIdStart = 2100000000;
+
+  Future<void>? _initFuture;
+
+  /// Khởi tạo plugin một lần (gọi lại trả về cùng kết quả; `onTap` của lần gọi đầu được dùng cho mọi thông báo).
+  Future<void> init({void Function(String? payload)? onTap}) =>
+      _initFuture ??= _init(onTap);
+
+  Future<void> _init(void Function(String? payload)? onTap) async {
     if (_ready) return;
     try {
       tzdata.initializeTimeZones();
@@ -104,7 +113,9 @@ class MedAlarmService {
     if (!_ready) return 0;
     final t = now ?? DateTime.now();
     try {
-      await _p.cancelAllPendingNotifications();
+      for (final r in await _p.pendingNotificationRequests()) {
+        if (r.id < reservedIdStart) await _p.cancel(r.id);
+      }
       final upcoming =
           doses
               .where(

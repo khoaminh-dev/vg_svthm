@@ -14,6 +14,8 @@ import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../health/data/advice_speaker.dart';
 import '../../family/presentation/family_providers.dart';
+import '../../bp/data/bp_reminder_service.dart';
+import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../push/push_service.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
@@ -166,6 +168,8 @@ class ProfileScreen extends ConsumerWidget {
                   // Người cao tuổi: chỉ ba việc hay dùng, mỗi việc một ô to. Cài đặt còn lại gom vào "Cài đặt khác".
                   _ElderProfileShortcuts(me: user!.id),
                   const SizedBox(height: AppSpacing.md),
+                  const _BpReminderSettings(elder: true),
+                  const SizedBox(height: AppSpacing.md),
                   Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
@@ -185,6 +189,8 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                 ] else ...[
+                  const _BpReminderSettings(elder: false),
+                  const SizedBox(height: AppSpacing.lg),
                   const _FamilySettings(),
                   const SizedBox(height: AppSpacing.lg),
                   const _NotificationSettings(),
@@ -307,6 +313,119 @@ class _ElderProfileShortcuts extends ConsumerWidget {
           'Đang là: ${ref.watch(currentUserProvider)?.role?.label ?? 'chưa chọn'}',
           () => context.push(Routes.chooseRoleChange),
         ),
+      ],
+    );
+  }
+}
+
+/// Mục "Nhắc đo huyết áp": bật/tắt, giờ buổi sáng, giờ buổi tối (tuỳ chọn). Người cao tuổi: mặc định bật, chữ to.
+class _BpReminderSettings extends ConsumerWidget {
+  const _BpReminderSettings({required this.elder});
+
+  final bool elder;
+
+  static String _fmt(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Future<String?> _pick(BuildContext context, String help, String initial) async {
+    final p = initial.split(':');
+    final t = await showTimePicker(
+      context: context,
+      helpText: help,
+      initialTime: TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1])),
+      builder: (c, w) => MediaQuery(
+        data: MediaQuery.of(c).copyWith(alwaysUse24HourFormat: true),
+        child: w!,
+      ),
+    );
+    return t == null ? null : _fmt(t);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final s = ref.watch(bpReminderSettingsProvider).value ?? const BpReminderSettings();
+    final n = ref.read(bpReminderSettingsProvider.notifier);
+    final on = s.effectiveEnabled(elder: elder);
+    final titleStyle = TextStyle(fontWeight: FontWeight.w700, fontSize: elder ? 20 : 17);
+    final subStyle = TextStyle(fontSize: elder ? 17 : 14);
+    const pad = EdgeInsets.symmetric(horizontal: 16);
+    return InsetGroup(
+      key: const Key('bp-reminder-settings'),
+      dividerIndent: 0,
+      children: [
+        SwitchListTile(
+          key: const Key('bp-reminder-toggle'),
+          contentPadding: pad,
+          secondary: Icon(Icons.alarm_on_rounded, color: scheme.primary, size: elder ? 36 : 24),
+          title: Text('Nhắc đo huyết áp', style: titleStyle),
+          subtitle: Text(
+            on ? 'Mỗi ngày nhắc một lần, hôm nào đo rồi thì thôi' : 'Đang tắt',
+            style: subStyle,
+          ),
+          value: on,
+          onChanged: (v) {
+            Analytics.track('bp_reminder_toggle', {'on': v});
+            n.setEnabled(v);
+          },
+        ),
+        if (on) ...[
+          ListTile(
+            key: const Key('bp-reminder-morning'),
+            contentPadding: pad,
+            minTileHeight: elder ? 72 : 60,
+            leading: Icon(Icons.wb_sunny_outlined, color: scheme.primary, size: elder ? 36 : 24),
+            title: Text('Buổi sáng', style: titleStyle),
+            subtitle: Text('Chạm để đổi giờ', style: subStyle),
+            trailing: Text(
+              s.morning,
+              style: TextStyle(fontSize: elder ? 28 : 20, fontWeight: FontWeight.w800),
+            ),
+            onTap: () async {
+              final v = await _pick(context, 'Nhắc đo buổi sáng lúc', s.morning);
+              if (v == null) return;
+              Analytics.track('bp_reminder_time_set', {'slot': 'morning'});
+              n.setMorning(v);
+            },
+          ),
+          ListTile(
+            key: const Key('bp-reminder-evening'),
+            contentPadding: pad,
+            minTileHeight: elder ? 72 : 60,
+            leading: Icon(Icons.nights_stay_outlined, color: scheme.primary, size: elder ? 36 : 24),
+            title: Text('Buổi tối', style: titleStyle),
+            subtitle: Text(
+              s.evening == null ? 'Chưa đặt. Chạm để thêm một giờ buổi tối' : 'Chạm để đổi giờ',
+              style: subStyle,
+            ),
+            trailing: s.evening == null
+                ? const Icon(Icons.add_circle_outline_rounded, size: 30)
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        s.evening!,
+                        style: TextStyle(fontSize: elder ? 28 : 20, fontWeight: FontWeight.w800),
+                      ),
+                      IconButton(
+                        key: const Key('bp-reminder-evening-remove'),
+                        tooltip: 'Bỏ nhắc buổi tối',
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () {
+                          Analytics.track('bp_reminder_time_set', {'slot': 'evening_off'});
+                          n.setEvening(null);
+                        },
+                      ),
+                    ],
+                  ),
+            onTap: () async {
+              final v = await _pick(context, 'Nhắc đo buổi tối lúc', s.evening ?? '19:00');
+              if (v == null) return;
+              Analytics.track('bp_reminder_time_set', {'slot': 'evening'});
+              n.setEvening(v);
+            },
+          ),
+        ],
       ],
     );
   }
