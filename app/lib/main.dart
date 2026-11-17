@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,15 @@ Future<void> main() async {
     publishableKey: Env.supabaseAnonKey,
   );
   Analytics.init();
+  final previousOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    previousOnError?.call(details);
+    Analytics.trackError(details.exception, details.stack);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Analytics.trackError(error, stack);
+    return true;
+  };
   final container = ProviderContainer();
   runApp(UncontrolledProviderScope(container: container, child: const App()));
   // Thông báo đẩy khởi động sau khi giao diện lên, không làm chậm lúc mở app.

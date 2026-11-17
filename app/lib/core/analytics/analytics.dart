@@ -54,6 +54,21 @@ class Analytics {
     }
   }
 
+  static int _errors = 0;
+
+  /// Ghi lỗi chưa bắt được (không phải sập cả tiến trình) để biết máy nào lỗi ở đâu.
+  /// Tối đa 5 lỗi mỗi lần mở app, cắt ngắn nội dung, không kèm dữ liệu người dùng.
+  static void trackError(Object error, StackTrace? stack) {
+    if (_errors >= 5) return;
+    _errors++;
+    String cut(String s, int n) => s.length <= n ? s : s.substring(0, n);
+    track('app_error', {
+      'type': error.runtimeType.toString(),
+      'message': cut(error.toString(), 300),
+      'stack': cut(stack?.toString() ?? '', 800),
+    });
+  }
+
   /// Gửi toàn bộ hàng đợi bằng một request. Lỗi thì đưa lại vào hàng đợi (tối đa [_maxQueue]).
   static Future<void> flush() async {
     _timer?.cancel();
