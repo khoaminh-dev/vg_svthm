@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vg_svthm/features/auth/domain/auth_user.dart';
+import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:vg_svthm/core/theme/app_theme.dart';
 import 'package:vg_svthm/features/entertainment/data/youtube_service.dart';
 import 'package:vg_svthm/features/entertainment/presentation/entertainment_providers.dart';
@@ -37,7 +39,8 @@ void main() {
     final fake = FakeSearch();
     await t.pumpWidget(
       ProviderScope(
-        overrides: [videoSearchProvider.overrideWithValue(fake)],
+        overrides: [
+            currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),videoSearchProvider.overrideWithValue(fake)],
         child: MaterialApp(theme: AppTheme.light, home: const EntertainmentScreen()),
       ),
     );
@@ -55,7 +58,8 @@ void main() {
     final fake = FakeSearch();
     await t.pumpWidget(
       ProviderScope(
-        overrides: [videoSearchProvider.overrideWithValue(fake)],
+        overrides: [
+            currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),videoSearchProvider.overrideWithValue(fake)],
         child: MaterialApp(theme: AppTheme.light, home: const EntertainmentScreen()),
       ),
     );

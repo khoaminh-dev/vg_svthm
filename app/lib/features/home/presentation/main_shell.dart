@@ -81,9 +81,7 @@ class MainShell extends ConsumerWidget {
       // Người cao tuổi: không thanh điều hướng; ở ngoài trang chủ có thanh "Về trang chủ" thật to (và nút Vy).
       return MedsSyncHost(
         child: Scaffold(
-          // Chữ to hơn ở mọi màn của người cao tuổi (tối thiểu 1,2 lần, theo cỡ chữ hệ thống nếu họ đã chỉnh lớn hơn).
-          // Trang chủ tự căn cỡ nên không áp dụng.
-          body: path == Routes.home ? child : _ElderTextScale(child: child),
+          body: child,
           bottomNavigationBar: path == Routes.home
               ? null
               : _BackHomeBar(
@@ -129,23 +127,6 @@ class MainShell extends ConsumerWidget {
                 ),
         ),
       ),
-    );
-  }
-}
-
-class _ElderTextScale extends StatelessWidget {
-  const _ElderTextScale({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final system = mq.textScaler.scale(1);
-    final k = system < 1.2 ? 1.2 : (system > 1.6 ? 1.6 : system);
-    return MediaQuery(
-      data: mq.copyWith(textScaler: TextScaler.linear(k)),
-      child: child,
     );
   }
 }

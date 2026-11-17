@@ -9,7 +9,12 @@ import '../../../../core/utils/time_format.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/user_avatar.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../community/presentation/community_providers.dart';
+import '../../../family/domain/family_models.dart';
+import '../../../family/presentation/family_providers.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/room.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
@@ -60,7 +65,10 @@ class RoomListScreen extends ConsumerWidget {
       validator: Validators.username,
     );
     if (username == null || !context.mounted) return;
+    await _openDirectTo(context, ref, username);
+  }
 
+  Future<void> _openDirectTo(BuildContext context, WidgetRef ref, String username) async {
     final room = await ref
         .read(chatControllerProvider.notifier)
         .openDirectRoom(username);
@@ -105,6 +113,11 @@ class RoomListScreen extends ConsumerWidget {
     final rooms = ref.watch(roomsProvider);
     // Giữ kênh realtime mở để phòng mới (được mời) tự hiện.
     ref.watch(joinedRoomsProvider);
+    final elder = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
+    // Người thân đang theo dõi mình: nhắn cho họ chỉ cần một chạm.
+    final family = elder
+        ? [for (final l in ref.watch(watchersProvider)) if ((l.otherUsername ?? '').isNotEmpty) l]
+        : const <FamilyLink>[];
 
     return Scaffold(
       body: SafeArea(
@@ -113,7 +126,9 @@ class RoomListScreen extends ConsumerWidget {
           children: [
             LargeTitle(
               'Tin nhắn',
-              actions: [
+              actions: elder
+                  ? const []
+                  : [
                 if (ref.watch(communityEnabledProvider).value == true)
                   SoftIconButton(
                     icon: Icons.person_search_outlined,
@@ -134,6 +149,15 @@ class RoomListScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            if (elder)
+              _ElderMessageActions(
+                family: family,
+                onFamily: (l) {
+                  Analytics.track('elder_msg_family');
+                  _openDirectTo(context, ref, l.otherUsername!);
+                },
+                onOther: () => _newChat(context, ref),
+              ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
@@ -171,6 +195,7 @@ class RoomListScreen extends ConsumerWidget {
                   ),
                   data: (list) => list.isEmpty
                       ? _EmptyRooms(
+                          simple: elder,
                           onDirect: () => _openDirect(context, ref),
                           onGroup: () => _createRoom(context, ref),
                           onCommunity:
@@ -185,6 +210,7 @@ class RoomListScreen extends ConsumerWidget {
                               children: [
                                 for (final room in list)
                                   _RoomTile(
+                                    big: elder,
                                     room: room,
                                     onTap: () async {
                                       Analytics.track('open_room');
@@ -211,8 +237,9 @@ class RoomListScreen extends ConsumerWidget {
 }
 
 class _RoomTile extends StatelessWidget {
-  const _RoomTile({required this.room, required this.onTap});
+  const _RoomTile({required this.room, required this.onTap, this.big = false});
 
+  final bool big;
   final Room room;
   final VoidCallback onTap;
 
@@ -223,16 +250,16 @@ class _RoomTile extends StatelessWidget {
     final at = room.lastAt;
     final tile = ListTile(
       key: Key('room-tile-${room.id}'),
-      minTileHeight: 80,
+      minTileHeight: big ? 96 : 80,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: room.isDirect
           ? UserAvatar(
               name: room.displayName,
               imageUrl: room.peer?.avatarUrl,
-              radius: 26,
+              radius: big ? 32 : 26,
             )
           : CircleAvatar(
-              radius: 26,
+              radius: big ? 32 : 26,
               backgroundColor: scheme.secondaryContainer,
               child: Icon(Icons.group_outlined, color: scheme.primary),
             ),
@@ -240,7 +267,7 @@ class _RoomTile extends StatelessWidget {
         room.displayName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        style: TextStyle(fontWeight: FontWeight.w700, fontSize: big ? 22 : 18),
       ),
       subtitle: Text(
         preview ??
@@ -250,7 +277,7 @@ class _RoomTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 16,
+          fontSize: big ? 18 : 16,
           color: preview == null ? scheme.outline : scheme.onSurfaceVariant,
         ),
       ),
@@ -272,7 +299,11 @@ class _EmptyRooms extends StatelessWidget {
     required this.onDirect,
     required this.onGroup,
     this.onCommunity,
+    this.simple = false,
   });
+
+  /// Người cao tuổi đã có các nút to ở đầu màn, nên ở đây chỉ nói một câu.
+  final bool simple;
 
   final VoidCallback onDirect;
   final VoidCallback onGroup;
@@ -295,13 +326,16 @@ class _EmptyRooms extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Nhắn cho người thân bằng tên người dùng, hoặc tạo một phòng cho cả nhà.',
+          simple
+              ? 'Bấm nút xanh ở trên để nhắn cho người thân.'
+              : 'Nhắn cho người thân bằng tên người dùng, hoặc tạo một phòng cho cả nhà.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: theme.colorScheme.onSurfaceVariant,
             fontSize: 16,
           ),
         ),
+        if (!simple) ...[
         const SizedBox(height: AppSpacing.lg),
         FilledButton.icon(
           key: const Key('rooms-empty-direct'),
@@ -325,6 +359,7 @@ class _EmptyRooms extends StatelessWidget {
             label: const Text('Tìm người dùng khác'),
           ),
         ],
+        ],
       ],
     );
   }
@@ -347,4 +382,59 @@ class _SheetTile extends StatelessWidget {
     title: Text(label),
     onTap: () => Navigator.of(context).pop(value),
   );
+}
+
+/// Đầu màn Tin nhắn của người cao tuổi: mỗi người thân một nút to "Nhắn cho …", và một nút nhắn cho người khác.
+class _ElderMessageActions extends StatelessWidget {
+  const _ElderMessageActions({required this.family, required this.onFamily, required this.onOther});
+
+  final List<FamilyLink> family;
+  final ValueChanged<FamilyLink> onFamily;
+  final VoidCallback onOther;
+
+  @override
+  Widget build(BuildContext context) {
+    String nameOf(FamilyLink l) {
+      final n = (l.otherName ?? '').trim();
+      return n.isNotEmpty ? n : (l.otherUsername ?? 'người thân');
+    }
+
+    return Padding(
+      key: const Key('elder-msg-actions'),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 4, AppSpacing.md, AppSpacing.sm),
+      child: Column(
+        children: [
+          for (final l in family.take(3))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                width: double.infinity,
+                height: 68,
+                child: FilledButton.icon(
+                  key: Key('msg-family-${l.otherId}'),
+                  onPressed: () => onFamily(l),
+                  icon: const Icon(Icons.chat_bubble_rounded, size: 28),
+                  label: Text(
+                    'Nhắn cho ${nameOf(l)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ),
+          SizedBox(
+            width: double.infinity,
+            height: 60,
+            child: OutlinedButton.icon(
+              key: const Key('msg-other'),
+              onPressed: onOther,
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 26),
+              label: const Text('Nhắn cho người khác', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

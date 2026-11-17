@@ -10,6 +10,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/analytics/analytics.dart';
+import '../../../../shared/widgets/elder_text_scale.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../health/data/advice_speaker.dart';
@@ -153,7 +154,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
     final c = _cam;
     final live = m.step == MeasureStep.ready;
 
-    return Scaffold(
+    return ElderScaleReset(child: Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
@@ -309,7 +310,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _viewfinder(MeasureState m, CameraController? c) {

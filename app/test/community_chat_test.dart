@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vg_svthm/features/auth/domain/auth_user.dart';
+import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vg_svthm/core/theme/app_theme.dart';
 import 'package:vg_svthm/core/utils/time_format.dart';
@@ -122,6 +124,7 @@ void main() {
       await t.pumpWidget(
         ProviderScope(
           overrides: [
+            currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),
             chatRepositoryProvider.overrideWithValue(FakeChat()),
             communityUsersProvider.overrideWith((ref) async {
               calls++;
@@ -182,6 +185,7 @@ void main() {
     await t.pumpWidget(
       ProviderScope(
         overrides: [
+            currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),
           chatRepositoryProvider.overrideWithValue(FakeChat()),
           communityUsersProvider.overrideWith((ref) async {
             final q = ref.watch(communityQueryProvider).toLowerCase();
@@ -235,6 +239,7 @@ void main() {
       await t.pumpWidget(
         ProviderScope(
           overrides: [
+            currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),
             chatRepositoryProvider.overrideWithValue(chat),
             communityUsersProvider.overrideWith((ref) async {
               if (fail) throw Exception('mất mạng');
@@ -308,6 +313,7 @@ void main() {
           ProviderScope(
             key: UniqueKey(),
             overrides: [
+            currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),
               chatRepositoryProvider.overrideWithValue(chat),
               communityEnabledProvider.overrideWith((ref) async => false),
             ],

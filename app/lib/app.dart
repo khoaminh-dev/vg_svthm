@@ -1,3 +1,4 @@
+import 'shared/widgets/elder_text_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,7 +25,7 @@ class App extends ConsumerWidget {
       routerConfig: ref.watch(routerProvider),
       builder: (context, child) => LogoIntro(
         child: UpdateGate(
-          child: VoiceOverlay(child: child ?? const SizedBox.shrink()),
+          child: VoiceOverlay(child: ElderTextScale(child: child ?? const SizedBox.shrink())),
         ),
       ),
     );

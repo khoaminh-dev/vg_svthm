@@ -5,11 +5,15 @@ import 'package:vg_svthm/core/theme/app_theme.dart';
 import 'package:vg_svthm/features/auth/domain/auth_user.dart';
 import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:vg_svthm/features/bp/presentation/providers/bp_providers.dart';
+import 'package:vg_svthm/features/chat/presentation/providers/chat_providers.dart';
+import 'package:vg_svthm/features/chat/presentation/screens/room_list_screen.dart';
+import 'package:vg_svthm/features/family/presentation/family_providers.dart';
+import 'package:vg_svthm/shared/widgets/elder_text_scale.dart';
 import 'package:vg_svthm/features/bp/presentation/screens/bp_screen.dart';
 import 'package:vg_svthm/features/health/presentation/providers/health_providers.dart';
 import 'package:vg_svthm/features/meds/presentation/meds_providers.dart';
 
-import 'family_test.dart' show FakeBp;
+import 'family_test.dart' show FakeBp, FakeFamily, link;
 import 'health_test.dart' show FakeHealthRepository;
 import 'meds_test.dart' show FakeMeds;
 
@@ -46,5 +50,11 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const Key('health-tabs')), findsOneWidget);
     expect(find.byKey(const Key('elder-bp-view')), findsNothing);
+  });
+
+  test('elderScaleFor: tối thiểu 1,2, theo cỡ hệ thống nếu lớn hơn, tối đa 1,6', () {
+    expect(elderScaleFor(1.0), 1.2);
+    expect(elderScaleFor(1.4), 1.4);
+    expect(elderScaleFor(2.0), 1.6);
   });
 }

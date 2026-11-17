@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format.dart';
 import '../../../shared/widgets/app_snackbar.dart';
+import '../../../shared/widgets/elder_text_scale.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -101,7 +102,8 @@ class ElderHomeScreen extends ConsumerWidget {
     final now = DateTime.now();
     final due = dose != null && dose.stateAt(now) == DoseState.due;
 
-    return Scaffold(
+    return ElderScaleReset(
+      child: Scaffold(
       key: const Key('elder-home'),
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -208,6 +210,7 @@ class ElderHomeScreen extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

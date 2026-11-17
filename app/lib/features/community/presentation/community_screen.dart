@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/elder_text_scale.dart';
+import '../../auth/domain/auth_user.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -89,7 +92,9 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
       ],
     );
 
+    final elder = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
     return Scaffold(
+      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => context.pop()) : null,
       body: SafeArea(
         bottom: false,
         child: Column(
