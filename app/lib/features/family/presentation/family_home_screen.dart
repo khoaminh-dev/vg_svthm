@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
+import '../../camera/presentation/camera_entry_card.dart';
 import '../../chat/presentation/providers/chat_controller.dart';
 import '../../safety/presentation/safety_providers.dart';
 import '../../meds/domain/meds_models.dart';
@@ -43,6 +44,7 @@ class FamilyHomeScreen extends ConsumerWidget {
               ],
             ),
             const _SosBanners(),
+            const CameraEntryCard(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
