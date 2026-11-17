@@ -300,6 +300,13 @@ class _ElderProfileShortcuts extends ConsumerWidget {
           'Tuổi, bệnh nền, chiều cao, cân nặng',
           () => context.push(Routes.healthProfile),
         ),
+        big(
+          'profile-role',
+          Icons.swap_horiz_rounded,
+          'Đổi vai trò',
+          'Đang là: ${ref.watch(currentUserProvider)?.role?.label ?? 'chưa chọn'}',
+          () => context.push(Routes.chooseRoleChange),
+        ),
       ],
     );
   }
@@ -476,6 +483,7 @@ class _FamilySettings extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.go(Routes.bp),
           ),
+        if (ref.watch(currentUserProvider.select((u) => u?.role)) != AppRole.elder)
         ListTile(
           key: const Key('profile-role'),
           minTileHeight: 64,
