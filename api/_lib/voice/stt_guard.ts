@@ -29,6 +29,13 @@ const HALLUCINATIONS = [
   'thank you for watching',
   'like va share',
   'bam chuong',
+  'cac ban da theo doi',
+  'xin chao cac ban',
+  'video tiep theo',
+  'dung quen dang ky',
+  'ung ho kenh',
+  'moi cac ban',
+  'tam biet cac ban',
 ];
 
 export function isHallucination(text: string): boolean {

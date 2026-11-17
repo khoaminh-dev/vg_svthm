@@ -1,5 +1,6 @@
 import { UpstreamError, parseRetryAfter } from '../router.js';
 import { timedFetch, withKeys } from './keys.js';
+import { groqBody } from './llm_body.js';
 
 export type Msg = { role: 'system' | 'user' | 'assistant'; content: string };
 export type ChatResult = { text: string; provider: string; failovers: number; tokensIn?: number; tokensOut?: number };
@@ -10,7 +11,7 @@ async function fail(r: Response): Promise<never> {
 
 // ---------- LLM ----------
 
-export async function deepseekChat(messages: Msg[], model: string, maxTokens = 300): Promise<ChatResult> {
+export async function deepseekChat(messages: Msg[], model: string, maxTokens = 300, timeoutMs = 8000): Promise<ChatResult> {
   const { value, failovers } = await withKeys('deepseek', async (key) => {
     const r = await timedFetch(
       'https://api.deepseek.com/chat/completions',
@@ -25,7 +26,7 @@ export async function deepseekChat(messages: Msg[], model: string, maxTokens = 3
           max_tokens: maxTokens,
         }),
       },
-      8000,
+      timeoutMs,
     );
     if (!r.ok) await fail(r);
     return (await r.json()) as {
@@ -42,23 +43,22 @@ export async function deepseekChat(messages: Msg[], model: string, maxTokens = 3
   };
 }
 
-export async function groqJsonChat(messages: Msg[], maxTokens = 300): Promise<ChatResult> {
+export async function groqJsonChat(messages: Msg[], maxTokens = 300, timeoutMs = 8000): Promise<ChatResult> {
+  const model = process.env.GROQ_LLM_MODEL ?? 'openai/gpt-oss-20b';
   const { value, failovers } = await withKeys('groq', async (key) => {
-    const r = await timedFetch(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'User-Agent': 'viegrand/1.0' },
-        body: JSON.stringify({
-          model: process.env.GROQ_LLM_MODEL ?? 'openai/gpt-oss-20b',
-          messages,
-          temperature: 0,
-          max_tokens: maxTokens,
-          response_format: { type: 'json_object' },
-        }),
-      },
-      8000,
-    );
+    const post = (withReasoning: boolean) =>
+      timedFetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'User-Agent': 'viegrand/1.0' },
+          body: JSON.stringify(groqBody(messages, maxTokens, model, withReasoning)),
+        },
+        timeoutMs,
+      );
+    let r = await post(true);
+    // Nếu Groq từ chối tham số reasoning_effort (400) thì thử lại một lần không có nó, tránh hỏng cả luồng.
+    if (r.status === 400) r = await post(false);
     if (!r.ok) await fail(r);
     return (await r.json()) as {
       choices: { message: { content: string } }[];

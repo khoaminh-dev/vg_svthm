@@ -130,17 +130,31 @@ class VoiceTurnResult {
     required this.transcript,
     required this.decision,
     this.sttProvider,
+    this.timings = const {},
   });
 
   factory VoiceTurnResult.fromJson(Map<String, dynamic> j) => VoiceTurnResult(
     transcript: j['transcript'] as String? ?? '',
     decision: VoiceDecision.fromJson(j['decision'] as Map<String, dynamic>),
     sttProvider: (j['stt'] as Map<String, dynamic>?)?['provider'] as String?,
+    timings: _timings(j['meta']),
   );
+
+  /// Số đo từng khâu ở server (ms; `nlu_fail` là mã lỗi ngắn), chỉ để ghi sự kiện đo độ trễ.
+  static Map<String, Object> _timings(Object? meta) {
+    final t = meta is Map ? meta['timings'] : null;
+    if (t is! Map) return const {};
+    return {
+      for (final e in t.entries)
+        if (e.key is String && (e.value is num || e.value is String))
+          e.key as String: e.value as Object,
+    };
+  }
 
   final String transcript;
   final VoiceDecision decision;
   final String? sttProvider;
+  final Map<String, Object> timings;
 }
 
 /// Trạng thái hội thoại gửi lên máy chủ ở lượt kế tiếp.

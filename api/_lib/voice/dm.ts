@@ -188,7 +188,50 @@ export function healthTopic(t: string): string | null {
 }
 
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
-function fastIntent(t: string): { intent: string; feature?: string; content?: string } | null {
+type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string };
+
+const SEND_VERB = /^(nhan tin|nhan|gui tin nhan|gui tin|gui)( cho| den)?$/;
+const SEND_SEP = new Set(['rang', 'la', 'noi', 'nhe']);
+
+/** "nhắn cho con trai là mai bác về", "nhắn tin cho Lan", "nhắn tin": tách người nhận/nội dung bằng luật, không gọi LLM.
+ *  Chỉ nhận khi phần người nhận khớp danh bạ hoặc là cách gọi họ hàng; còn lại để LLM xử lý như cũ. */
+export function fastSend(orig: string, contacts: Contact[], roomId?: string | null): Fast | null {
+  const words = orig.trim().split(/\s+/).filter(Boolean);
+  const nw = words.map(norm);
+  if (nw.some((w) => !w || w.includes(' '))) return null;
+  if (nw.join(' ') === 'nhan tin' || nw.join(' ') === 'gui tin nhan' || nw.join(' ') === 'gui tin') return { intent: 'send_message' };
+  // động từ: 1–3 từ đầu (+ "cho"/"đến")
+  let i = 0;
+  let verbEnd = -1;
+  for (let k = 1; k <= 4 && k < nw.length; k++) {
+    if (SEND_VERB.test(nw.slice(0, k).join(' '))) verbEnd = k;
+  }
+  if (verbEnd < 0) return null;
+  i = verbEnd;
+  let sep = -1;
+  for (let k = i + 1; k < nw.length && k <= i + 4; k++) {
+    if (SEND_SEP.has(nw[k])) { sep = k; break; }
+  }
+  const rEnd = sep >= 0 ? sep : nw.length;
+  if (rEnd - i < 1 || rEnd - i > 4) return null;
+  const recipient = words.slice(i, rEnd).join(' ');
+  const rr = resolveRecipient(recipient, contacts, roomId);
+  if (rr.kind === 'none' && !isKinship(recipient)) return null;
+  const content = sep >= 0 ? words.slice(sep + 1).join(' ') : '';
+  if (sep >= 0 && content.length < 2) return null;
+  return { intent: 'send_message', recipient, content };
+}
+
+const GREETING = /^(xin chao|chao|alo|hello|hi)( vy| co vy| em vy| ban| con)?( a| nhe)?$|^vy( oi)?( a)?$/;
+const THANKS = /^(cam on|cam on vy|cam on con|cam on em)( nhieu| a| nhe| lam)*$/;
+const NOT_SUPPORTED = /^(goi (dien|cho|video)|goi dien thoai|thoi tiet|may gio|bay gio la may gio|hom nay (la )?(thu|ngay) may|dat bao thuc|bao thuc)/;
+
+function fastIntent(t: string, orig: string, contacts: Contact[], roomId: string | null | undefined, hon: string): Fast | null {
+  if (GREETING.test(t)) return { intent: 'chitchat', say: `Dạ, con chào ${hon} ạ. ${hon[0].toUpperCase()}${hon.slice(1)} cần con giúp gì ạ?` };
+  if (THANKS.test(t)) return { intent: 'chitchat', say: 'Dạ, không có gì ạ.' };
+  if (NOT_SUPPORTED.test(t)) return { intent: 'unsupported' };
+  const send = fastSend(orig, contacts, roomId);
+  if (send) return send;
   if (/^(ve )?(trang chu|man hinh chinh)$/.test(t) || /^ve trang chu/.test(t)) return { intent: 'go_home' };
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
   if (/(xem|mo).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo) huyet ap$/.test(t)) return { intent: 'show_bp' };
@@ -370,7 +413,7 @@ export async function step(
   }
 
   // 7) lệnh mới: luật nhanh → LLM
-  const fast = fastIntent(t);
+  const fast = fastIntent(t, text, contacts, ui.roomId, hon);
   let nluOut: NluResult | null = null;
   if (fast) {
     let content = fast.content ?? '';
@@ -379,7 +422,7 @@ export async function step(
       const orig = text.trim().split(/\s+/).slice(-content.split(' ').length).join(' ');
       if (norm(orig) === content) content = orig;
     }
-    nluOut = { intent: fast.intent, recipient: '', content, feature: fast.feature ?? '', say: '' };
+    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '' };
   } else {
     try {
       nluOut = await nlu(text, { state, ui, honorific: hon });

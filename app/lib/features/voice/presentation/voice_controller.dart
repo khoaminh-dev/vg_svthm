@@ -312,6 +312,7 @@ class VoiceController extends Notifier<VoiceState> {
     final contacts = await _contacts();
     if (myRun != _run) return;
     _turnNo++;
+    final sw = Stopwatch()..start();
     try {
       final res = await _api.turn(
         sessionId: _session,
@@ -326,7 +327,7 @@ class VoiceController extends Notifier<VoiceState> {
         honorific: _honorific,
       );
       if (myRun != _run) return;
-      await _apply(res, contacts, myRun);
+      await _apply(res, contacts, myRun, rttMs: sw.elapsedMilliseconds);
     } on VoiceApiException catch (e) {
       if (myRun != _run) return;
       Analytics.track('voice_error', {'code': e.code});
@@ -338,12 +339,16 @@ class VoiceController extends Notifier<VoiceState> {
   Future<void> _apply(
     VoiceTurnResult res,
     List<VoiceContact> contacts,
-    int run,
-  ) async {
+    int run, {
+    int? rttMs,
+  }) async {
     final d = res.decision;
+    // Độ trễ: rtt_ms = từ lúc gửi tới lúc nhận từ máy chủ (gồm mạng); auth_ms/stt_ms/nlu_ms/... do server đo.
     Analytics.track('voice_turn', {
       'intent': d.intent ?? '',
       'action': d.action,
+      if (rttMs != null) 'rtt_ms': rttMs,
+      ...res.timings,
     });
     var say = d.say;
     var sayClass = d.sayClass;

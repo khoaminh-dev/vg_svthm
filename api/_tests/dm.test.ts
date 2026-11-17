@@ -32,7 +32,7 @@ test('"con trai" chưa có bí danh → hỏi tên, rồi học bí danh', async
 });
 
 test('bí danh đã học → bỏ qua bước hỏi tên', async () => {
-  const d = await step({ text: 'nhắn cho con gái', state: {}, ui }, nluSend('con gái', 'mai về ăn cơm'));
+  const d = await step({ text: 'nhắn cho con gái là mai về ăn cơm', state: {}, ui }, noNlu);
   assert.equal(d.action, 'confirm');
   assert.equal(d.task?.slots.room_id, 'u2');
   assert.match(d.say, /Lan/);
@@ -132,4 +132,35 @@ test('điều khiển video: dừng, bài khác, nhỏ đi', async () => {
   assert.equal(d.action, 'execute');
   assert.equal(d.intent, 'video_control');
   assert.equal(d.task?.slots.content?.toLowerCase(), 'next');
+});
+
+test('nhắn tin bằng luật: người nhận + nội dung không gọi LLM', async () => {
+  let d = await step({ text: 'nhắn cho Lan là mai bác về ăn cơm', state: {}, ui }, noNlu);
+  assert.equal(d.action, 'confirm');
+  assert.equal(d.task?.slots.room_id, 'u2');
+  assert.match(d.task?.slots.content ?? '', /^Mai bác về ăn cơm$/);
+  d = await step({ text: 'nhắn tin cho Lan', state: {}, ui }, noNlu);
+  assert.equal(d.action, 'ask');
+  assert.equal(d.pending, 'content');
+  d = await step({ text: 'nhắn tin', state: {}, ui }, noNlu);
+  assert.equal(d.pending, 'recipient');
+  d = await step({ text: 'nhắn cho con trai', state: {}, ui }, noNlu);
+  assert.equal(d.pending, 'recipient'); // họ hàng chưa có bí danh → hỏi tên
+});
+
+test('nhắn tin: người nhận lạ hoặc câu dài → vẫn để LLM xử lý', async () => {
+  let called = 0;
+  const nlu: Nlu = async () => { called++; return { intent: 'unsupported', recipient: '', content: '', feature: '', say: '' }; };
+  await step({ text: 'nhắn cho ông Tuấn là chiều qua chơi', state: {}, ui }, nlu);
+  await step({ text: 'nhắn tin cho Lan hôm nay bác hơi mệt', state: {}, ui }, nlu);
+  assert.equal(called, 2);
+});
+
+test('chào hỏi, cảm ơn, việc chưa hỗ trợ trả lời ngay không gọi LLM', async () => {
+  const g = await step({ text: 'Chào Vy', state: {}, ui }, noNlu);
+  assert.equal(g.intent, 'chitchat');
+  assert.match(g.say, /^Dạ, con chào bác/);
+  assert.equal((await step({ text: 'cảm ơn con', state: {}, ui }, noNlu)).intent, 'chitchat');
+  assert.equal((await step({ text: 'gọi điện cho con trai', state: {}, ui }, noNlu)).action, 'unsupported');
+  assert.equal((await step({ text: 'thời tiết hôm nay', state: {}, ui }, noNlu)).action, 'unsupported');
 });

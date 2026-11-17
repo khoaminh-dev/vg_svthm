@@ -55,3 +55,10 @@ export async function allow(key: string, limit: number, windowSec: number): Prom
 export async function rateLimit(userId: string, bucket: string, perMinute: number, perDay: number): Promise<boolean> {
   return (await allow(`${bucket}:m:${userId}`, perMinute, 60)) && (await allow(`${bucket}:d:${userId}`, perDay, 86_400));
 }
+
+/** Như `rateLimit` nhưng kiểm tra phút và ngày song song (bớt một lượt gọi DB tuần tự trên đường nóng của Vy).
+ *  Đánh đổi: lượt bị chặn theo phút vẫn được đếm vào hạn mức ngày. */
+export async function rateLimitParallel(userId: string, bucket: string, perMinute: number, perDay: number): Promise<boolean> {
+  const [m, d] = await Promise.all([allow(`${bucket}:m:${userId}`, perMinute, 60), allow(`${bucket}:d:${userId}`, perDay, 86_400)]);
+  return m && d;
+}

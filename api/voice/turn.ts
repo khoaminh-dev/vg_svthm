@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
-import { requireUser, rateLimit } from '../_lib/auth.js';
+import { requireUser, rateLimitParallel } from '../_lib/auth.js';
 import { bodyObject } from '../_lib/http.js';
 import { dbInsert } from '../_lib/db.js';
 import { deepseekChat, elevenScribe, groqJsonChat, groqWhisper, type Msg, type SttResult } from '../_lib/voice/providers.js';
 import { INTENT_LIST, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
+import { failCode } from '../_lib/voice/llm_body.js';
 import { getPolicy } from '../_lib/voice/gate.js';
 import { isReliable } from '../_lib/voice/stt_guard.js';
 import { answerHealth } from '../_lib/voice/health_voice.js';
@@ -91,7 +92,7 @@ function parseNlu(text: string): NluResult {
   };
 }
 
-type Meter = { nluProvider?: string; failovers: number; ms: number; tokensIn?: number; tokensOut?: number };
+type Meter = { nluProvider?: string; failovers: number; ms: number; tokensIn?: number; tokensOut?: number; nluFail?: string };
 
 function makeNlu(model: string, meter: Meter): Nlu {
   return async (text, ctx) => {
@@ -101,12 +102,13 @@ function makeNlu(model: string, meter: Meter): Nlu {
     ];
     const t0 = Date.now();
     // Groq trước (nhanh), DeepSeek dự phòng. Không dùng Gemini.
-    const chain = [
-      () => groqJsonChat(messages),
-      () => deepseekChat(messages, model),
+    // Groq hạn 3,5 giây (p95 bình thường < 1 giây): treo thì sang DeepSeek sớm thay vì chờ 8 giây.
+    const chain: [string, () => Promise<{ text: string; provider: string; failovers: number; tokensIn?: number; tokensOut?: number }>][] = [
+      ['groq', () => groqJsonChat(messages, 300, 3500)],
+      ['deepseek', () => deepseekChat(messages, model, 300, 8000)],
     ];
     let last: unknown;
-    for (const run of chain) {
+    for (const [pname, run] of chain) {
       try {
         const r = await run();
         const out = parseNlu(r.text);
@@ -118,6 +120,7 @@ function makeNlu(model: string, meter: Meter): Nlu {
         return out;
       } catch (e) {
         meter.failovers++;
+        meter.nluFail = meter.nluFail ? `${meter.nluFail},${failCode(pname, e)}` : failCode(pname, e);
         last = e;
       }
     }
@@ -142,11 +145,15 @@ async function transcribe(audio: Buffer, mime: string, hint: string): Promise<St
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
-  const uid = await requireUser(req, res);
+  const tStart = Date.now();
+  // Xác thực và đọc chính sách độc lập nhau → chạy song song (trước đây nối đuôi nhau).
+  const [uid, pol] = await Promise.all([requireUser(req, res), getPolicy()]);
   if (!uid) return;
-  const pol = await getPolicy();
+  const authMs = Date.now() - tStart;
   if (!pol.voice_enabled) return res.status(503).json({ error: 'voice_disabled' });
-  if (!(await rateLimit(uid, 'voice', pol.turns_per_min, pol.turns_per_day))) return res.status(429).json({ error: 'rate_limited' });
+  const r0 = Date.now();
+  if (!(await rateLimitParallel(uid, 'voice', pol.turns_per_min, pol.turns_per_day))) return res.status(429).json({ error: 'rate_limited' });
+  const rlMs = Date.now() - r0;
 
   const body = bodyObject(req);
   if (!body) return res.status(400).json({ error: 'bad_request' });
@@ -165,13 +172,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let outcome = 'ok';
   let lowQuality = false;
   let error: string | undefined;
+  let healthMs = 0;
+  let stepMs = 0;
 
   try {
     if (typeof input.audio_b64 === 'string' && input.audio_b64) {
       if (input.audio_b64.length > MAX_AUDIO_B64) return res.status(413).json({ error: 'audio_too_large' });
       const audio = Buffer.from(input.audio_b64, 'base64');
       audioMs = Math.max(0, Math.min(60_000, Number(input.duration_ms) || 0));
-      const hint = (ui.contacts ?? []).slice(0, 12).map((c) => c.name).join(', ');
+      // Gợi ý cho nhận dạng: từ khoá lệnh + tên trong danh bạ (tên riêng và từ như "nhắn", "huyết áp" hay bị nghe nhầm).
+      const hint = ['Vy', 'nhắn tin', 'huyết áp', ...(ui.contacts ?? []).slice(0, 12).map((c) => c.name)].join(', ');
       const s0 = Date.now();
       try {
         const r = await transcribe(audio, str(input.mime, 40) || 'audio/mp4', hint);
@@ -198,14 +208,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       if (!norm(text)) outcome = lowQuality ? 'low_confidence' : 'no_speech';
       const model = pol.deepseek_model || 'deepseek-flash';
+      const d0 = Date.now();
       decision = await step({ text, state, ui, lowConfidence: (stt?.confidence ?? 1) < 0.45 }, makeNlu(model, meter));
+      stepMs = Date.now() - d0;
       if (decision.intent === 'error') { outcome = 'error'; error = 'nlu'; }
       // Câu hỏi về sức khoẻ: server tự đọc số liệu của người dùng rồi dựng câu từ khuôn, không qua mô hình.
       if (decision.intent === 'health_status' && decision.action === 'execute') {
         const hon = honorificOf(ui.honorific);
+        const h0 = Date.now();
         try {
           const h = await answerHealth(uid, topicOf(decision.task?.slots.content), hon, text);
           decision = { ...decision, action: 'answer', say: h.say, sayClass: h.sayClass, task: null, expects: 'none', expectsReply: false, chips: [] };
+          healthMs = Date.now() - h0;
         } catch (e) {
           console.error(e);
           decision = { ...decision, action: 'answer', say: `Con đang trục trặc một chút, ${hon} thử lại sau nhé.`, sayClass: 'other', task: null, expects: 'none', expectsReply: false, chips: [] };
@@ -225,6 +239,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const total = Date.now() - t0;
+    // Số đo từng khâu (ms) — chỉ số, không chứa lời người dùng. App chép vào props sự kiện voice_turn.
+    const timings = {
+      auth_ms: authMs, rate_ms: rlMs, stt_ms: stt?.ms ?? 0, nlu_ms: meter.ms, dm_ms: Math.max(0, stepMs - meter.ms - healthMs),
+      health_ms: healthMs, server_ms: Date.now() - tStart, fast: meter.nluProvider ? 0 : 1, nlu_fail: meter.nluFail ?? '',
+    };
     void dbInsert('voice_turns', {
       user_id: uid, session_id: sessionId, turn_no: turnNo, intent: decision.intent, action: decision.action, outcome,
       stt_provider: stt?.provider ?? null, nlu_provider: meter.nluProvider ?? null,
@@ -249,7 +268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         chips: decision.chips,
         alias_phrase: decision.aliasPhrase,
       },
-      meta: { total_ms: total, nlu: meter.nluProvider ?? null },
+      meta: { total_ms: total, nlu: meter.nluProvider ?? null, timings },
     });
   } catch (e) {
     return res.status(502).json({ error: 'voice_failed', detail: (e as Error).message?.slice(0, 80) });

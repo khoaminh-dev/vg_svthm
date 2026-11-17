@@ -20,3 +20,9 @@ test('độ tin cậy thấp thì không đáng tin, không có số thì cho qu
   assert.equal(isReliable('đo huyết áp', undefined), true);
   assert.equal(isReliable('hãy subscribe cho kênh', 0.9), false);
 });
+
+test('thêm câu bịa quen thuộc của Whisper', () => {
+  assert.equal(isHallucination('Xin chào các bạn'), true);
+  assert.equal(isHallucination('Đừng quên đăng ký kênh'), true);
+  assert.equal(isHallucination('nhắn cho Lan'), false);
+});
