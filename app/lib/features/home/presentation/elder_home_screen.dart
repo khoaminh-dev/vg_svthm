@@ -21,7 +21,7 @@ import '../../safety/presentation/sos_screen.dart';
 import '../../safety/presentation/sos_widgets.dart';
 import '../../voice/presentation/voice_controller.dart';
 
-/// Một ô lớn trên trang chủ của người cao tuổi.
+/// Một ô lối tắt trên trang chủ của người cao tuổi.
 class ElderTile {
   const ElderTile(this.key, this.icon, this.label, this.feature);
 
@@ -45,8 +45,18 @@ const elderTiles = [
   ElderTile('relax', Icons.smart_display_outlined, 'Thư giãn', 'fun'),
 ];
 
-/// Trang chủ cho người cao tuổi: chữ to, ô lớn, mỗi ô một việc; thuốc kế tiếp và SOS luôn thấy.
-/// Không có thanh điều hướng dưới: mỗi ô mở một màn đầy đủ, có nút "Về trang chủ" thật to.
+/// Những câu gợi ý luân phiên dưới Vy, để người dùng biết mình có thể nói gì.
+const vyHints = [
+  'Đo huyết áp cho tôi',
+  'Tối nay tôi phải uống thuốc gì?',
+  'Nhắn cho con là tôi khoẻ',
+  'Mở nhạc cho tôi nghe',
+  'Huyết áp của tôi dạo này thế nào?',
+  'Tôi đã uống thuốc rồi',
+];
+
+/// Trang chủ cho người cao tuổi: Vy là nút chính, to chiếm gần nửa màn hình; chạm một lần rồi nói
+/// là làm được mọi việc. Các ô lối tắt chỉ là phương án phụ, nhỏ hơn. Thuốc kế tiếp, huyết áp và SOS luôn thấy.
 class ElderHomeScreen extends ConsumerWidget {
   const ElderHomeScreen({super.key});
 
@@ -97,107 +107,101 @@ class ElderHomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
-              child: ListView(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                0,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          greetingFor(now),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                        Text(
+                          user?.displayName ?? 'Viegrand',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (user != null)
+                    Semantics(
+                      button: true,
+                      label: 'Mở hồ sơ',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        key: const Key('elder-avatar'),
+                        onTap: () => context.go(Routes.profile),
+                        child: UserAvatar(
+                          name: user.displayName,
+                          imageUrl: user.avatarUrl,
+                          radius: 24,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (due)
+              Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
                   AppSpacing.sm,
                   AppSpacing.md,
-                  AppSpacing.md,
+                  0,
                 ),
+                child: _DueCard(dose: dose),
+              ),
+            const Expanded(child: _VyHero()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _MiniDose(dose: due ? null : dose, due: due)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _MiniBp(latest: latest)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: GridView.count(
+                key: const Key('elder-grid'),
+                crossAxisCount: 3,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.45,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              greetingFor(now),
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                            Text(
-                              user?.displayName ?? 'Viegrand',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (user != null)
-                        Semantics(
-                          button: true,
-                          label: 'Mở hồ sơ',
-                          excludeSemantics: true,
-                          child: GestureDetector(
-                            key: const Key('elder-avatar'),
-                            onTap: () => context.go(Routes.profile),
-                            child: UserAvatar(
-                              name: user.displayName,
-                              imageUrl: user.avatarUrl,
-                              radius: 26,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  const _VyCard(),
-                  const SizedBox(height: 12),
-                  if (due) ...[
-                    _DoseCard(dose: dose, due: true),
-                    const SizedBox(height: 12),
-                    _BpCard(latest: latest),
-                  ] else
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: _DoseCard(
-                              dose: dose,
-                              due: false,
-                              compact: true,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _BpCard(latest: latest, compact: true),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: AppSpacing.md),
-                  GridView.count(
-                    key: const Key('elder-grid'),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.85,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      for (final t in elderTiles)
-                        _TileButton(
-                          tile: t,
-                          onTap: () => _open(context, ref, t),
-                        ),
-                    ],
-                  ),
+                  for (final t in elderTiles)
+                    _TileButton(tile: t, onTap: () => _open(context, ref, t)),
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
-                4,
+                8,
                 AppSpacing.md,
-                AppSpacing.md,
+                AppSpacing.sm,
               ),
               child: SosHoldButton(onTriggered: () => _sendSos(context, ref)),
             ),
@@ -208,66 +212,97 @@ class ElderHomeScreen extends ConsumerWidget {
   }
 }
 
-/// Vy là trung tâm của app: thẻ lớn ở đầu trang chủ, chạm để nói.
-class _VyCard extends ConsumerWidget {
-  const _VyCard();
+/// Vy là nút chính của app: quả cầu lớn giữa màn hình, chạm vào là nói. Dưới có câu gợi ý đổi liên tục.
+class _VyHero extends ConsumerStatefulWidget {
+  const _VyHero();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_VyHero> createState() => _VyHeroState();
+}
+
+class _VyHeroState extends ConsumerState<_VyHero>
+    with SingleTickerProviderStateMixin {
+  // Đổi câu gợi ý mỗi 4 giây mà không cần Timer: dựa theo một bộ đếm khung hình.
+  late final AnimationController _hint = AnimationController(
+    vsync: this,
+    duration: Duration(seconds: 4 * vyHints.length),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _hint.dispose();
+    super.dispose();
+  }
+
+  void _talk() {
+    Analytics.track('tap_feature', {'feature': 'vy', 'shell': 'elder'});
+    ref.read(voiceControllerProvider.notifier).toggle();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Semantics(
-      button: true,
-      label: 'Nói chuyện với Vy. Chạm rồi nói',
-      excludeSemantics: true,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        child: InkWell(
-          key: const Key('elder-vy'),
-          borderRadius: BorderRadius.circular(24),
-          onTap: () {
-            Analytics.track('tap_feature', {'feature': 'vy', 'shell': 'elder'});
-            ref.read(voiceControllerProvider.notifier).toggle();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: 14,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                const VyOrb(size: 128),
-                const SizedBox(width: 16),
-                Expanded(
+    return LayoutBuilder(
+      builder: (context, box) {
+        // Quả cầu chỉ chiếm ~62% khung vẽ nên khung cho lớn hơn để Vy thật to.
+        final orb = (box.maxHeight - 100).clamp(140.0, 420.0).toDouble();
+        return Semantics(
+          button: true,
+          label: 'Nói chuyện với Vy. Chạm rồi nói',
+          excludeSemantics: true,
+          child: GestureDetector(
+            key: const Key('elder-vy'),
+            behavior: HitTestBehavior.opaque,
+            onTap: _talk,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: SizedBox(
+                  width: box.maxWidth,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      VyOrb(size: orb),
                       Text(
-                        'Nói với Vy',
+                        'Chạm vào Vy rồi nói',
+                        textAlign: TextAlign.center,
                         style: theme.textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          height: 1.1,
+                          color: AppColors.navyDeep,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Chạm rồi nói: đo huyết áp, hỏi về thuốc, nhắn tin cho con.',
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: AppColors.textMuted,
-                        ),
+                      const SizedBox(height: 4),
+                      AnimatedBuilder(
+                        animation: _hint,
+                        builder: (context, _) {
+                          final i = (_hint.value * vyHints.length).floor() %
+                              vyHints.length;
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 350),
+                            child: Padding(
+                              key: ValueKey(i),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                              ),
+                              child: Text(
+                                'Ví dụ: “${vyHints[i]}”',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -286,34 +321,36 @@ class _TileButton extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18),
         child: InkWell(
           key: Key('elder-tile-${tile.key}'),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.border),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(tile.icon, size: 40, color: AppColors.navy),
-                const SizedBox(height: 6),
-                Text(
-                  tile.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navyDeep,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(tile.icon, size: 30, color: AppColors.navy),
+                  const SizedBox(height: 2),
+                  Text(
+                    tile.label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navyDeep,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -322,23 +359,17 @@ class _TileButton extends StatelessWidget {
   }
 }
 
-/// Thuốc kế tiếp. Đến giờ thì có nút "Đã uống" thật to; chưa tới giờ thì chạm để xem lịch.
-class _DoseCard extends ConsumerStatefulWidget {
-  const _DoseCard({
-    required this.dose,
-    required this.due,
-    this.compact = false,
-  });
+/// Đến giờ uống thuốc: thẻ nổi bật với nút "Đã uống" thật to (hoặc nói "tôi đã uống thuốc rồi" với Vy).
+class _DueCard extends ConsumerStatefulWidget {
+  const _DueCard({required this.dose});
 
   final Dose? dose;
-  final bool due;
-  final bool compact;
 
   @override
-  ConsumerState<_DoseCard> createState() => _DoseCardState();
+  ConsumerState<_DueCard> createState() => _DueCardState();
 }
 
-class _DoseCardState extends ConsumerState<_DoseCard> {
+class _DueCardState extends ConsumerState<_DueCard> {
   bool _busy = false;
 
   Future<void> _taken(Dose d) async {
@@ -358,240 +389,207 @@ class _DoseCardState extends ConsumerState<_DoseCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final d = widget.dose;
+    final d = widget.dose!;
+    return Container(
+      key: const Key('elder-dose'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Đến giờ uống thuốc',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${d.hm} · ${d.bag ? 'Túi ${d.label}' : d.label}',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            height: 60,
+            child: FilledButton.icon(
+              key: Key('elder-dose-taken-${d.id}'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 60),
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.navy,
+              ),
+              onPressed: _busy ? null : () => _taken(d),
+              icon: const Icon(Icons.check_rounded, size: 28),
+              label: const Text(
+                'Đã uống',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Thuốc kế tiếp, gọn một dòng; chạm để xem lịch thuốc.
+class _MiniDose extends ConsumerWidget {
+  const _MiniDose({required this.dose, required this.due});
+
+  final Dose? dose;
+  final bool due;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final d = dose;
+    if (due) {
+      // Thẻ "Đến giờ uống thuốc" phía trên đã nói đủ.
+      return _InfoBox(
+        title: 'Thuốc',
+        value: 'Đang đến giờ',
+        sub: 'Bấm "Đã uống" ở trên',
+      );
+    }
     if (d == null) {
       return Container(
         key: const Key('elder-dose-none'),
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-        ),
+        padding: const EdgeInsets.all(12),
+        decoration: _boxDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.medication_outlined,
-              size: widget.compact ? 28 : 32,
-              color: AppColors.navy,
+            Text(
+              'Thuốc',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
-            const SizedBox(height: 6),
             Text(
               'Hôm nay không còn cữ thuốc nào',
-              style: theme.textTheme.titleMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
       );
     }
-    final color = widget.due ? AppColors.navy : Colors.white;
-    final fg = widget.due ? Colors.white : AppColors.navyDeep;
     return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(24),
+      color: Colors.transparent,
       child: InkWell(
-        key: const Key('elder-dose'),
-        borderRadius: BorderRadius.circular(24),
-        onTap: widget.due
-            ? null
-            : () {
-                ref.read(healthTabProvider.notifier).set(2);
-                context.go(Routes.bp);
-              },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            border: widget.due ? null : Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.due ? 'Đến giờ uống thuốc' : 'Thuốc kế tiếp',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: fg.withValues(alpha: 0.85),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                widget.compact
-                    ? d.hm
-                    : '${d.hm} · ${d.bag ? 'Túi ${d.label}' : d.label}',
-                style:
-                    (widget.compact
-                            ? theme.textTheme.displaySmall
-                            : theme.textTheme.headlineSmall)
-                        ?.copyWith(
-                          color: fg,
-                          fontWeight: FontWeight.w800,
-                          height: 1.05,
-                        ),
-              ),
-              if (widget.compact)
-                Text(
-                  d.bag ? 'Túi ${d.label}' : d.label,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              if (widget.due) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: FilledButton.icon(
-                    key: Key('elder-dose-taken-${d.id}'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.navy,
-                    ),
-                    onPressed: _busy ? null : () => _taken(d),
-                    icon: const Icon(Icons.check_rounded, size: 30),
-                    label: const Text(
-                      'Đã uống',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+        key: const Key('elder-dose-next'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          ref.read(healthTabProvider.notifier).set(2);
+          context.go(Routes.bp);
+        },
+        child: _InfoBox(
+          title: 'Thuốc kế tiếp',
+          value: d.hm,
+          sub: d.bag ? 'Túi ${d.label}' : d.label,
         ),
       ),
     );
   }
 }
 
-class _BpCard extends StatelessWidget {
-  const _BpCard({required this.latest, this.compact = false});
+class _MiniBp extends StatelessWidget {
+  const _MiniBp({required this.latest});
 
   final dynamic latest;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final r = latest;
     return Semantics(
       label: r == null
           ? 'Chưa có số đo huyết áp'
           : 'Huyết áp gần nhất ${r.systolic} trên ${r.diastolic}, ${r.category.label}',
       excludeSemantics: true,
-      child: Container(
+      child: _InfoBox(
         key: const Key('elder-bp'),
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: compact
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Huyết áp gần nhất',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    r == null ? '--/--' : '${r.systolic}/${r.diastolic}',
-                    style: theme.textTheme.displaySmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1.05,
-                    ),
-                  ),
-                  if (r != null)
-                    Text(
-                      r.category.label as String,
-                      style: TextStyle(
-                        color: r.category.color as Color,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    )
-                  else
-                    Text(
-                      'Chưa có lần đo nào',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Huyết áp gần nhất',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          r == null ? '--/--' : '${r.systolic}/${r.diastolic}',
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            height: 1.05,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (r != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: (r.category.color as Color).withValues(
-                              alpha: 0.15,
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            r.category.label as String,
-                            style: TextStyle(
-                              color: r.category.color as Color,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          formatDateTime(r.measuredAt as DateTime),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    Text(
-                      'Chưa có lần đo nào',
-                      style: theme.textTheme.bodyLarge,
-                    ),
-                ],
-              ),
+        title: 'Huyết áp gần nhất',
+        value: r == null ? '--/--' : '${r.systolic}/${r.diastolic}',
+        sub: r == null ? 'Chưa có lần đo nào' : r.category.label as String,
+        subColor: r == null ? null : r.category.color as Color,
+      ),
+    );
+  }
+}
+
+final _boxDecoration = BoxDecoration(
+  color: Colors.white,
+  borderRadius: BorderRadius.circular(18),
+  border: Border.all(color: AppColors.border),
+);
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.sub,
+    this.subColor,
+  });
+
+  final String title;
+  final String value;
+  final String sub;
+  final Color? subColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: _boxDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: AppColors.textMuted,
+            ),
+          ),
+          Text(
+            value,
+            maxLines: 1,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.05,
+            ),
+          ),
+          Text(
+            sub,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: subColor ?? AppColors.textMuted,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -45,7 +45,9 @@ void main() {
     await pump(t);
     expect(find.byKey(const Key('elder-home')), findsOneWidget);
     expect(find.byKey(const Key('elder-vy')), findsOneWidget, reason: 'Vy luôn hiện ở đầu trang chủ');
-    expect(find.text('Nói với Vy'), findsOneWidget);
+    expect(find.text('Chạm vào Vy rồi nói'), findsOneWidget);
+    final vy = t.getSize(find.byKey(const Key('elder-vy')));
+    expect(vy.height, greaterThan(300), reason: 'Vy là nút chính, chiếm vùng lớn nhất màn hình');
     for (final tile in elderTiles) {
       expect(find.byKey(Key('elder-tile-${tile.key}')), findsOneWidget, reason: tile.label);
     }

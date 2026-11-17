@@ -151,7 +151,7 @@ class _BackHomeBar extends StatelessWidget {
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 60,
+                  height: 68,
                   child: FilledButton.icon(
                     key: const Key('elder-back-home'),
                     onPressed: onHome,
@@ -161,7 +161,7 @@ class _BackHomeBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              SizedBox(width: 60, height: 60, child: Center(child: VyButton(size: 56, onTap: onVy))),
+              SizedBox(width: 84, height: 84, child: Center(child: VyButton(size: 80, onTap: onVy))),
             ],
           ),
         ),

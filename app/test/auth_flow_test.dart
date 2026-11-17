@@ -101,7 +101,7 @@ void main() {
     await repo.signIn(email: 'a@b.co', password: '12345678');
     await settle(tester);
     expect(find.byType(ElderHomeScreen), findsOneWidget);
-    expect(find.text('Nói với Vy'), findsOneWidget);
+    expect(find.text('Chạm vào Vy rồi nói'), findsOneWidget);
 
     await repo.signOut();
     await settle(tester);
