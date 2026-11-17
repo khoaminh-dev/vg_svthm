@@ -65,6 +65,30 @@ class ProfileScreen extends ConsumerWidget {
       subtitle: Text(value, style: text.titleMedium),
     );
 
+    final speakTile = SwitchListTile(
+      key: const Key('profile-speak'),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+      ),
+      secondary: Icon(
+        Icons.volume_up_outlined,
+        color: scheme.primary,
+      ),
+      title: const Text(
+        'Đọc lời khuyên sau khi đo',
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 17,
+        ),
+      ),
+      subtitle: Text(user?.role == AppRole.family ? 'Máy tự đọc to cho bạn nghe' : 'Máy tự đọc to cho bác nghe'),
+      value: ref.watch(speakAdviceProvider).value ?? true,
+      onChanged: (v) {
+        Analytics.track('speak_advice_toggle', {'on': v});
+        ref.read(speakAdviceProvider.notifier).set(v);
+      },
+    );
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -91,6 +115,7 @@ class ProfileScreen extends ConsumerWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.lg),
+                  if (user.role != AppRole.elder)
                   InsetGroup(
                     dividerIndent: 56,
                     children: [
@@ -106,9 +131,11 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.lg),
+                if (user?.role != AppRole.elder)
                 InsetGroup(
                   dividerIndent: 0,
                   children: [
+                    if (user?.role != AppRole.elder)
                     Semantics(
                       button: true,
                       label: 'Hồ sơ sức khoẻ',
@@ -131,35 +158,37 @@ class ProfileScreen extends ConsumerWidget {
                         onTap: () => context.push(Routes.healthProfile),
                       ),
                     ),
-                    SwitchListTile(
-                      key: const Key('profile-speak'),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      secondary: Icon(
-                        Icons.volume_up_outlined,
-                        color: scheme.primary,
-                      ),
-                      title: const Text(
-                        'Đọc lời khuyên sau khi đo',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 17,
-                        ),
-                      ),
-                      subtitle: Text(user?.role == AppRole.family ? 'Máy tự đọc to cho bạn nghe' : 'Máy tự đọc to cho bác nghe'),
-                      value: ref.watch(speakAdviceProvider).value ?? true,
-                      onChanged: (v) {
-                        Analytics.track('speak_advice_toggle', {'on': v});
-                        ref.read(speakAdviceProvider.notifier).set(v);
-                      },
-                    ),
+                    speakTile,
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                const _FamilySettings(),
-                const SizedBox(height: AppSpacing.lg),
-                const _NotificationSettings(),
+                if (user?.role == AppRole.elder) ...[
+                  // Người cao tuổi: chỉ ba việc hay dùng, mỗi việc một ô to. Cài đặt còn lại gom vào "Cài đặt khác".
+                  _ElderProfileShortcuts(me: user!.id),
+                  const SizedBox(height: AppSpacing.md),
+                  Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      key: const Key('profile-more'),
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 20),
+                      title: const Text(
+                        'Cài đặt khác',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                      ),
+                      children: [
+                        speakTile,
+                        const SizedBox(height: AppSpacing.md),
+                        const _FamilySettings(),
+                        const SizedBox(height: AppSpacing.md),
+                        const _NotificationSettings(),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const _FamilySettings(),
+                  const SizedBox(height: AppSpacing.lg),
+                  const _NotificationSettings(),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 InsetGroup(
                   dividerIndent: 0,
@@ -203,6 +232,75 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Ba việc người cao tuổi hay làm ở Hồ sơ, mỗi việc một ô lớn có biểu tượng và một dòng chữ.
+class _ElderProfileShortcuts extends ConsumerWidget {
+  const _ElderProfileShortcuts({required this.me});
+
+  final String me;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final watchers = ref.watch(watchersProvider);
+    Widget big(String key, IconData icon, String title, String sub, VoidCallback onTap) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          key: Key(key),
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(icon, size: 40, color: AppColors.navy),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                      Text(sub, style: const TextStyle(fontSize: 16, color: AppColors.textMuted)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, size: 32),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return Column(
+      key: const Key('profile-elder-shortcuts'),
+      children: [
+        big(
+          'profile-invite',
+          Icons.family_restroom_outlined,
+          'Mời người thân',
+          watchers.isEmpty ? 'Để con xem được sức khoẻ của bác' : '${watchers.length} người đang theo dõi',
+          () => context.push(Routes.familyInvite),
+        ),
+        big(
+          'profile-emergency-card',
+          Icons.medical_information_outlined,
+          'Thẻ y tế khẩn cấp',
+          'Nhóm máu, dị ứng, số người nhà',
+          () => context.push(Routes.emergencyCardFor(me)),
+        ),
+        big(
+          'profile-health',
+          Icons.assignment_ind_outlined,
+          'Hồ sơ sức khoẻ',
+          'Tuổi, bệnh nền, chiều cao, cân nặng',
+          () => context.push(Routes.healthProfile),
+        ),
+      ],
     );
   }
 }

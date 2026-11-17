@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vg_svthm/core/theme/app_theme.dart';
+import 'package:vg_svthm/features/auth/domain/auth_user.dart';
+import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:vg_svthm/features/bp/domain/bp_models.dart';
 import 'package:vg_svthm/features/bp/presentation/providers/measure_controller.dart';
 import 'package:vg_svthm/features/bp/presentation/screens/measure_screen.dart';
@@ -70,7 +72,10 @@ void bigScreen(WidgetTester t) {
 Widget host(Widget child, {List<Override> overrides = const []}) =>
     ProviderScope(
       key: UniqueKey(),
-      overrides: overrides,
+      overrides: [
+        currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.family)),
+        ...overrides,
+      ],
       child: MaterialApp(
         theme: AppTheme.light,
         home: Scaffold(body: SingleChildScrollView(child: child)),

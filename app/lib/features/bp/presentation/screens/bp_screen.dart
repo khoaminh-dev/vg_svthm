@@ -7,9 +7,12 @@ import '../../../../core/analytics/analytics.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/ios_style.dart';
 import '../../../../shared/widgets/status_chip.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../health/presentation/providers/health_providers.dart';
 import '../../../health/presentation/widgets/risk_view.dart';
 import '../../../meds/presentation/meds_view.dart';
@@ -61,25 +64,38 @@ class BpScreen extends ConsumerWidget {
     final tab = ref.watch(healthTabProvider);
     final theme = Theme.of(context);
 
+    final elder =
+        ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             LargeTitle(
-              'Sức khoẻ',
-              actions: [
-                SoftIconButton(
-                  icon: Icons.photo_camera_outlined,
-                  label: 'Đo huyết áp',
-                  filled: true,
-                  onPressed: () {
-                    Analytics.track('bp_tap_measure');
-                    context.push(Routes.measure);
-                  },
-                ),
-              ],
+              elder
+                  ? (tab == 2
+                        ? 'Thuốc'
+                        : tab == 1
+                        ? 'Đánh giá sức khoẻ'
+                        : 'Huyết áp')
+                  : 'Sức khoẻ',
+              actions: elder
+                  ? const []
+                  : [
+                      SoftIconButton(
+                        icon: Icons.photo_camera_outlined,
+                        label: 'Đo huyết áp',
+                        filled: true,
+                        onPressed: () {
+                          Analytics.track('bp_tap_measure');
+                          context.push(Routes.measure);
+                        },
+                      ),
+                    ],
             ),
+            // Người cao tuổi đã chọn việc ở trang chủ (Huyết áp / Thuốc), không cần thanh chuyển tab.
+            if (!elder)
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
@@ -155,6 +171,7 @@ class BpScreen extends ConsumerWidget {
                           ],
                         ),
                         data: (list) {
+                          if (elder) return _ElderBpView(list: list);
                           if (list.isEmpty) {
                             return ListView(
                               children: const [
@@ -375,6 +392,210 @@ class BpScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Huyết áp cho người cao tuổi: một con số thật to kèm lời "Bình thường/Cao…" bằng màu và chữ,
+/// một nút "Đo huyết áp" thật to, rồi mới tới các lần đo trước. Không xoá, không chú thích biểu đồ.
+class _ElderBpView extends ConsumerWidget {
+  const _ElderBpView({required this.list});
+
+  final List<BpReading> list;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final latest = list.isEmpty ? null : list.first;
+    final recent = list.take(7).toList();
+    return ListView(
+      key: const Key('elder-bp-view'),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        4,
+        AppSpacing.md,
+        AppSpacing.lg,
+      ),
+      children: [
+        SizedBox(
+          height: 76,
+          child: FilledButton.icon(
+            key: const Key('elder-bp-measure'),
+            onPressed: () {
+              Analytics.track('bp_tap_measure', {'shell': 'elder'});
+              context.push(Routes.measure);
+            },
+            icon: const Icon(Icons.photo_camera_rounded, size: 32),
+            label: const Text(
+              'Đo huyết áp bây giờ',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (latest == null)
+          Container(
+            key: const Key('elder-bp-empty'),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Text(
+              'Bác chưa đo lần nào.\nBấm nút xanh ở trên để đo lần đầu.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge,
+            ),
+          )
+        else ...[
+          Container(
+            key: const Key('elder-bp-latest'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Lần đo gần nhất',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${latest.systolic}/${latest.diastolic}',
+                    style: TextStyle(
+                      fontSize: 88,
+                      height: 1.05,
+                      fontWeight: FontWeight.w800,
+                      color: latest.category.color,
+                    ),
+                  ),
+                ),
+                Text(
+                  latest.pulse == null
+                      ? 'mmHg'
+                      : 'mmHg · mạch ${latest.pulse}',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: latest.category.color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    latest.category.label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: latest.category.color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  BpScreen._fmt(latest.measuredAt),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (list.length > 1) ...[
+            const SizedBox(height: AppSpacing.md),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Các lần đo gần đây', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  const Wrap(
+                    spacing: 16,
+                    runSpacing: 4,
+                    children: [
+                      _Legend(color: BpChart.sysColor, label: 'Số trên'),
+                      _Legend(color: BpChart.diaColor, label: 'Số dưới'),
+                      _Legend(color: BpChart.pulseColor, label: 'Mạch'),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  BpChart(readings: list.take(14).toList().reversed.toList()),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            for (final r in recent.skip(1))
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: r.category.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${r.systolic}/${r.diastolic}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        BpScreen._fmt(r.measuredAt),
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 64,
+          child: OutlinedButton.icon(
+            key: const Key('elder-bp-risk'),
+            onPressed: () => ref.read(healthTabProvider.notifier).set(1),
+            icon: const Icon(Icons.shield_outlined, size: 28),
+            label: const Text(
+              'Xem nguy cơ sức khoẻ',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

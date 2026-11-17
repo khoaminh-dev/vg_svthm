@@ -10,6 +10,8 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/analytics/analytics.dart';
+import '../../../auth/domain/auth_user.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../health/data/advice_speaker.dart';
 import '../../../health/presentation/widgets/risk_charts.dart';
 import '../../../health/domain/health_models.dart';
@@ -440,7 +442,7 @@ class _Controls extends StatelessWidget {
             child: Text(
               hint,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
+              style: const TextStyle(color: Colors.white, fontSize: 20),
             ),
           ),
         ],
@@ -476,6 +478,8 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
     final text = Theme.of(context).textTheme;
     final risk = ref.watch(riskRunnerProvider).value;
     final showRisk = risk != null && risk.level.worthMentioning;
+    final elder =
+        ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
     return Container(
       key: const Key('measure-result'),
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
@@ -657,14 +661,34 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                 child: OutlinedButton(
                   onPressed: () =>
                       ref.read(measureControllerProvider.notifier).reset(),
+                  style: elder
+                      ? OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(64),
+                          textStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : null,
                   child: const Text('Chụp lại'),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: FilledButton(
-                  onPressed: () => context.go(Routes.bp),
-                  child: const Text('Xem lịch sử'),
+                  key: const Key('measure-done'),
+                  style: elder
+                      ? FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(64),
+                          textStyle: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                      : null,
+                  // Người cao tuổi: "Xong" là về thẳng trang chủ, không phải tìm đường.
+                  onPressed: () => context.go(elder ? Routes.home : Routes.bp),
+                  child: Text(elder ? 'Xong' : 'Xem lịch sử'),
                 ),
               ),
             ],
