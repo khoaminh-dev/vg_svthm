@@ -15,7 +15,7 @@
 ## Việc anh cần làm (hệ thống không tự làm được)
 1. **Đặt biến Vercel** (Project → Settings → Environment Variables, rồi redeploy):
    - `KEY_ENCRYPTION_SECRET`: chuỗi ngẫu nhiên ≥ 32 ký tự. Tạo ở máy anh (không dán vào chat) bằng PowerShell:
-     `[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }) -as [byte[]])`
+     `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b) | Set-Clipboard` (chép thẳng vào clipboard, không hiện ra màn hình)
      Lưu bản sao ở nơi an toàn (trình quản lý mật khẩu): mất nó là các khoá đã mã hoá không giải được.
    - `ADMIN_PASS`: ≥ 12 ký tự, không dùng lại ở nơi khác. `ADMIN_USER`: đổi khỏi `admin`.
    - `ADMIN_SESSION_SECRET`: chuỗi ngẫu nhiên riêng (hiện đang dùng chung khoá service của Supabase).
