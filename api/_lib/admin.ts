@@ -44,6 +44,37 @@ export function requireAdmin(req: VercelRequest, res: VercelResponse): boolean {
   return false;
 }
 
+/** Số ms kể từ lúc phiên admin được cấp (token chứa giờ hết hạn = giờ cấp + TTL). Hết hạn hoặc sai chữ ký → Infinity. */
+export function tokenAgeMs(req: Pick<VercelRequest, 'headers'>, now = Date.now()): number {
+  const h = req.headers.authorization ?? '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+  const [payload, sig] = token.split('.');
+  if (!secret() || !payload || !sig || !same(sig, sign(payload))) return Infinity;
+  const exp = Number(payload);
+  if (!(exp > now)) return Infinity;
+  return Math.max(0, now - (exp - TTL_MS));
+}
+
+/**
+ * Thao tác nhạy cảm (thêm/xoá/bật tắt khoá, đổi ngưỡng): chỉ chấp nhận khi đăng nhập trong `maxAgeMs` gần đây,
+ * để token bị lộ/để quên trên máy khác không đổi được khoá. Quá hạn thì trả 401 `reauth_required`.
+ */
+export function requireFreshAdmin(req: VercelRequest, res: VercelResponse, maxAgeMs = 15 * 60_000): boolean {
+  if (tokenAgeMs(req) <= maxAgeMs) return true;
+  res.status(401).json({ error: 'reauth_required' });
+  return false;
+}
+
+/** IP người gọi (Vercel đặt `x-forwarded-for`). */
+export function clientIp(req: Pick<VercelRequest, 'headers'>): string {
+  return String(req.headers['x-forwarded-for'] ?? 'x').split(',')[0].trim().slice(0, 64);
+}
+
+/** Băm một chiều IP (kèm bí mật) để nhật ký phân biệt được nguồn mà không lưu IP thật. */
+export function ipHash(ip: string): string {
+  return createHmac('sha256', secret() || 'x').update(`ip:${ip}`).digest('hex').slice(0, 16);
+}
+
 /** Gọi hàm Postgres (RPC) bằng service role (chỉ chạy trên server). */
 export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const base = process.env.SUPABASE_URL;

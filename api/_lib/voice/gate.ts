@@ -20,13 +20,14 @@ export type Policy = {
   eleven_model: string;
   turns_per_min: number;
   turns_per_day: number;
+  live_enabled: boolean; // công tắc tắt khẩn cấp Vy Live (mặc định tắt)
 };
 
 const DEFAULT_POLICY: Policy = {
   voice_enabled: true, eleven_enabled: true, eleven_calls_per_day: 3, eleven_chars_per_day: 240,
   eleven_calls_per_min: 2, eleven_max_chars: 80, eleven_global_chars_per_day: 8000, vip_multiplier: 3,
   deepseek_model: 'deepseek-flash', eleven_voice_id: 'EXAVITQu4vr4xnSDxMaL', eleven_model: 'eleven_flash_v2_5',
-  turns_per_min: 10, turns_per_day: 150,
+  turns_per_min: 10, turns_per_day: 150, live_enabled: false,
 };
 
 let policyCache: { at: number; p: Policy } | null = null;

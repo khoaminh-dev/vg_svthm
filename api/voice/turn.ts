@@ -9,6 +9,7 @@ import { getPolicy } from '../_lib/voice/gate.js';
 import { isReliable } from '../_lib/voice/stt_guard.js';
 import { answerHealth } from '../_lib/voice/health_voice.js';
 import { topicOf } from '../_lib/voice/health_say.js';
+import { startLive } from '../_lib/voice/live_start.js';
 
 const MAX_AUDIO_B64 = 4_000_000; // ~3MB, dưới giới hạn body của Vercel
 const MAX_TEXT = 500;
@@ -151,6 +152,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!uid) return;
   const authMs = Date.now() - tStart;
   if (!pol.voice_enabled) return res.status(503).json({ error: 'voice_disabled' });
+  // Thử nghiệm Vy Live (chỉ tài khoản được phép): tạo phiên GPT-Live, không đi qua luồng Vy thường.
+  const early = bodyObject(req);
+  if (early?.mode === 'live_start') return startLive(res, uid, early);
   const r0 = Date.now();
   if (!(await rateLimitParallel(uid, 'voice', pol.turns_per_min, pol.turns_per_day))) return res.status(429).json({ error: 'rate_limited' });
   const rlMs = Date.now() - r0;

@@ -109,6 +109,65 @@ class VoiceApi {
     }
   }
 
+  /// Thử nghiệm Vy Live: gửi SDP offer, nhận SDP answer của OpenAI qua máy chủ (khoá OpenAI không xuống app).
+  Future<({String sessionId, String sdp, String mode, int serverMs})> liveStart({
+    required String sdp,
+    required String liveMode,
+    required String honorific,
+  }) async {
+    final token = accessToken();
+    if (_baseUrl.isEmpty)
+      throw const VoiceApiException('config', 'Chưa cấu hình máy chủ');
+    if (token == null)
+      throw const VoiceApiException('auth', 'Phiên đăng nhập đã hết hạn');
+    final http.Response res;
+    try {
+      res = await _client
+          .post(
+            Uri.parse('$_baseUrl/api/voice/turn'),
+            headers: _headers(token),
+            body: jsonEncode({
+              'mode': 'live_start',
+              'sdp': sdp,
+              'live_mode': liveMode,
+              'honorific': honorific,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {
+      throw const VoiceApiException('network', 'Không kết nối được máy chủ');
+    }
+    if (res.statusCode != 201) {
+      var code = '';
+      try {
+        code = ((jsonDecode(utf8.decode(res.bodyBytes)) as Map)['error'] as String?) ?? '';
+      } catch (_) {}
+      throw VoiceApiException(
+        'live_${code.isEmpty ? res.statusCode : code}',
+        switch (code) {
+          'live_disabled' => 'Vy Live đang tắt (bật công tắc trong trang admin)',
+          'live_not_allowed' => 'Tài khoản này chưa có trong danh sách thử Live',
+          'live_not_configured' => 'Chưa có key OpenAI (thêm trong trang admin)',
+          'live_keys_failed' => 'Mọi key OpenAI đều đang lỗi hoặc hết hạn mức',
+          'live_rate' => 'Mở Live quá nhiều lần, chờ vài phút',
+          'live_busy' => 'OpenAI đang bận, thử lại sau',
+          _ => 'Máy chủ từ chối (${res.statusCode}${code.isEmpty ? '' : ' $code'})',
+        },
+      );
+    }
+    try {
+      final j = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      return (
+        sessionId: j['session_id'] as String,
+        sdp: j['sdp'] as String,
+        mode: (j['mode'] as String?) ?? liveMode,
+        serverMs: (j['server_ms'] as num?)?.toInt() ?? 0,
+      );
+    } catch (_) {
+      throw const VoiceApiException('server', 'Máy chủ trả dữ liệu không hợp lệ');
+    }
+  }
+
   /// Xin giọng đọc cho một câu; lỗi/hết hạn mức → `audio == null` (app dùng giọng máy).
   Future<TtsReply> tts(String text, String sayClass) async {
     final token = accessToken();
