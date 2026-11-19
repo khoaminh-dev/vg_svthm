@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { dbPatch, dbSelect } from '../db.js';
 import { AllKeysFailed, UpstreamError } from '../router.js';
+import { decryptKey } from '../secretbox.js';
 
 // Kho key dùng chung cho các nhà cung cấp giọng nói: gộp key từ biến môi trường (Vercel) và key admin thêm
 // trong DB, xoay vòng, tự nghỉ key lỗi (cooldown) và đánh dấu key sai/hết quota để admin thấy.
 
-export type Provider = 'deepseek' | 'elevenlabs' | 'groq' | 'gemini';
+export type Provider = 'deepseek' | 'elevenlabs' | 'groq' | 'gemini' | 'openai';
 
 export type KeyRef = { key: string; fp: string; id?: string };
 
@@ -14,7 +15,22 @@ const ENV_VARS: Record<Provider, string[]> = {
   elevenlabs: ['ELEVENLABS_API_KEYS', 'ELEVENLABS_API_KEY', 'ELEVENLABS_KEYS'],
   groq: ['GROQ_KEYS'],
   gemini: ['GEMINI_KEYS'],
+  openai: ['OPENAI_API_KEY', 'OPENAI_API_KEYS'],
 };
+
+/** Bí mật mã hoá khoá lưu trong DB (hiện tại, rồi bí mật cũ khi đang đổi). Xem secretbox.ts. */
+export function keySecrets(): (string | undefined)[] {
+  return [process.env.KEY_ENCRYPTION_SECRET, process.env.KEY_ENCRYPTION_SECRET_PREV];
+}
+
+/** Khoá thô của một dòng `provider_keys` (giải mã nếu cần). Trả null nếu không giải mã được; không ném lỗi, không log khoá. */
+export function plainKey(provider: Provider, stored: string): string | null {
+  try {
+    return decryptKey(stored, keySecrets(), provider);
+  } catch {
+    return null;
+  }
+}
 
 export function fingerprint(key: string): string {
   return createHash('sha256').update(key).digest('hex').slice(0, 8);
@@ -54,7 +70,9 @@ export async function listKeys(p: Provider): Promise<KeyRef[]> {
     );
     for (const r of rows) {
       if (r.cooldown_until && Date.parse(r.cooldown_until) > Date.now()) continue;
-      if (!keys.some((k) => k.key === r.api_key)) keys.push({ key: r.api_key, fp: fingerprint(r.api_key), id: r.id });
+      const key = plainKey(p, r.api_key);
+      if (!key) continue; // bản mã không giải được (thiếu/đổi KEY_ENCRYPTION_SECRET): bỏ qua, admin sẽ thấy khoá "không đọc được"
+      if (!keys.some((k) => k.key === key)) keys.push({ key, fp: fingerprint(key), id: r.id });
     }
   } catch {
     // DB không đọc được: vẫn dùng key từ biến môi trường.

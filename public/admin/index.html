@@ -116,9 +116,10 @@
   <main id="tab-settings" class="hidden">
     <div class="err" id="setErr"></div>
     <div id="lockNote" class="note hidden">Đang khoá thêm/xoá key vì mật khẩu admin còn là mặc định. Đặt biến <code>ADMIN_PASS</code> (≥ 6 ký tự, khác 123) trong Vercel → Environment Variables, redeploy, rồi đăng nhập lại bằng mật khẩu mới.</div>
+    <div id="secNote" class="note hidden"></div>
     <div class="card"><h2>Thêm key nhà cung cấp</h2>
       <form class="form" id="keyForm" autocomplete="off">
-        <div><label>Nhà cung cấp</label><select id="kProv"><option value="elevenlabs">ElevenLabs (giọng đọc + STT dự phòng)</option><option value="deepseek">DeepSeek (hiểu lệnh)</option><option value="groq">Groq (STT + LLM dự phòng)</option><option value="gemini">Gemini (LLM dự phòng)</option></select></div>
+        <div><label>Nhà cung cấp</label><select id="kProv"><option value="elevenlabs">ElevenLabs (giọng đọc + STT dự phòng)</option><option value="deepseek">DeepSeek (hiểu lệnh)</option><option value="groq">Groq (STT + LLM dự phòng)</option><option value="gemini">Gemini (LLM dự phòng)</option><option value="openai">OpenAI (Vy Live, GPT-Live)</option></select></div>
         <div><label>Nhãn (tuỳ chọn)</label><input id="kLabel" maxlength="60" placeholder="vd: eleven-free-1"></div>
         <div><label>API key</label><input id="kKey" type="password" autocomplete="new-password" placeholder="Dán key vào đây" required></div>
         <div><button type="submit">Kiểm tra &amp; thêm</button></div>
@@ -138,6 +139,20 @@
         <div><button type="submit">Lưu hạng</button></div>
       </form>
       <div class="scroll" style="margin-top:8px"><table id="tierTable"></table></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Tài khoản được thử Vy Live (GPT-Live)</h2>
+      <div class="mute" style="margin-bottom:8px">Chỉ các tài khoản này mở được Vy Live, và chỉ khi công tắc "Bật Vy Live" ở trên đang Bật. Mỗi người tối đa 6 lần mở / 5 phút và 60 lần / ngày.</div>
+      <form class="form" id="liveForm">
+        <div><label>Username</label><input id="lUser" placeholder="vd: hung" required></div>
+        <div><label>Thao tác</label><select id="lAct"><option value="live_add_user">Thêm vào danh sách</option><option value="live_remove_user">Gỡ khỏi danh sách</option></select></div>
+        <div><button type="submit">Lưu</button></div>
+      </form>
+      <div class="mute" id="lMsg" style="margin-top:8px"></div>
+      <div class="scroll" style="margin-top:8px"><table id="liveTable"></table></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Nhật ký thao tác quản trị (40 gần nhất)</h2>
+      <div class="mute" style="margin-bottom:8px">Chỉ ghi thêm, không sửa/xoá được; không chứa key (chỉ dấu vân tay 8 ký tự) và không lưu IP thật.</div>
+      <div class="scroll"><table id="auditTable"></table></div>
     </div>
   </main>
   <main id="tab-stats">
@@ -275,8 +290,13 @@ $('logout').onclick = () => { sessionStorage.removeItem('adm'); token = null; sh
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { ...opts, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } });
-  if (r.status === 401) { sessionStorage.removeItem('adm'); token = null; show(false); throw new Error('unauthorized'); }
   const d = await r.json().catch(() => ({}));
+  if (r.status === 401) {
+    sessionStorage.removeItem('adm'); token = null; show(false);
+    // Thao tác nhạy cảm cần đăng nhập mới (≤ 15 phút): báo rõ lý do thay vì chỉ quay về màn đăng nhập.
+    $('loginErr').textContent = d.error === 'reauth_required' ? 'Để đổi key hoặc ngưỡng, hãy đăng nhập lại (phiên đã quá 15 phút).' : '';
+    throw new Error('unauthorized');
+  }
   return { ok: r.ok, status: r.status, d };
 }
 
@@ -336,9 +356,10 @@ async function loadHealth() {
 }
 
 // ---------- Cài đặt ----------
-const PROV = { elevenlabs: 'ElevenLabs', deepseek: 'DeepSeek', groq: 'Groq', gemini: 'Gemini' };
+const PROV = { elevenlabs: 'ElevenLabs', deepseek: 'DeepSeek', groq: 'Groq', gemini: 'Gemini', openai: 'OpenAI' };
 const POL = [
   ['voice_enabled', 'Bật tính năng giọng nói', 'bool'], ['eleven_enabled', 'Bật ElevenLabs', 'bool'],
+  ['live_enabled', 'Bật Vy Live (GPT-Live), công tắc tắt khẩn cấp', 'bool'],
   ['eleven_calls_per_day', 'Câu Eleven / người / ngày', 'num'], ['eleven_chars_per_day', 'Ký tự Eleven / người / ngày', 'num'],
   ['eleven_calls_per_min', 'Câu Eleven / người / phút', 'num'], ['eleven_max_chars', 'Độ dài tối đa 1 câu (ký tự)', 'num'],
   ['eleven_global_chars_per_day', 'Ngân sách chung (ký tự/ngày)', 'num'], ['vip_multiplier', 'Hệ số VIP', 'num'],
@@ -349,11 +370,18 @@ let settings = null;
 function renderSettings(s) {
   settings = s;
   $('lockNote').classList.toggle('hidden', s.canEdit);
+  const warn = [];
+  if (!s.security.encryption) warn.push('Chưa có <code>KEY_ENCRYPTION_SECRET</code> trên Vercel: key OpenAI sẽ không được lưu cho tới khi đặt (≥ 32 ký tự ngẫu nhiên) và redeploy; các key khác đang lưu dạng thô trong DB.');
+  if (s.security.weakPass) warn.push('Mật khẩu admin (<code>ADMIN_PASS</code>) nên dài ≥ 12 ký tự.');
+  if (s.security.sharedSessionSecret) warn.push('Nên đặt <code>ADMIN_SESSION_SECRET</code> riêng (hiện đang dùng chung khoá service của Supabase để ký phiên admin).');
+  $('secNote').innerHTML = warn.length ? '<b>Cần làm để an toàn hơn:</b><br>• ' + warn.join('<br>• ') : '';
+  $('secNote').classList.toggle('hidden', !warn.length);
   $('keyTable').innerHTML = '<tr><th>Nhà cung cấp</th><th>Nhãn</th><th>Key</th><th>Trạng thái</th><th>Thêm lúc</th><th></th></tr>' +
     (s.keys.map((k) => {
-      const st = !k.enabled ? '<span class="pill">Tắt</span>' : k.status === 'ok' ? '<span class="pill ok">Dùng được</span>'
+      const st = !k.enabled ? '<span class="pill">Tắt</span>' : k.unreadable ? '<span class="pill bad">Không đọc được</span>' : k.status === 'ok' ? '<span class="pill ok">Dùng được</span>'
         : k.status === 'exhausted' ? '<span class="pill warn">Hết hạn mức</span>' : '<span class="pill bad">Sai key</span>';
-      return `<tr><td>${PROV[k.provider]}</td><td>${esc(k.label)}</td><td><code>${esc(k.masked)}</code></td><td>${st}${k.error ? ' <span class="mute">' + esc(k.error) + '</span>' : ''}</td><td>${fmt(k.createdAt)}</td>` +
+      const enc = k.encrypted ? ' <span class="pill ok" title="Mã hoá AES-256-GCM trong DB">Đã mã hoá</span>' : ' <span class="pill warn" title="Lưu thô trong DB">Chưa mã hoá</span>';
+      return `<tr><td>${PROV[k.provider]}</td><td>${esc(k.label)}</td><td><code>${esc(k.masked)}</code>${enc}</td><td>${st}${k.error ? ' <span class="mute">' + esc(k.error) + '</span>' : ''}</td><td>${fmt(k.createdAt)}</td>` +
         `<td style="white-space:nowrap"><button class="ghost sm" data-a="test_key" data-id="${k.id}">Thử lại</button> ` +
         `<button class="ghost sm" data-a="toggle_key" data-id="${k.id}" data-en="${k.enabled ? 0 : 1}">${k.enabled ? 'Tắt' : 'Bật'}</button> ` +
         `<button class="danger sm" data-a="delete_key" data-id="${k.id}">Xoá</button></td></tr>`;
@@ -364,16 +392,21 @@ function renderSettings(s) {
     : `<div><label>${label}</label><input data-k="${k}" data-t="${type}" value="${esc(s.policy[k])}" ${type === 'num' ? 'inputmode="numeric"' : ''}></div>`).join('') +
     '<div><button type="submit">Lưu ngưỡng</button></div>';
   $('tierTable').innerHTML = s.tiers.map((x) => `<tr><td>${esc(x.label)}</td><td>${x.tier === 'vip' ? 'VIP' : 'Tắt Eleven'}</td></tr>`).join('') || '<tr><td class="mute">Chưa có hạng đặc biệt nào</td></tr>';
+  $('liveTable').innerHTML = (s.liveUsers || []).map((x) => `<tr><td>${esc(x.label)}</td><td>${fmt(x.addedAt)}</td></tr>`).join('') || '<tr><td class="mute">Chưa có tài khoản nào (ngoài danh sách biến môi trường LIVE_ALLOWED_USERS nếu có)</td></tr>';
+  $('auditTable').innerHTML = '<tr><th>Thời gian</th><th>Người</th><th>Thao tác</th><th>Đối tượng</th><th>Chi tiết</th></tr>' +
+    ((s.audit || []).map((a) => `<tr><td>${fmt(a.ts)}</td><td>${esc(a.actor)}</td><td>${esc(AUD[a.action] || a.action)}</td><td>${esc(a.target || '')}</td>` +
+      `<td>${Object.keys(a.detail || {}).length ? '<code>' + esc(JSON.stringify(a.detail)) + '</code>' : ''}</td></tr>`).join('') || '<tr><td class="mute" colspan="5">Chưa có</td></tr>');
 }
+const AUD = { login_ok: 'Đăng nhập', login_fail: 'Đăng nhập sai', key_add: 'Thêm key', key_rejected: 'Key bị từ chối', key_delete: 'Xoá key', key_enable: 'Bật key', key_disable: 'Tắt key', key_test: 'Thử key', policy_set: 'Đổi ngưỡng/công tắc', tier_set: 'Đổi hạng', live_add_user: 'Thêm người thử Live', live_remove_user: 'Gỡ người thử Live' };
 async function loadSettings() {
   $('setErr').textContent = '';
   const { ok, d } = await api('/api/admin/settings').catch(() => ({ ok: false, d: {} }));
   if (!ok) { $('setErr').textContent = 'Lỗi: ' + (d.error || ''); return; }
   renderSettings(d);
 }
-const ERR = { locked: 'Đang bị khoá: cần đặt ADMIN_PASS khác mặc định.', key_rejected: 'Key bị nhà cung cấp từ chối', duplicate: 'Key này đã có rồi', bad_key: 'Key không hợp lệ', user_not_found: 'Không tìm thấy username' };
+const ERR = { locked: 'Đang bị khoá: cần đặt ADMIN_PASS khác mặc định.', key_rejected: 'Key bị nhà cung cấp từ chối', duplicate: 'Key này đã có rồi', bad_key: 'Key không hợp lệ', user_not_found: 'Không tìm thấy username', encryption_required: 'Chưa thể lưu: thiếu KEY_ENCRYPTION_SECRET' };
 async function post(body, msgEl) {
-  const { ok, d } = await api('/api/admin/settings', { method: 'POST', body: JSON.stringify(body) });
+  const { ok, d } = await api('/api/admin/settings', { method: 'POST', body: JSON.stringify(body) }).catch(() => ({ ok: false, d: { error: 'Cần đăng nhập lại' } }));
   if (!ok) { msgEl.textContent = (ERR[d.error] || d.error || 'Lỗi') + (d.note ? ': ' + d.note : '') + (d.message ? ' ' + d.message : ''); return false; }
   renderSettings(d);
   msgEl.textContent = d.note ? 'Đã lưu. ' + d.note : 'Đã lưu.';
@@ -397,6 +430,10 @@ $('polForm').addEventListener('submit', async (e) => {
     policy[el.dataset.k] = el.tagName === 'SELECT' ? el.value === '1' : el.dataset.t === 'num' ? Number(el.value) : el.value.trim();
   });
   await post({ action: 'set_policy', policy }, $('pMsg'));
+});
+$('liveForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (await post({ action: $('lAct').value, username: $('lUser').value }, $('lMsg'))) $('lUser').value = '';
 });
 $('tierForm').addEventListener('submit', async (e) => {
   e.preventDefault();

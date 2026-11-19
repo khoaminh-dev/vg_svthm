@@ -18,6 +18,7 @@ import '../analytics/analytics.dart';
 import '../../features/bp/presentation/screens/bp_screen.dart';
 import '../../features/bp/presentation/screens/measure_screen.dart';
 import '../../features/camera/presentation/camera_screen.dart';
+import '../../features/voice/live/live_lab_screen.dart';
 import '../../features/entertainment/data/youtube_service.dart';
 import '../../features/entertainment/presentation/entertainment_screen.dart';
 import '../../features/entertainment/presentation/player_screen.dart';
@@ -135,6 +136,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.measure, builder: (_, _) => const MeasureScreen()),
       GoRoute(path: Routes.camera, builder: (_, _) => const CameraScreen()),
+      GoRoute(path: Routes.liveLab, builder: (_, _) => const LiveLabScreen()),
       GoRoute(
         path: Routes.medsPlans,
         builder: (_, s) =>

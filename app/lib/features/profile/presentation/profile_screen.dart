@@ -220,24 +220,58 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                FutureBuilder<PackageInfo>(
-                  future: PackageInfo.fromPlatform(),
-                  builder: (context, snap) {
-                    final i = snap.data;
-                    return Text(
-                      i == null
-                          ? ''
-                          : 'Viegrand ${i.version} (${i.buildNumber})',
-                      textAlign: TextAlign.center,
-                      style: text.bodySmall?.copyWith(color: scheme.outline),
-                    );
-                  },
+                _VersionLabel(
+                  style: text.bodySmall?.copyWith(color: scheme.outline),
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Dòng phiên bản. Chạm 7 lần liên tiếp mở màn thử nghiệm nội bộ Vy Live (chỉ tài khoản được bật ở máy chủ dùng được).
+class _VersionLabel extends StatefulWidget {
+  const _VersionLabel({this.style});
+
+  final TextStyle? style;
+
+  @override
+  State<_VersionLabel> createState() => _VersionLabelState();
+}
+
+class _VersionLabelState extends State<_VersionLabel> {
+  int _taps = 0;
+  DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
+
+  void _tap() {
+    final now = DateTime.now();
+    _taps = now.difference(_last) > const Duration(seconds: 2) ? 1 : _taps + 1;
+    _last = now;
+    if (_taps >= 7) {
+      _taps = 0;
+      context.push(Routes.liveLab);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snap) {
+        final i = snap.data;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _tap,
+          child: Text(
+            i == null ? '' : 'Viegrand ${i.version} (${i.buildNumber})',
+            textAlign: TextAlign.center,
+            style: widget.style,
+          ),
+        );
+      },
     );
   }
 }
