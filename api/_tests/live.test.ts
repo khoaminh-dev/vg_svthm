@@ -51,4 +51,8 @@ test('buildLiveSession chế độ R: cấu hình thêm hợp lệ được tr�
 test('buildLiveSession chế độ C: client delegation', () => {
   const s = buildLiveSession('C', 'cô', {}) as any;
   assert.deepEqual(s.delegation, { type: 'client', acknowledgement_delay_ms: 800 });
+  // Chế độ C buộc đọc nguyên văn và chuyển mọi câu trả lời kế tiếp; chế độ R không có các dòng này.
+  assert.match(s.instructions, /NGUYÊN VĂN/);
+  assert.match(s.instructions, /không tự xác nhận/);
+  assert.ok(!(buildLiveSession('R', 'cô', {}) as any).instructions.includes('NGUYÊN VĂN'));
 });

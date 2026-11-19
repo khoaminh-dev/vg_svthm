@@ -131,6 +131,21 @@ Không đụng người dùng thật: chỉ chạy cho tài khoản trong `LIVE_
 
 Tiêu chí đạt: tiếng Việt hiểu đúng ≥ 90% câu lệnh mẫu; độ trễ trong mục tiêu mục 6; không có lần "model tự xác nhận" nào trong 50 lượt thử.
 
+## 9b. Quyết định ngày 19/11/2026: Live kiểu lai (chế độ C dùng Vy cũ)
+
+Sau khi chủ dự án thử: giọng GPT-Live rất tốt, nhưng bước chọn hàm (chế độ R, Luna) chậm hơn. Quyết định: **GPT-Live chỉ lo giọng và xã giao; chọn hàm đi qua Vy cũ** (đường chữ của `/api/voice/turn`: luật nhanh trước, Groq sau; đang miễn phí). Chế độ C được dùng cho việc này; chế độ R giữ lại để so sánh.
+
+Đã làm (khớp các mục trên):
+- Mục 7 (xác nhận): `ConfirmGate` mã Dart dùng một lần, hạn 60 giây, gắn đúng nội dung tin, kèm khoá chống gửi trùng; gửi tin chỉ chạy khi cổng đang mở đúng nội dung; có nút Gửi/Sửa/Hủy trên màn hình.
+- Mục 7 (khẩn cấp): dò từ khoá ngay trong app, độc lập model/máy chủ; test so danh sách với `dm.ts`.
+- Mục 7 (nguyên văn): câu `emergency`/`important` luôn đọc bằng giọng máy; các câu khác để Live đọc và đo `say_fidelity`.
+- Mục 5.3: chỉ dẫn chế độ C buộc đọc nguyên văn và chuyển MỌI câu trả lời kế tiếp (ừ/không/tên/nội dung) cho phần xử lý; nạp ngữ cảnh lúc mở phiên (xưng hô, danh bạ rút gọn, số đo gần nhất). Chưa cập nhật ngữ cảnh theo đổi màn hình (bộ não nhận `screen` mỗi lượt nên chưa cần).
+- Đợt D làm sớm: `VoiceActions` dùng chung, thanh nổi Kết thúc, khoá lẫn nhau với Vy thường, trần 240 giây ở app (Đợt C chuyển sang server).
+- Mục 6 (lớp 1 luật Dart): **chủ ý chưa làm** để tránh hai bản luật lệch nhau. Server đã chạy luật nhanh trước khi gọi Groq. Quyết định làm hay không sau khi đo `brain_ms` và các số `timings` (`auth_ms`, `rate_ms`, `nlu_ms`, `dm_ms`) trong nhật ký lab.
+
+Chưa có điểm tin cậy cho lời nói từ Live (khác đường âm thanh cũ có `isReliable`): vì vậy mọi hành động có ghi bắt buộc qua xác nhận kép.
+Rủi ro chưa đo: Live có đọc nguyên văn không (`say_fidelity`), tên sự kiện báo xong phiên âm, độ chính xác tên người nhận khi phiên âm của Live không có gợi ý danh bạ như Whisper.
+
 ## 10. Các đợt tiếp theo
 
 - **B. Gói và hạn mức** (không cần OpenAI): migration, `entitlements`, nhập mã, màn "Gói của tôi", admin, siết Free 20 lượt/ngày.
