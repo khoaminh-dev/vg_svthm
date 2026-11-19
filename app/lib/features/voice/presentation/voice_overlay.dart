@@ -10,6 +10,8 @@ import '../../../shared/widgets/vy_button.dart';
 import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../domain/voice_models.dart';
+import '../live/live_lab_controller.dart';
+import '../live/live_state.dart';
 import 'voice_controller.dart';
 
 /// Lớp phủ trợ lý giọng nói trên mọi màn hình: nút Vy nhỏ + màn hội thoại toàn màn hình.
@@ -51,10 +53,14 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
     final enabled = user != null && !user.needsProfile;
     final router = ref.watch(routerProvider);
     final open = ref.watch(voiceControllerProvider.select((s) => s.panelOpen));
+    final liveOn = ref.watch(liveActiveProvider);
     return Stack(
       children: [
         widget.child,
-        if (enabled && !open)
+        // Vy Live đang chạy (thử nghiệm): thanh nổi ở mọi màn để kết thúc ngay và bấm xác nhận gửi tin.
+        if (enabled && liveOn)
+          const Positioned(left: 12, right: 12, top: 0, child: SafeArea(child: _LiveBar())),
+        if (enabled && !open && !liveOn)
           // Theo dõi đường dẫn hiện tại để đặt nút Vy tránh nút "Chat mới" và ô nhập tin nhắn.
           ListenableBuilder(
             listenable: Listenable.merge([
@@ -406,6 +412,62 @@ class _ChipWrap extends StatelessWidget {
             onPressed: () => onTap(chip),
           ),
       ],
+    );
+  }
+}
+
+
+/// Thanh nổi khi Vy Live đang chạy: hiện trạng thái, nút Kết thúc, và các nút xác nhận khi chờ gửi tin.
+class _LiveBar extends ConsumerWidget {
+  const _LiveBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(liveLabProvider);
+    final c = ref.read(liveLabProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+    final label = switch (s.phase) {
+      LivePhase.connecting => 'Vy Live đang kết nối…',
+      LivePhase.closing => 'Vy Live đang kết thúc…',
+      _ => 'Vy Live đang nghe',
+    };
+    return Material(
+      elevation: 6,
+      color: scheme.primaryContainer,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.graphic_eq_rounded, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
+                TextButton(
+                  onPressed: s.phase == LivePhase.closing ? null : c.end,
+                  child: const Text('Kết thúc'),
+                ),
+              ],
+            ),
+            if (s.emergency)
+              const Text('Phát hiện lời khẩn cấp: hãy bấm nút gọi người nhà hoặc gọi 115.'),
+            if (s.confirmSay != null) ...[
+              Text(s.confirmSay!),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final chip in s.confirmChips)
+                    OutlinedButton(onPressed: () => c.tapChip(chip), child: Text(chip)),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

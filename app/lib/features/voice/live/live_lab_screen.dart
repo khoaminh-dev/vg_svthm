@@ -32,12 +32,29 @@ class LiveLabScreen extends ConsumerWidget {
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'R', label: Text('R: Luna chọn hàm')),
-                  ButtonSegment(value: 'C', label: Text('C: app tự xử lý')),
+                  ButtonSegment(value: 'C', label: Text('C: Vy cũ chọn hàm')),
                 ],
                 selected: {s.mode},
                 onSelectionChanged: busy ? null : (v) => c.setMode(v.first),
               ),
-              const SizedBox(height: 12),
+              if (s.mode == 'C') ...[
+                SwitchListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Thực hiện thật (mở màn hình, video, đọc huyết áp)'),
+                  value: s.execReal,
+                  onChanged: c.setExecReal,
+                ),
+                SwitchListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Cho GỬI TIN THẬT sau khi xác nhận'),
+                  subtitle: const Text('Tắt: chỉ giả lập, không nhắn người thân'),
+                  value: s.sendReal,
+                  onChanged: c.setSendReal,
+                ),
+              ],
+              const SizedBox(height: 8),
               Text(label, style: text.titleMedium),
               if (s.error != null)
                 Padding(
@@ -62,6 +79,39 @@ class LiveLabScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+              if (s.emergency)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text('Phát hiện lời khẩn cấp: hãy bấm nút gọi người nhà hoặc gọi 115.'),
+                ),
+              if (s.confirmSay != null)
+                Card(
+                  margin: const EdgeInsets.only(top: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(s.confirmSay!, style: text.bodyMedium),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            for (final chip in s.confirmChips)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: OutlinedButton(onPressed: () => c.tapChip(chip), child: Text(chip)),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               const SizedBox(height: 12),
               if (s.userText.isNotEmpty) Text('Bạn: ${s.userText}', style: text.bodyMedium),
               if (s.assistantText.isNotEmpty) Text('Vy: ${s.assistantText}', style: text.bodyMedium),

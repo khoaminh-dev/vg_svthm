@@ -1,23 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
-import '../../../core/router/app_router.dart';
-import '../../../core/router/routes.dart';
 import '../../../core/supabase/supabase_providers.dart';
-import '../../bp/domain/bp_models.dart';
-import '../../bp/presentation/providers/bp_providers.dart';
-import '../../chat/domain/room.dart';
-import '../../chat/presentation/providers/chat_providers.dart';
-import '../../entertainment/data/youtube_service.dart';
-import '../../entertainment/presentation/entertainment_providers.dart';
 import '../data/speech_player.dart';
 import '../data/thinking_sound.dart';
+import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
 import '../data/voice_recorder.dart';
 import '../domain/voice_models.dart';
+import '../live/live_state.dart';
 
 class VoiceState {
   const VoiceState({
@@ -94,28 +87,17 @@ class VoiceController extends Notifier<VoiceState> {
     return v;
   }
 
+  VoiceActions get _actions => ref.read(voiceActionsProvider);
+
   ThinkingSound? _soundInst;
   ThinkingSound get _sound => _soundInst ??= ThinkingSound();
 
-  /// Lệnh đổi màn hình: chạy xong thì thu gọn màn Vy để người dùng thấy kết quả (Vy vẫn đọc nốt câu trả lời).
-  static const _navIntents = {
-    'send_message',
-    'open_chat',
-    'open_feature',
-    'measure_bp',
-    'play_video',
-    'video_control',
-    'show_bp',
-    'go_home',
-    'go_back',
-  };
 
   String _session = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
   int _turnNo = 0;
   int _run = 0; // tăng mỗi lần huỷ/bắt đầu để bỏ kết quả cũ
   int _silentRounds = 0;
   String _honorific = 'bác';
-  Map<String, List<String>> _aliases = {};
   bool _prefsLoaded = false;
   String? _lastSay;
   String _lastSayClass = 'static';
@@ -142,6 +124,11 @@ class VoiceController extends Notifier<VoiceState> {
 
   /// Nút mic: nghe → dừng và gửi; đang đọc/xử lý → ngắt và nghe ngay.
   Future<void> toggle() async {
+    // Vy Live đang chạy: không tranh micro/loa. Người dùng kết thúc Live trước.
+    if (ref.read(liveActiveProvider)) {
+      state = state.copyWith(error: 'Vy Live đang chạy. Hãy kết thúc Vy Live trước.');
+      return;
+    }
     switch (state.status) {
       case VoiceStatus.listening:
         Analytics.track('voice_mic_stop');
@@ -253,63 +240,14 @@ class VoiceController extends Notifier<VoiceState> {
   Future<void> _loadPrefs() async {
     if (_prefsLoaded) return;
     _prefsLoaded = true;
-    try {
-      final c = ref.read(supabaseClientProvider);
-      final uid = c.auth.currentUser?.id;
-      if (uid == null) return;
-      final p = await c
-          .from('voice_prefs')
-          .select('honorific')
-          .eq('user_id', uid)
-          .maybeSingle();
-      if (p != null) _honorific = p['honorific'] as String? ?? 'bác';
-    } catch (_) {}
+    _honorific = await _actions.loadHonorific();
   }
-
-  Future<List<VoiceContact>> _contacts() async {
-    try {
-      final c = ref.read(supabaseClientProvider);
-      final uid = c.auth.currentUser?.id;
-      final rooms = await ref.read(roomsProvider.future);
-      try {
-        final rows = await c
-            .from('voice_aliases')
-            .select('alias_norm, contact_id')
-            .eq('user_id', uid ?? '');
-        final m = <String, List<String>>{};
-        for (final r in rows) {
-          (m[r['contact_id'] as String] ??= []).add(r['alias_norm'] as String);
-        }
-        _aliases = m;
-      } catch (_) {}
-      return [
-        for (final r in rooms)
-          VoiceContact(
-            id: r.id,
-            kind: r.isDirect ? 'direct' : 'group',
-            name: r.displayName,
-            username: r.peer?.username,
-            aliases: _aliases[r.id] ?? const [],
-          ),
-      ];
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  String? _currentRoomId() {
-    final path = currentPath(ref.read(routerProvider));
-    final m = RegExp(r'^/rooms/([^/]+)$').firstMatch(path);
-    return m?.group(1);
-  }
-
-  String _screenName() => currentPath(ref.read(routerProvider));
 
   Future<void> _send({VoiceClipArg? audio, String? text, int? run}) async {
     final myRun = run ?? ++_run;
     state = state.copyWith(status: VoiceStatus.thinking, level: 0, error: null);
     await _loadPrefs();
-    final contacts = await _contacts();
+    final contacts = await _actions.contacts();
     if (myRun != _run) return;
     _turnNo++;
     final sw = Stopwatch()..start();
@@ -321,8 +259,8 @@ class VoiceController extends Notifier<VoiceState> {
         durationMs: audio?.durationMs ?? 0,
         text: text,
         dialog: state.dialog,
-        screen: _screenName(),
-        roomId: _currentRoomId(),
+        screen: _actions.screenName(),
+        roomId: _actions.currentRoomId(),
         contacts: contacts,
         honorific: _honorific,
       );
@@ -370,7 +308,7 @@ class VoiceController extends Notifier<VoiceState> {
         dialog = state.dialog;
         listenAfter = state.dialog.expects != VoiceExpect.command;
       case 'execute':
-        final out = await _execute(d.task!, contacts);
+        final out = await _actions.execute(d.task!, contacts, _honorific);
         if (run != _run) return;
         if (out != null) say = out;
         if (out != null) sayClass = 'other';
@@ -381,7 +319,7 @@ class VoiceController extends Notifier<VoiceState> {
     _lastSay = say;
     _lastSayClass = sayClass;
     final navigated =
-        d.action == 'execute' && _navIntents.contains(d.task?.intent);
+        d.action == 'execute' && VoiceActions.navIntents.contains(d.task?.intent);
     state = state.copyWith(
       transcript: res.transcript,
       say: say,
@@ -414,157 +352,6 @@ class VoiceController extends Notifier<VoiceState> {
       await _listen(); // mở mic ngay khi trợ lý nói xong
     } else {
       state = state.copyWith(status: VoiceStatus.idle);
-    }
-  }
-
-  // ---------- Thực hiện lệnh ----------
-
-  /// Tìm video theo lời nói: từ khoá cụ thể thì phát kết quả đầu tiên, chung chung thì hiện danh sách để chọn.
-  Future<String?> _playVideo(String? query, GoRouter router) async {
-    final q = query?.trim() ?? '';
-    if (q.isEmpty) return null;
-    Analytics.track('voice_play_video', {'len': q.length});
-    final List<VideoItem> found;
-    try {
-      found = await ref.read(videoSearchProvider).search(q, limit: 10);
-    } catch (_) {
-      return 'Con tìm video chưa được, $_honorific kiểm tra mạng rồi thử lại nhé.';
-    }
-    if (found.isEmpty) return 'Con không tìm thấy video nào về "$q" ạ.';
-    ref.read(videoQueryProvider.notifier).set(q);
-    router.go(Routes.entertainment);
-    if (isVagueVideoQuery(q)) {
-      return 'Dạ, con tìm được mấy video rồi, $_honorific chọn một video nhé.';
-    }
-    final first = found.first;
-    ref.read(videoQueueProvider.notifier).set(found);
-    router.push(Routes.player, extra: first);
-    final title = first.title.length > 70
-        ? '${first.title.substring(0, 70)}…'
-        : first.title;
-    return 'Dạ, con mở $title ạ.';
-  }
-
-  /// Điều khiển video đang phát bằng giọng nói.
-  String? _controlVideo(String? action) {
-    if (!ref.read(playerOpenProvider))
-      return 'Dạ, hiện chưa có video nào đang phát ạ.';
-    final a = switch (action?.toLowerCase()) {
-      'pause' => PlayerAction.pause,
-      'play' => PlayerAction.play,
-      'next' => PlayerAction.next,
-      'previous' => PlayerAction.previous,
-      'louder' => PlayerAction.louder,
-      'quieter' => PlayerAction.quieter,
-      _ => null,
-    };
-    if (a == null) return null;
-    ref.read(playerCommandProvider.notifier).send(a);
-    Analytics.track('voice_video_control', {'action': action});
-    return switch (a) {
-      PlayerAction.pause => 'Dạ, con dừng rồi ạ.',
-      PlayerAction.play => 'Dạ, con phát tiếp ạ.',
-      PlayerAction.next => 'Dạ, con chuyển bài ạ.',
-      PlayerAction.previous => 'Dạ, con mở lại bài trước ạ.',
-      PlayerAction.louder =>
-        'Dạ, con tăng âm lượng rồi ạ. Nếu chưa đủ to, $_honorific bấm nút to bên hông máy giúp con nhé.',
-      PlayerAction.quieter => 'Dạ, con giảm âm lượng rồi ạ.',
-    };
-  }
-
-  /// Chạy lệnh trên app. Trả về câu nói thay thế (khi cần báo kết quả/lỗi), hoặc null để dùng câu của server.
-  Future<String?> _execute(VoiceTask t, List<VoiceContact> contacts) async {
-    final router = ref.read(routerProvider);
-    final s = t.slots;
-    switch (t.intent) {
-      case 'send_message':
-        final roomId = s['room_id'];
-        final content = s['content'];
-        if (roomId == null || content == null)
-          return 'Con chưa gửi được, $_honorific thử lại nhé.';
-        final ok = await ref
-            .read(chatRepositoryProvider)
-            .sendMessage(roomId, content)
-            .then((_) => true)
-            .catchError((_) => false);
-        Analytics.track('voice_send_message', {'ok': ok});
-        if (!ok)
-          return 'Con gửi chưa được, $_honorific kiểm tra mạng rồi thử lại nhé.';
-        _openRoom(roomId, contacts);
-        return null;
-      case 'open_chat':
-        final id = s['room_id'];
-        if (id == null) return null;
-        _openRoom(id, contacts);
-        return null;
-      case 'open_feature':
-        switch (s['feature']) {
-          case 'chat':
-            router.go(Routes.rooms);
-          case 'ocr':
-            router.go(Routes.measure);
-          case 'bp':
-            router.go(Routes.bp);
-          case 'fun':
-            router.go(Routes.entertainment);
-          default:
-            router.go(Routes.home);
-        }
-        return null;
-      case 'play_video':
-        return await _playVideo(s['content'], router);
-      case 'video_control':
-        return _controlVideo(s['content']);
-      case 'measure_bp':
-        router.go(Routes.measure);
-        return 'Dạ, $_honorific chụp màn hình máy đo huyết áp giúp con nhé.';
-      case 'show_bp':
-        router.go(Routes.bp);
-        return null;
-      case 'read_bp':
-        return await _readBp();
-      case 'go_home':
-        router.go(Routes.home);
-        return null;
-      case 'go_back':
-        if (router.canPop()) {
-          router.pop();
-        } else {
-          router.go(Routes.home);
-        }
-        return null;
-    }
-    return null;
-  }
-
-  void _openRoom(String id, List<VoiceContact> contacts) {
-    final router = ref.read(routerProvider);
-    final rooms = ref.read(roomsProvider).value;
-    Room? room;
-    if (rooms != null) {
-      for (final r in rooms) {
-        if (r.id == id) room = r;
-      }
-    }
-    // Đã ở đúng phòng thì không mở chồng lên.
-    if (_currentRoomId() == id) return;
-    router.go(Routes.rooms);
-    router.push(Routes.roomPath(id), extra: room);
-  }
-
-  Future<String> _readBp() async {
-    try {
-      final list = await ref.read(bpReadingsProvider.future);
-      if (list.isEmpty)
-        return 'Chưa có kết quả đo nào. ${_honorific[0].toUpperCase()}${_honorific.substring(1)} đo huyết áp rồi chụp lại giúp con nhé.';
-      final r = list.reduce(
-        (a, b) => a.measuredAt.isAfter(b.measuredAt) ? a : b,
-      );
-      final cat = BpCategory.of(r.systolic, r.diastolic).label;
-      final pulse = r.pulse == null ? '' : ', mạch ${r.pulse}';
-      return 'Lần đo gần nhất: huyết áp ${r.systolic} trên ${r.diastolic}$pulse. Mức: $cat.';
-    } catch (_) {
-      return 'Con chưa đọc được kết quả, $_honorific thử lại sau nhé.';
     }
   }
 }

@@ -27,12 +27,18 @@ export function pickMode(v: unknown, fallback: string | undefined = process.env.
   return m === 'C' ? 'C' : 'R';
 }
 
-const frontInstructions = (hon: string) => `Bạn là Vy, trợ lý giọng nói tiếng Việt cho người cao tuổi trong ứng dụng Viegrand.
+/** Chế độ C: ứng dụng (Vy cũ) lo hành động, GPT-Live chỉ là giọng. Cần đọc nguyên văn và chuyển mọi câu trả lời kế tiếp. */
+const clientExtra = (hon: string) => `
+- Khi phần xử lý phía sau gửi lời cần nói, hãy đọc lại NGUYÊN VĂN lời đó, không thêm, không bớt, không diễn đạt lại.
+- Nếu phần xử lý vừa hỏi ${hon} một câu (nhắn cho ai, nhắn gì, có gửi không, chọn ai...), thì MỌI câu ${hon} nói kế tiếp, kể cả "ừ", "không", "gửi", "sửa", một cái tên hay nội dung tin nhắn, đều phải giao cho phần xử lý. Không tự trả lời, không tự xác nhận.
+- Nếu phần xử lý báo không cần nói gì thì hãy giữ im lặng, đừng tự nói thêm.`;
+
+const frontInstructions = (hon: string, mode: LiveMode = 'R') => `Bạn là Vy, trợ lý giọng nói tiếng Việt cho người cao tuổi trong ứng dụng Viegrand.
 - Luôn nói tiếng Việt, giọng ấm áp, chậm rãi, câu ngắn, lễ phép. Tự xưng "con", gọi người dùng là "${hon}".
 - Chỉ tự trả lời chào hỏi, hỏi thăm ngắn. Mọi yêu cầu cần làm gì trong ứng dụng (mở màn hình, xem hoặc đọc huyết áp, nhắn tin, xem video, quay lại) hãy giao cho phần xử lý phía sau, đừng tự nói đã làm xong khi chưa có kết quả.
 - Không chẩn đoán, không khuyên uống hay đổi thuốc, không đưa lời khuyên y tế. Câu hỏi về sức khoẻ thì giao cho phần xử lý phía sau.
 - Nếu ${hon} có dấu hiệu khẩn cấp (đau ngực, khó thở, ngã, choáng) hãy bình tĩnh nhắc ${hon} bấm nút gọi người nhà trên màn hình. Không bao giờ tự nói là đã gọi cấp cứu.
-- Nếu chưa nghe rõ, hãy hỏi lại một cách nhẹ nhàng thay vì đoán.`;
+- Nếu chưa nghe rõ, hãy hỏi lại một cách nhẹ nhàng thay vì đoán.${mode === 'C' ? clientExtra(hon) : ''}`;
 
 const backendInstructions = `Bạn xử lý yêu cầu của một trợ lý giọng nói tiếng Việt cho người cao tuổi. Phiên âm lời nói có thể sai, thiếu hoặc được sửa lại sau; dùng ngữ cảnh gần nhất.
 - Chọn đúng một hàm khi người dùng muốn thao tác trong ứng dụng. Chưa rõ thì hỏi lại, đừng đoán.
@@ -63,7 +69,7 @@ export const LIVE_TOOLS: FnDef[] = [
 
 export function buildLiveSession(mode: LiveMode, honorific: string, env: NodeJS.ProcessEnv = process.env): Record<string, unknown> {
   const hon = honorificOf(honorific);
-  const session: Record<string, unknown> = { model: 'gpt-live-1', instructions: frontInstructions(hon) };
+  const session: Record<string, unknown> = { model: 'gpt-live-1', instructions: frontInstructions(hon, mode) };
   if (mode === 'C') {
     session.delegation = { type: 'client', acknowledgement_delay_ms: 800 };
   } else {

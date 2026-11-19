@@ -1,18 +1,28 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-import '../../bp/domain/bp_models.dart';
-import '../../bp/presentation/providers/bp_providers.dart';
+import '../data/speech_player.dart';
+import '../data/voice_actions.dart';
+import '../data/voice_api.dart';
+import '../domain/voice_models.dart';
 import '../presentation/voice_controller.dart';
+import 'live_hybrid.dart';
+import 'live_state.dart';
 
 /// Đợt A (thử nghiệm nội bộ) của Vy Live. Xem docs/PREMIUM_LIVE_DESIGN.md.
-/// Chỉ để đo: tiếng Việt, độ trễ, chế độ R (Responses delegation) so với C (client delegation).
-/// Các hàm điều hướng/video/nhắn tin chỉ GIẢ LẬP (không đổi màn hình, không gửi tin); `read_bp` đọc thật.
+///
+/// Chế độ R: OpenAI chọn hàm (Luna). Các hàm điều hướng/video/nhắn tin vẫn chỉ GIẢ LẬP; `read_bp` đọc thật.
+/// Chế độ C (kiểu lai): GPT-Live lo giọng nói; câu lệnh đi qua Vy cũ (`/api/voice/turn` đường chữ) để chọn hàm,
+/// rồi chạy bằng `VoiceActions` dùng chung với Vy thường. Bộ xác nhận gửi tin là mã Dart (`ConfirmGate`).
 
 enum LivePhase { idle, connecting, live, closing }
+
+/// Trần một phiên thử (giây). Đợt C sẽ chuyển trần này sang máy chủ (`live_max_session_sec`).
+const _maxSessionSec = 240;
 
 class LiveLabState {
   const LiveLabState({
@@ -23,6 +33,11 @@ class LiveLabState {
     this.metrics = const {},
     this.log = const [],
     this.error,
+    this.execReal = true,
+    this.sendReal = false,
+    this.confirmSay,
+    this.confirmChips = const [],
+    this.emergency = false,
   });
 
   final LivePhase phase;
@@ -33,6 +48,19 @@ class LiveLabState {
   final List<String> log;
   final String? error;
 
+  /// Thực hiện thật các lệnh mở màn hình/đọc huyết áp/video (tắt thì chỉ giả lập).
+  final bool execReal;
+
+  /// Cho phép GỬI TIN THẬT sau khi xác nhận (mặc định tắt: giả lập, không nhắn nhầm người thân).
+  final bool sendReal;
+
+  /// Đang chờ xác nhận gửi tin: câu đã đọc lại và các nút (Gửi/Sửa/Hủy).
+  final String? confirmSay;
+  final List<String> confirmChips;
+
+  /// Vừa phát hiện lời khẩn cấp: hiện nhắc bấm nút gọi người nhà.
+  final bool emergency;
+
   LiveLabState copyWith({
     LivePhase? phase,
     String? mode,
@@ -41,6 +69,11 @@ class LiveLabState {
     Map<String, String>? metrics,
     List<String>? log,
     Object? error = _keep,
+    bool? execReal,
+    bool? sendReal,
+    Object? confirmSay = _keep,
+    List<String>? confirmChips,
+    bool? emergency,
   }) => LiveLabState(
     phase: phase ?? this.phase,
     mode: mode ?? this.mode,
@@ -49,6 +82,11 @@ class LiveLabState {
     metrics: metrics ?? this.metrics,
     log: log ?? this.log,
     error: identical(error, _keep) ? this.error : error as String?,
+    execReal: execReal ?? this.execReal,
+    sendReal: sendReal ?? this.sendReal,
+    confirmSay: identical(confirmSay, _keep) ? this.confirmSay : confirmSay as String?,
+    confirmChips: confirmChips ?? this.confirmChips,
+    emergency: emergency ?? this.emergency,
   );
 }
 
@@ -60,28 +98,64 @@ class LiveLabController extends Notifier<LiveLabState> {
   MediaStream? _mic;
   Timer? _flushTimer;
   Timer? _closeTimeout;
+  Timer? _capTimer;
+  Timer? _fidelityTimer;
+  AppLifecycleListener? _lifecycle;
+  SpeechPlayer? _player;
   final _sw = Stopwatch();
   int _evt = 0;
-  final String _honorific = 'bác';
+  String _honorific = 'bác';
+  String _liveSessionId = '';
 
   // Số đo độ trễ (ms trên đồng hồ _sw).
   int _lastUserAt = -1;
   int _delegationAt = -1;
   int _lastResultAt = -1;
   bool _awaitingFirstSpeech = false;
-  String _userBuf = '';
+  final _user = TranscriptBuffer();
   final _pending = <Map<String, Object?>>[];
   final _seenTypes = <String>{};
 
+  // Chế độ C (lai).
+  final _gate = ConfirmGate();
+  VoiceDialog _dialog = const VoiceDialog();
+  List<VoiceContact> _contacts = const [];
+  int _turnNo = 0;
+  int _seq = 0; // tăng mỗi lượt để bỏ kết quả của lượt cũ
+  String? _pendingFingerprint;
+  String _lastSay = '';
+  String _lastSayClass = 'static';
+  String _expectSay = '';
+  String _heard = '';
+
+  VoiceActions get _actions => ref.read(voiceActionsProvider);
+
   @override
   LiveLabState build() {
-    ref.onDispose(() => unawaited(_teardown()));
+    _lifecycle = AppLifecycleListener(
+      onStateChange: (s) {
+        // Phiên Live tính tiền theo giây: app xuống nền là kết thúc.
+        if (s == AppLifecycleState.paused || s == AppLifecycleState.detached) {
+          if (state.phase != LivePhase.idle) {
+            _log('app xuống nền → kết thúc phiên');
+            unawaited(end());
+          }
+        }
+      },
+    );
+    ref.onDispose(() {
+      _lifecycle?.dispose();
+      unawaited(_teardown());
+    });
     return const LiveLabState();
   }
 
   void setMode(String m) {
     if (state.phase == LivePhase.idle) state = state.copyWith(mode: m);
   }
+
+  void setExecReal(bool v) => state = state.copyWith(execReal: v);
+  void setSendReal(bool v) => state = state.copyWith(sendReal: v);
 
   void _log(String s) {
     final line = '${_sw.isRunning ? _sw.elapsedMilliseconds : 0}ms  $s';
@@ -98,19 +172,40 @@ class LiveLabController extends Notifier<LiveLabState> {
 
   Future<void> start() async {
     if (state.phase != LivePhase.idle) return;
+    final vy = ref.read(voiceControllerProvider);
+    if (vy.status != VoiceStatus.idle || vy.panelOpen) {
+      state = state.copyWith(error: 'Vy thường đang mở, hãy đóng Vy thường trước khi thử Live.');
+      return;
+    }
     _sw
       ..reset()
       ..start();
     _evt = 0;
     _lastUserAt = _delegationAt = _lastResultAt = -1;
     _awaitingFirstSpeech = false;
-    _userBuf = '';
+    _user.take();
     _pending.clear();
     _seenTypes.clear();
-    state = LiveLabState(phase: LivePhase.connecting, mode: state.mode, log: const []);
-    _log('bắt đầu, chế độ ${state.mode}');
+    _gate.clear();
+    _dialog = const VoiceDialog();
+    _turnNo = 0;
+    _seq = 0;
+    _pendingFingerprint = null;
+    _lastSay = '';
+    _expectSay = _heard = '';
+    state = LiveLabState(
+      phase: LivePhase.connecting,
+      mode: state.mode,
+      execReal: state.execReal,
+      sendReal: state.sendReal,
+      log: const [],
+    );
+    ref.read(liveActiveProvider.notifier).set(true);
+    _log('bắt đầu, chế độ ${state.mode}, thực thi thật=${state.execReal}, gửi tin thật=${state.sendReal}');
     try {
       final api = ref.read(voiceApiProvider);
+      // Cách xưng hô và danh bạ nạp song song với việc mở micro để không kéo dài thời gian kết nối.
+      final prep = Future.wait([_actions.loadHonorific(), _actions.contacts()]);
       // 1) Micro + kết nối WebRTC
       final mic = await navigator.mediaDevices.getUserMedia({'audio': true, 'video': false});
       _mic = mic;
@@ -137,14 +232,23 @@ class LiveLabController extends Notifier<LiveLabState> {
       if (sdp == null || sdp.isEmpty) throw StateError('Không tạo được SDP offer');
       final tOffer = _sw.elapsedMilliseconds;
       _metric('offer_ready_ms', '$tOffer');
+      final p = await prep;
+      _honorific = p[0] as String;
+      _contacts = p[1] as List<VoiceContact>;
+      _log('xưng hô "$_honorific", danh bạ ${_contacts.length} phòng');
 
       // 2) Máy chủ đổi SDP với OpenAI
       final r = await api.liveStart(sdp: sdp, liveMode: state.mode, honorific: _honorific);
+      _liveSessionId = r.sessionId;
       _metric('server_roundtrip_ms', '${_sw.elapsedMilliseconds - tOffer}');
       _metric('server_ms', '${r.serverMs}');
       _log('phiên ${r.sessionId} (chế độ ${r.mode})');
       await pc.setRemoteDescription(RTCSessionDescription(r.sdp, 'answer'));
       await Helper.setSpeakerphoneOn(true);
+      _capTimer = Timer(const Duration(seconds: _maxSessionSec), () {
+        _log('hết trần $_maxSessionSec giây → kết thúc');
+        unawaited(end());
+      });
     } catch (e) {
       _log('LỖI: $e');
       state = state.copyWith(error: '$e');
@@ -179,13 +283,17 @@ class LiveLabController extends Notifier<LiveLabState> {
 
   Future<void> _finish() async {
     await _teardown();
-    state = state.copyWith(phase: LivePhase.idle);
+    state = state.copyWith(phase: LivePhase.idle, confirmSay: null, confirmChips: const [], emergency: false);
   }
 
   Future<void> _teardown() async {
     _flushTimer?.cancel();
     _closeTimeout?.cancel();
-    _flushTimer = _closeTimeout = null;
+    _capTimer?.cancel();
+    _fidelityTimer?.cancel();
+    _flushTimer = _closeTimeout = _capTimer = _fidelityTimer = null;
+    _seq++; // bỏ mọi kết quả đang chờ
+    _gate.clear();
     try {
       _dc?.close();
     } catch (_) {}
@@ -201,6 +309,11 @@ class LiveLabController extends Notifier<LiveLabState> {
       await _mic?.dispose();
     } catch (_) {}
     _mic = null;
+    try {
+      await _player?.dispose();
+    } catch (_) {}
+    _player = null;
+    ref.read(liveActiveProvider.notifier).set(false);
   }
 
   void _send(Map<String, Object?> e) {
@@ -238,23 +351,25 @@ class LiveLabController extends Notifier<LiveLabState> {
         unawaited(_finish());
       case 'session.input_transcript.delta':
         _lastUserAt = now;
-        _userBuf += (e['delta'] as String?) ?? '';
-        state = state.copyWith(userText: _userBuf);
+        _user.add((e['delta'] as String?) ?? '', now);
+        state = state.copyWith(userText: _user.text);
         _awaitingFirstSpeech = true;
       case 'session.output_transcript.delta':
+        final d = (e['delta'] as String?) ?? '';
         if (_awaitingFirstSpeech && _lastUserAt >= 0) {
           _awaitingFirstSpeech = false;
           _metric('user_stop_to_first_reply_ms', '${now - _lastUserAt}');
           if (_lastResultAt >= 0) _metric('result_to_speech_ms', '${now - _lastResultAt}');
-          _userBuf = '';
+          if (state.mode != 'C') _user.take(); // chế độ C lấy chữ ở _stableTranscript
         }
-        state = state.copyWith(assistantText: state.assistantText + ((e['delta'] as String?) ?? ''));
+        if (_expectSay.isNotEmpty) _heard += d;
+        state = state.copyWith(assistantText: state.assistantText + d);
       case 'session.delegation.created':
         _delegationAt = now;
         if (_lastUserAt >= 0) _metric('user_stop_to_delegation_ms', '${now - _lastUserAt}');
         if (state.mode == 'C') {
-          final id = (e['delegation'] as Map?)?['id'] as String?;
-          unawaited(_clientDelegate(id));
+          final id = ((e['delegation'] as Map?)?['id'] ?? e['delegation_id']) as String?;
+          unawaited(_hybridTurn(id));
         }
       case 'response.event':
         _onResponseEvent(e);
@@ -311,7 +426,7 @@ class LiveLabController extends Notifier<LiveLabState> {
   Future<Map<String, Object?>> _simulate(String name, Map<String, dynamic> a) async {
     switch (name) {
       case 'read_bp':
-        return {'ok': true, 'text': await _readBp()};
+        return {'ok': true, 'text': await _actions.readBp(_honorific)};
       case 'prepare_message':
         return {
           'ok': true,
@@ -327,71 +442,253 @@ class LiveLabController extends Notifier<LiveLabState> {
     }
   }
 
-  Future<String> _readBp() async {
-    try {
-      final list = await ref.read(bpReadingsProvider.future);
-      if (list.isEmpty) return 'Chưa có kết quả đo huyết áp nào.';
-      final r = list.reduce((a, b) => a.measuredAt.isAfter(b.measuredAt) ? a : b);
-      final cat = BpCategory.of(r.systolic, r.diastolic).label;
-      final pulse = r.pulse == null ? '' : ', mạch ${r.pulse}';
-      return 'Lần đo gần nhất: huyết áp ${r.systolic} trên ${r.diastolic}$pulse. Mức: $cat.';
-    } catch (_) {
-      return 'Chưa đọc được kết quả huyết áp.';
+  // ---------- Chế độ C (lai): giọng GPT-Live, não Vy cũ ----------
+
+  /// Một lượt: Live báo có việc cần ủy quyền → lấy phiên âm → hỏi Vy cũ → chạy lệnh → trả lời qua Live.
+  Future<void> _hybridTurn(String? delegationId) async {
+    final seq = ++_seq;
+    final text = await _stableTranscript();
+    if (seq != _seq) {
+      _silentClose(delegationId, 'lượt cũ bị thay bằng lượt mới');
+      return;
     }
+    _log('C: phiên âm="$text"');
+    if (text.isEmpty) {
+      await _deliver('Con chưa nghe rõ, $_honorific nói lại giúp con nhé.', 'static', delegationId, seq);
+      return;
+    }
+    // Khẩn cấp: dò ngay trong app, không chờ máy chủ. Câu đọc bằng giọng máy (nguyên văn), không qua Live.
+    if (looksLikeEmergency(text)) {
+      state = state.copyWith(emergency: true);
+      _log('KHẨN CẤP (dò trong app)');
+      _dialog = const VoiceDialog();
+      _gate.clear();
+      state = state.copyWith(confirmSay: null, confirmChips: const []);
+      await _deliver(
+        '${_cap(_honorific)} hãy bấm nút gọi người nhà hoặc gọi 115 ngay nhé. Nếu thấy nguy hiểm, đừng chờ ạ.',
+        'emergency',
+        delegationId,
+        seq,
+      );
+      return;
+    }
+    await _askBrain(text, delegationId, seq);
   }
 
-  // ---------- Chế độ C: tự suy ý định từ phiên âm ----------
-
-  Future<void> _clientDelegate(String? delegationId) async {
-    // Chờ một nhịp để phần phiên âm cuối kịp về.
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    final t = _fold(_userBuf);
-    _log('C: phiên âm="$_userBuf"');
-    String say;
-    if (t.contains('huyet ap') && (t.contains('doc') || t.contains('bao nhieu') || t.contains('gan nhat'))) {
-      say = await _readBp();
-    } else if (t.contains('huyet ap')) {
-      say = 'Dạ, con mở màn huyết áp ạ (thử nghiệm, chưa mở thật).';
-    } else if (t.contains('nhan') || t.contains('nhan tin')) {
-      say = 'Dạ, $_honorific muốn nhắn cho ai và nhắn gì ạ? (thử nghiệm)';
-    } else {
-      say = 'Con chưa rõ $_honorific muốn gì, $_honorific nói lại giúp con nhé.';
+  /// Chờ phiên âm ổn định: có chữ và 150 ms không đổi, tối đa 1,2 giây.
+  Future<String> _stableTranscript() async {
+    final t0 = _sw.elapsedMilliseconds;
+    while (_sw.elapsedMilliseconds - t0 < 1200) {
+      final quiet = _user.lastChangeMs >= 0 && _sw.elapsedMilliseconds - _user.lastChangeMs >= 150;
+      if (!_user.isEmpty && quiet) break;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
     }
+    final wait = _sw.elapsedMilliseconds - t0;
+    _metric('transcript_wait_ms', '$wait');
+    return _user.take();
+  }
+
+  /// Bấm nút trên màn hình (Gửi/Sửa/Hủy): coi như người dùng vừa nói chữ đó, đi cùng đường với lời nói.
+  Future<void> tapChip(String chip) async {
+    if (state.mode != 'C' || state.phase != LivePhase.live) return;
+    final seq = ++_seq;
+    _log('bấm nút "$chip"');
+    await _askBrain(chip, null, seq);
+  }
+
+  Future<void> _askBrain(String text, String? delegationId, int seq) async {
+    final api = ref.read(voiceApiProvider);
+    _turnNo++;
+    final t0 = _sw.elapsedMilliseconds;
+    final VoiceTurnResult res;
+    try {
+      res = await api.turn(
+        sessionId: 'live_$_liveSessionId',
+        turnNo: _turnNo,
+        text: text,
+        dialog: _dialog,
+        screen: _actions.screenName(),
+        roomId: _actions.currentRoomId(),
+        contacts: _contacts,
+        honorific: _honorific,
+      );
+    } on VoiceApiException catch (e) {
+      _log('NÃO LỖI ${e.code}: ${e.message}');
+      if (seq != _seq) return _silentClose(delegationId, 'bỏ kết quả lỗi cũ');
+      await _deliver('Con đang trục trặc một chút, $_honorific thử lại sau nhé.', 'static', delegationId, seq);
+      return;
+    }
+    final ms = _sw.elapsedMilliseconds - t0;
+    _metric('brain_ms', '$ms');
+    _log('NÃO ${res.timings.entries.map((e) => '${e.key}=${e.value}').join(' ')}');
+    if (seq != _seq) return _silentClose(delegationId, 'bỏ kết quả cũ');
+    await _applyDecision(res.decision, delegationId, seq);
+  }
+
+  String _fingerprint(VoiceTask t) => '${t.intent}|${t.slots['room_id'] ?? ''}|${t.slots['content'] ?? ''}';
+
+  Future<void> _applyDecision(VoiceDecision d, String? delegationId, int seq) async {
+    var say = d.say;
+    var cls = d.sayClass;
+    var dialog = const VoiceDialog();
+    switch (d.action) {
+      case 'confirm':
+        final task = d.task;
+        if (task != null) {
+          _pendingFingerprint = _fingerprint(task);
+          final code = _gate.issue(_pendingFingerprint!);
+          _log('xác nhận: mở cổng $code cho ${task.intent}');
+        }
+        dialog = VoiceDialog(
+          task: d.task,
+          pending: d.pending,
+          expects: d.expects,
+          choices: d.choices,
+          aliasPhrase: d.aliasPhrase,
+        );
+        state = state.copyWith(confirmSay: say, confirmChips: d.chips);
+        cls = 'important'; // đọc lại nội dung tin phải nguyên văn
+      case 'ask':
+        dialog = VoiceDialog(
+          task: d.task,
+          pending: d.pending,
+          expects: d.expects,
+          choices: d.choices,
+          aliasPhrase: d.aliasPhrase,
+        );
+        state = state.copyWith(confirmSay: null, confirmChips: const []);
+      case 'repeat':
+        say = _lastSay.isEmpty ? 'Con chưa nói gì để nhắc lại ạ.' : _lastSay;
+        cls = _lastSayClass;
+        dialog = _dialog;
+      case 'execute':
+        state = state.copyWith(confirmSay: null, confirmChips: const []);
+        say = await _executeGated(d, say);
+      default:
+        // cancel | answer | unsupported
+        _gate.clear();
+        state = state.copyWith(confirmSay: null, confirmChips: const []);
+    }
+    _dialog = dialog;
+    _lastSay = say;
+    _lastSayClass = cls;
+    await _deliver(say, cls, delegationId, seq);
+  }
+
+  /// Chạy lệnh nếu được phép. Gửi tin chỉ chạy khi cổng xác nhận đang mở đúng cho nội dung đó.
+  Future<String> _executeGated(VoiceDecision d, String say) async {
+    final task = d.task;
+    if (task == null) return say;
+    if (task.intent == 'send_message') {
+      final fp = _fingerprint(task);
+      if (!_gate.consume(fp)) {
+        _log('CHẶN gửi tin: không có xác nhận hợp lệ cho nội dung này');
+        return 'Con chưa gửi. ${_cap(_honorific)} nói lại tin nhắn để con xác nhận trước nhé.';
+      }
+      if (!_gate.firstSend(fp)) {
+        _log('CHẶN gửi tin trùng');
+        return 'Tin này con vừa gửi rồi ạ.';
+      }
+      if (!state.sendReal) {
+        _log('GIẢ LẬP gửi tin tới ${task.slots['recipient_name']}');
+        return 'Dạ, con gửi rồi ạ. (Thử nghiệm: chưa gửi thật.)';
+      }
+    } else if (!state.execReal) {
+      _log('GIẢ LẬP ${task.intent} ${jsonEncode(task.slots)}');
+      return say.isEmpty ? 'Dạ, con mở rồi ạ. (Thử nghiệm: chưa thực hiện.)' : say;
+    }
+    _log('CHẠY ${task.intent} ${jsonEncode(task.slots)}');
+    final out = await _actions.execute(task, _contacts, _honorific);
+    return out ?? say;
+  }
+
+  /// Nói câu trả lời. Câu khẩn cấp/quan trọng đọc bằng giọng máy (nguyên văn); còn lại qua Live.
+  Future<void> _deliver(String say, String cls, String? delegationId, int seq) async {
+    if (seq != _seq || say.trim().isEmpty) {
+      if (say.trim().isEmpty) _silentClose(delegationId, 'không có gì để nói');
+      return;
+    }
+    state = state.copyWith(assistantText: '');
+    final local = cls == 'emergency' || cls == 'important' || delegationId == null;
+    _lastResultAt = _sw.elapsedMilliseconds;
+    if (local) {
+      _log('NÓI (giọng máy, $cls): $say');
+      _silentClose(delegationId, 'đã nói bằng giọng máy');
+      await _speakLocal(say, cls);
+      return;
+    }
+    _expectSay = say;
+    _heard = '';
+    _awaitingFirstSpeech = true;
     _send({
       'type': 'session.commentary.append',
       'event_id': _id(),
       'delegation_id': delegationId,
       'content': say,
     });
-    _lastResultAt = _sw.elapsedMilliseconds;
-    _awaitingFirstSpeech = true;
-    _log('C: gửi commentary: $say');
+    _log('NÓI (qua Live, $cls): $say');
+    // Sau vài giây so câu ta bảo nói với câu Live thực sự nói.
+    _fidelityTimer?.cancel();
+    _fidelityTimer = Timer(const Duration(seconds: 6), () {
+      if (_expectSay.isEmpty) return;
+      final f = sayFidelity(_expectSay, _heard);
+      _metric('say_fidelity', f.toStringAsFixed(2));
+      _log('ĐỌC LẠI: bảo="$_expectSay" nghe="${_clip(_heard, 200)}"');
+      _expectSay = '';
+    });
   }
 
-  /// Nạp ngữ cảnh lúc mở phiên (không nói ra).
-  void _sendContext() {
+  /// Báo cho Live biết đã xong mà không nói gì (đóng ủy quyền trong im lặng).
+  void _silentClose(String? delegationId, String why) {
+    if (delegationId == null) return;
+    _send({
+      'type': 'session.thinking.append',
+      'event_id': _id(),
+      'delegation_id': delegationId,
+      'content': 'Không cần nói gì thêm.',
+    });
+    _log('đóng ủy quyền trong im lặng ($why)');
+  }
+
+  /// Đọc bằng giọng máy; tắt micro trong lúc đọc để Live không nghe lại chính mình.
+  Future<void> _speakLocal(String say, String cls) async {
+    final tracks = _mic?.getAudioTracks() ?? const <MediaStreamTrack>[];
+    for (final t in tracks) {
+      t.enabled = false;
+    }
+    try {
+      final p = _player ??= SpeechPlayer(ref.read(voiceApiProvider));
+      await p.speak(say, sayClass: cls);
+    } finally {
+      for (final t in tracks) {
+        t.enabled = true;
+      }
+    }
+  }
+
+  /// Nạp ngữ cảnh lúc mở phiên (không nói ra): cách xưng hô, vài tên trong danh bạ, số đo gần nhất.
+  Future<void> _sendContext() async {
+    final names = _contacts.take(12).map((c) => c.name).join(', ');
+    String bp = '';
+    if (state.mode == 'C') {
+      try {
+        bp = ' ${await _actions.readBp(_honorific)}';
+      } catch (_) {}
+    }
     _send({
       'type': 'session.thinking.append',
       'event_id': _id(),
       'delegation_id': null,
-      'content': 'Người dùng được gọi là "$_honorific". Ứng dụng đang ở chế độ thử nghiệm.',
+      'content':
+          'Người dùng được gọi là "$_honorific". '
+          '${names.isEmpty ? '' : 'Danh bạ có: $names. '}'
+          'Ứng dụng đang ở chế độ thử nghiệm.$bp',
     });
   }
 
+  String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
   String _clip(String s, int n) => s.length <= n ? s : '${s.substring(0, n)}…';
-
-  static const _from = 'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ';
-  static final _to = '${'a' * 17}${'e' * 11}${'i' * 5}${'o' * 17}${'u' * 11}${'y' * 5}d';
-
-  String _fold(String s) {
-    final b = StringBuffer();
-    for (final r in s.toLowerCase().runes) {
-      final c = String.fromCharCode(r);
-      final i = _from.indexOf(c);
-      b.write(i >= 0 ? _to[i] : c);
-    }
-    return b.toString();
-  }
 }
 
 final liveLabProvider = NotifierProvider<LiveLabController, LiveLabState>(LiveLabController.new);
