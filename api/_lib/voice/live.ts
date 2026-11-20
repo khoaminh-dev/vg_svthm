@@ -70,13 +70,21 @@ export const LIVE_TOOLS: FnDef[] = [
   }, ['recipient']),
 ];
 
-export function buildLiveSession(mode: LiveMode, honorific: string, env: NodeJS.ProcessEnv = process.env): Record<string, unknown> {
+/** Giá trị cũ đã chạy được (lần thử 19/11), dùng dự phòng nếu OpenAI từ chối giá trị mới. */
+export const ACK_DELAY_FALLBACK_MS = 800;
+
+export function buildLiveSession(
+  mode: LiveMode,
+  honorific: string,
+  env: NodeJS.ProcessEnv = process.env,
+  ackMs: number = ACK_DELAY_MS,
+): Record<string, unknown> {
   const hon = honorificOf(honorific);
   const session: Record<string, unknown> = { model: 'gpt-live-1', instructions: frontInstructions(hon, mode) };
   if (mode === 'C') {
     // Lời "đệm" tự động của Live (kiểu "Dạ, con hiểu rồi...") chỉ nên chen vào khi phần xử lý thật sự chậm. Đo thực tế:
     // từ lúc ủy quyền đến lúc có câu trả lời mất ~1,0–1,4 giây, nên 800 ms làm Live nói chen/nói đè lên câu trả lời.
-    session.delegation = { type: 'client', acknowledgement_delay_ms: ACK_DELAY_MS };
+    session.delegation = { type: 'client', acknowledgement_delay_ms: ackMs };
   } else {
     let extra: Record<string, unknown> = {};
     try {
