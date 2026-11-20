@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../shared/widgets/elder_text_scale.dart';
+import '../../../../shared/widgets/ios_components.dart';
 import '../../../auth/domain/auth_user.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../health/data/advice_speaker.dart';
@@ -203,17 +205,21 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                   children: [
                     Positioned.fill(
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(44),
+                        borderRadius: BorderRadius.circular(32),
                         child: ColoredBox(
                           color: const Color(0xFF1A1A1A),
                           child: _viewfinder(m, c),
                         ),
                       ),
                     ),
+                    if (live && c != null && c.value.isInitialized)
+                      const Positioned.fill(
+                        child: IgnorePointer(child: _ScanFrame()),
+                      ),
                     if (m.step == MeasureStep.analyzing)
                       Positioned.fill(
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(44),
+                          borderRadius: BorderRadius.circular(32),
                           child: ColoredBox(
                             color: Colors.black54,
                             child: Center(
@@ -245,11 +251,9 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                     if (m.step == MeasureStep.failed)
                       Positioned.fill(
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(44),
+                          borderRadius: BorderRadius.circular(32),
                           child: ColoredBox(
-                            color: AppColors.levelDanger.withValues(
-                              alpha: 0.82,
-                            ),
+                            color: Colors.black.withValues(alpha: 0.72),
                             child: Center(
                               child: Semantics(
                                 liveRegion: true,
@@ -259,20 +263,29 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(
-                                        Icons.error_outline_rounded,
-                                        color: Colors.white,
-                                        size: 72,
+                                      Container(
+                                        width: 72,
+                                        height: 72,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.levelDanger
+                                              .withValues(alpha: 0.9),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.priority_high_rounded,
+                                          color: Colors.white,
+                                          size: 40,
+                                        ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      const SizedBox(height: 16),
                                       Text(
                                         m.error ?? 'Có lỗi',
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
                                           color: Colors.white,
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.2,
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.25,
                                         ),
                                       ),
                                     ],
@@ -364,14 +377,19 @@ class _RoundIcon extends StatelessWidget {
     excludeSemantics: true,
     child: GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: AppSpacing.tapTarget,
-        height: AppSpacing.tapTarget,
-        decoration: const BoxDecoration(
-          color: Color(0x33FFFFFF),
-          shape: BoxShape.circle,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            width: AppSpacing.tapTarget,
+            height: AppSpacing.tapTarget,
+            color: Color(onTap == null ? 0x1FFFFFFF : 0x38FFFFFF),
+            child: Icon(
+              icon,
+              color: onTap == null ? Colors.white54 : Colors.white,
+            ),
+          ),
         ),
-        child: Icon(icon, color: Colors.white),
       ),
     ),
   );
@@ -413,12 +431,15 @@ class _Controls extends StatelessWidget {
                 key: const Key('measure-shutter'),
                 onTap: enabled ? onShoot : null,
                 child: Container(
-                  width: 88,
-                  height: 88,
-                  padding: const EdgeInsets.all(5),
+                  width: 84,
+                  height: 84,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.sky, width: 5),
+                    border: Border.all(
+                      color: enabled ? Colors.white : Colors.white38,
+                      width: 4,
+                    ),
                   ),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -443,13 +464,57 @@ class _Controls extends StatelessWidget {
             child: Text(
               hint,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 20),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 18,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
         ],
       ],
     );
   }
+}
+
+/// Khung ngắm bốn góc ở giữa ô nhìn, chỉ để gợi chỗ đặt màn hình máy đo (không chặn chạm).
+class _ScanFrame extends StatelessWidget {
+  const _ScanFrame();
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _ScanFramePainter());
+}
+
+class _ScanFramePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width * 0.74;
+    final h = w * 0.78;
+    final r = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height * 0.46),
+      width: w,
+      height: h,
+    );
+    const len = 34.0;
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    void corner(Offset o, double dx, double dy) {
+      canvas.drawLine(o, o + Offset(dx * len, 0), paint);
+      canvas.drawLine(o, o + Offset(0, dy * len), paint);
+    }
+
+    corner(r.topLeft, 1, 1);
+    corner(r.topRight, -1, 1);
+    corner(r.bottomLeft, 1, -1);
+    corner(r.bottomRight, -1, -1);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Kết quả đo: số lớn, biểu đồ cột mức huyết áp (kiểu sóng wifi), đã tự lưu. Lời khuyên do máy đọc,
@@ -487,7 +552,14 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 24,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -499,8 +571,9 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
               Text(
                 '${r.systolic}/${r.diastolic}',
                 style: text.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: r.category.color,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -1.2,
+                  color: AppColors.navyDeep,
                   height: 1,
                 ),
               ),
@@ -533,13 +606,11 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                         color: AppColors.textMuted,
                       ),
                     ),
-                    Text(
-                      r.category.label,
+                    const SizedBox(height: 4),
+                    StatusBadge(
                       key: const Key('bp-category'),
-                      style: text.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: r.category.color,
-                      ),
+                      label: r.category.label,
+                      color: r.category.color,
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -713,16 +784,16 @@ class _RetakeButton extends ConsumerWidget {
       key: const Key('measure-retake'),
       onTap: () => ref.read(measureControllerProvider.notifier).reset(),
       child: Container(
-        width: 88,
-        height: 88,
+        width: 84,
+        height: 84,
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
         ),
         child: const Icon(
           Icons.refresh_rounded,
-          size: 44,
-          color: AppColors.navy,
+          size: 40,
+          color: AppColors.navyDeep,
         ),
       ),
     ),
