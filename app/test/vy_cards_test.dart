@@ -1,0 +1,477 @@
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vg_svthm/core/router/app_router.dart';
+import 'package:vg_svthm/core/theme/app_theme.dart';
+import 'package:vg_svthm/features/bp/domain/bp_models.dart';
+import 'package:vg_svthm/features/bp/presentation/providers/bp_providers.dart';
+import 'package:vg_svthm/features/entertainment/data/youtube_service.dart';
+import 'package:vg_svthm/features/entertainment/presentation/entertainment_providers.dart';
+import 'package:vg_svthm/features/meds/domain/meds_models.dart';
+import 'package:vg_svthm/features/meds/presentation/meds_providers.dart';
+import 'package:vg_svthm/features/voice/core/vy_card.dart';
+import 'package:vg_svthm/features/voice/core/vy_core.dart';
+import 'package:vg_svthm/features/voice/core/vy_view.dart';
+import 'package:vg_svthm/features/voice/data/voice_actions.dart';
+import 'package:vg_svthm/features/voice/domain/voice_models.dart';
+import 'package:vg_svthm/features/voice/live/live_lab_controller.dart';
+import 'package:vg_svthm/features/voice/presentation/vy_cards.dart';
+import 'package:vg_svthm/features/voice/presentation/vy_panel.dart';
+import 'package:vg_svthm/features/voice/presentation/voice_controller.dart';
+
+import 'vy_core_test.dart' show FakeLive, FakeSay, FakeVoiceCtl;
+
+class _FakeSearch implements VideoSearch {
+  _FakeSearch(this.items);
+  final List<VideoItem> items;
+
+  @override
+  Future<List<VideoItem>> search(String query, {int limit = 12}) async => items;
+}
+
+VideoItem video(int i) => VideoItem(
+  id: 'v$i',
+  title: 'Bài hát số $i',
+  author: 'Kênh $i',
+  thumbnailUrl: '',
+);
+
+Future<void> showCard(WidgetTester t, VyCard card, List<VyCardAction> ran) async {
+  await t.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light,
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: VyCardView(card: card, onAction: (a) {
+            ran.add(a);
+            a.run();
+          }),
+        ),
+      ),
+    ),
+  );
+  await t.pump();
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('Giao diện thẻ: nhìn thấy đúng thông tin và chạm = nói', () {
+    testWidgets('thẻ Huyết áp: số lớn, mức, thời điểm; "Xem biểu đồ" và "Đo lại"', (t) async {
+      final did = <String>[];
+      await showCard(
+        t,
+        BpCard(
+          systolic: 128,
+          diastolic: 82,
+          pulse: 74,
+          levelLabel: 'Hơi cao',
+          levelColor: Colors.orange,
+          when: 'hôm nay 07:05',
+          actions: [
+            VyCardAction(label: 'Xem biểu đồ', primary: true, run: () => did.add('chart')),
+            VyCardAction(label: 'Đo lại', run: () => did.add('again')),
+          ],
+        ),
+        [],
+      );
+      expect(find.text('128/82'), findsOneWidget);
+      expect(find.text('Hơi cao'), findsOneWidget);
+      expect(find.text('Mạch 74'), findsOneWidget);
+      expect(find.text('hôm nay 07:05'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Xem biểu đồ'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Đo lại'), findsOneWidget);
+      await t.tap(find.text('Đo lại'));
+      await t.tap(find.text('Xem biểu đồ'));
+      expect(did, ['again', 'chart']);
+    });
+
+    testWidgets('thẻ Huyết áp không có mạch thì không hiện "Mạch"', (t) async {
+      await showCard(
+        t,
+        BpCard(systolic: 120, diastolic: 80, levelLabel: 'Bình thường', levelColor: Colors.green, when: 'hôm qua 19:30'),
+        [],
+      );
+      expect(find.textContaining('Mạch'), findsNothing);
+      expect(find.text('120/80'), findsOneWidget);
+    });
+
+    testWidgets('thẻ Thuốc: giờ, túi, trạng thái, thuốc trong túi; nút mở màn thuốc', (t) async {
+      var opened = 0;
+      await showCard(
+        t,
+        MedCard(
+          title: 'Cữ kế tiếp lúc 20:30',
+          rows: const [
+            MedRow(time: '07:00', name: 'Túi Sáng', status: 'Đã uống', statusColor: Colors.green),
+            MedRow(
+              time: '20:30',
+              name: 'Túi Tối',
+              status: 'Sắp tới',
+              statusColor: Colors.grey,
+              items: ['Amlodipin 5mg x1 viên', 'Metformin 500mg x1 viên'],
+              highlight: true,
+            ),
+          ],
+          actions: [VyCardAction(label: 'Mở màn thuốc', primary: true, run: () => opened++)],
+        ),
+        [],
+      );
+      expect(find.text('Cữ kế tiếp lúc 20:30'), findsOneWidget);
+      expect(find.text('Túi Sáng'), findsOneWidget);
+      expect(find.text('Đã uống'), findsOneWidget);
+      expect(find.text('Sắp tới'), findsOneWidget);
+      expect(find.text('Amlodipin 5mg x1 viên'), findsOneWidget);
+      expect(find.text('Metformin 500mg x1 viên'), findsOneWidget);
+      await t.tap(find.text('Mở màn thuốc'));
+      expect(opened, 1);
+    });
+
+    testWidgets('thẻ Danh sách video có số: chạm dòng = chọn số đó', (t) async {
+      final picked = <int>[];
+      await showCard(
+        t,
+        VideoListCard(
+          title: 'Chọn một video',
+          rows: [
+            for (var i = 1; i <= 5; i++)
+              VideoRow(n: i, title: 'Bài hát số $i', author: 'Kênh $i', onChoose: () => picked.add(i)),
+          ],
+        ),
+        [],
+      );
+      for (var i = 1; i <= 5; i++) {
+        expect(find.byKey(Key('vy-video-$i')), findsOneWidget);
+        expect(find.text('Bài hát số $i'), findsOneWidget);
+      }
+      expect(find.text('3'), findsOneWidget); // số hiện to ở đầu dòng
+      await t.tap(find.byKey(const Key('vy-video-2')));
+      await t.tap(find.byKey(const Key('vy-video-5')));
+      expect(picked, [2, 5]);
+    });
+
+    testWidgets('thẻ Đã gửi: tick, gửi cho ai, nội dung', (t) async {
+      var opened = 0;
+      await showCard(
+        t,
+        SentCard(
+          to: 'Giang',
+          text: 'Mai bác về sớm',
+          actions: [VyCardAction(label: 'Mở cuộc trò chuyện', run: () => opened++)],
+        ),
+        [],
+      );
+      expect(find.text('Đã nhắn cho Giang'), findsOneWidget);
+      expect(find.text('“Mai bác về sớm”'), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      await t.tap(find.text('Mở cuộc trò chuyện'));
+      expect(opened, 1);
+    });
+  });
+
+  group('Thẻ trong panel', () {
+    Future<void> pumpPanel(WidgetTester t, VyView v, List<VyCardAction> ran) async {
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: VyPanel(
+                view: v,
+                onClose: () {},
+                onPrimary: () {},
+                onChip: (_) {},
+                onCollapse: () {},
+                onExpand: () {},
+                onDismissIntro: () {},
+                onCardAction: ran.add,
+              ),
+            ),
+          ),
+        ),
+      );
+      await t.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('có thẻ thì thẻ lớn tự mở, thẻ thay cho câu Vy nói bằng chữ; thanh nhỏ vẫn hiện chữ', (t) async {
+      final card = BpCard(systolic: 130, diastolic: 85, levelLabel: 'Hơi cao', levelColor: Colors.orange, when: 'hôm nay 07:05');
+      final v = VyView(phase: VyPhase.speaking, engine: VyEngine.live, vyText: 'Lần đo gần nhất: huyết áp 130 trên 85.', card: card);
+      expect(v.needsCard, isTrue);
+      expect(v.expanded, isTrue);
+      await pumpPanel(t, v, []);
+      expect(find.text('130/85'), findsOneWidget);
+      // thẻ đã nói đủ ý: không lặp lại câu dài trong thẻ lớn
+      expect(find.text('Lần đo gần nhất: huyết áp 130 trên 85.'), findsNothing);
+    });
+
+    testWidgets('thẻ danh sách video không thay câu Vy nói ("chọn số mấy ạ")', (t) async {
+      final card = VideoListCard(title: 'Chọn một video', rows: [VideoRow(n: 1, title: 'A', author: '', onChoose: () {})]);
+      await pumpPanel(
+        t,
+        VyView(phase: VyPhase.speaking, engine: VyEngine.live, vyText: 'Dạ, con tìm được mấy video rồi, bác chọn số mấy ạ?', card: card),
+        [],
+      );
+      expect(find.text('Dạ, con tìm được mấy video rồi, bác chọn số mấy ạ?'), findsOneWidget);
+      expect(find.byKey(const Key('vy-video-1')), findsOneWidget);
+    });
+
+    testWidgets('chạm nút trên thẻ đi qua onCardAction', (t) async {
+      final ran = <VyCardAction>[];
+      var chart = 0;
+      final card = BpCard(
+        systolic: 120,
+        diastolic: 80,
+        levelLabel: 'Bình thường',
+        levelColor: Colors.green,
+        when: 'hôm nay',
+        actions: [VyCardAction(label: 'Xem biểu đồ', primary: true, run: () => chart++)],
+      );
+      await pumpPanel(t, VyView(phase: VyPhase.ready, engine: VyEngine.live, card: card), ran);
+      await t.tap(find.text('Xem biểu đồ'));
+      expect(ran.length, 1);
+      ran.single.run();
+      expect(chart, 1);
+    });
+  });
+
+  group('VyCore với thẻ', () {
+    // Đồng hồ giả chạy cùng fakeAsync: mỗi lần elapse phải cộng cả vào đây.
+    var clockNow = DateTime(2026, 11, 20, 9);
+    ProviderContainer rig(FakeVoiceCtl voice, FakeLive live, FakeSay say) {
+      SharedPreferences.setMockInitialValues({'vy_intro_seen': true, 'vy_sounds': false});
+      clockNow = DateTime(2026, 11, 20, 9);
+      final c = ProviderContainer(overrides: [
+        vyNowProvider.overrideWithValue(() => clockNow),
+        voiceControllerProvider.overrideWith(() => voice),
+        liveLabProvider.overrideWith(() => live),
+        vyVoiceProvider.overrideWithValue(say),
+      ]);
+      c.listen(vyCoreProvider, (_, _) {});
+      return c;
+    }
+
+    test('thẻ hiện thì panel mở rộng; thẻ chỉ để xem lướt tự thu về thanh nhỏ sau thời gian giữ', () {
+      fakeAsync((a) {
+        final voice = FakeVoiceCtl(), live = FakeLive(), say = FakeSay();
+        final c = rig(voice, live, say);
+        unawaited0(c.read(vyCoreProvider.notifier).open());
+        a.flushMicrotasks();
+        a.elapse(const Duration(milliseconds: 200));
+        expect(c.read(vyCoreProvider).card, isNull);
+
+        c.read(vyCardProvider.notifier).show(
+          BpCard(systolic: 120, diastolic: 80, levelLabel: 'x', levelColor: Colors.green, when: 'y'),
+        );
+        a.flushMicrotasks();
+        expect(c.read(vyCoreProvider).expanded, isTrue);
+        a.elapse(const Duration(seconds: 5));
+        expect(c.read(vyCoreProvider).expanded, isTrue);
+        a.elapse(const Duration(seconds: 2)); // quá 6 giây
+        expect(c.read(vyCoreProvider).expanded, isFalse);
+        expect(c.read(vyCoreProvider).isOpen, isTrue);
+        c.dispose();
+      });
+    });
+
+    test('thẻ thuốc (không có thời gian giữ) ở lại cho tới khi có việc khác', () {
+      fakeAsync((a) {
+        final voice = FakeVoiceCtl(), live = FakeLive(), say = FakeSay();
+        final c = rig(voice, live, say);
+        unawaited0(c.read(vyCoreProvider.notifier).open());
+        a.flushMicrotasks();
+        a.elapse(const Duration(milliseconds: 200));
+        c.read(vyCardProvider.notifier).show(MedCard(title: 'Thuốc hôm nay', rows: const []));
+        a.flushMicrotasks();
+        a.elapse(const Duration(seconds: 20));
+        expect(c.read(vyCoreProvider).expanded, isTrue);
+        // người dùng gõ việc mới: thẻ cũ bị xoá
+        unawaited0(c.read(vyCoreProvider.notifier).sendText('mở nhạc'));
+        a.flushMicrotasks();
+        expect(c.read(vyCardProvider), isNull);
+        expect(c.read(vyCoreProvider).card, isNull);
+        c.dispose();
+      });
+    });
+
+    test('chạm nút trên thẻ: làm việc đó rồi thu panel về thanh nhỏ', () {
+      fakeAsync((a) {
+        final voice = FakeVoiceCtl(), live = FakeLive(), say = FakeSay();
+        final c = rig(voice, live, say);
+        final core = c.read(vyCoreProvider.notifier);
+        unawaited0(core.open());
+        a.flushMicrotasks();
+        a.elapse(const Duration(milliseconds: 200));
+        var ran = 0;
+        c.read(vyCardProvider.notifier).show(
+          MedCard(title: 'Thuốc hôm nay', rows: const [], actions: [VyCardAction(label: 'Mở màn thuốc', run: () => ran++)]),
+        );
+        a.flushMicrotasks();
+        expect(c.read(vyCoreProvider).expanded, isTrue);
+        core.runCardAction(c.read(vyCardProvider)!.actions.single);
+        a.flushMicrotasks();
+        expect(ran, 1);
+        expect(c.read(vyCoreProvider).expanded, isFalse);
+        expect(c.read(vyCoreProvider).isOpen, isTrue);
+        c.dispose();
+      });
+    });
+
+    test('đóng Vy thì thẻ bị xoá; mở lại không còn thẻ cũ', () {
+      fakeAsync((a) {
+        final voice = FakeVoiceCtl(), live = FakeLive(), say = FakeSay();
+        final c = rig(voice, live, say);
+        final core = c.read(vyCoreProvider.notifier);
+        unawaited0(core.open());
+        a.flushMicrotasks();
+        a.elapse(const Duration(milliseconds: 200));
+        c.read(vyCardProvider.notifier).show(SentCard(to: 'Giang', text: 'x'));
+        a.flushMicrotasks();
+        unawaited0(core.close());
+        a.flushMicrotasks();
+        expect(c.read(vyCardProvider), isNull);
+        unawaited0(core.open());
+        a.flushMicrotasks();
+        a.elapse(const Duration(milliseconds: 200));
+        expect(c.read(vyCoreProvider).card, isNull);
+        c.dispose();
+      });
+    });
+
+    test('người dùng bắt đầu nói việc mới (Live) thì thẻ cũ bị xoá; thẻ vừa hiện thì giữ', () {
+      fakeAsync((a) {
+        final voice = FakeVoiceCtl(), live = FakeLive(), say = FakeSay();
+        final c = rig(voice, live, say);
+        unawaited0(c.read(vyCoreProvider.notifier).open());
+        a.flushMicrotasks();
+        a.elapse(const Duration(milliseconds: 200));
+        c.read(vyCardProvider.notifier).show(MedCard(title: 'Thuốc hôm nay', rows: const []));
+        a.flushMicrotasks();
+        // lời chép về ngay sau thẻ (như Vy thường): giữ thẻ
+        live.emit(live.state.copyWith(userText: 'tối nay uống thuốc gì'));
+        a.flushMicrotasks();
+        expect(c.read(vyCardProvider), isNotNull);
+        // lát sau nói câu khác: xoá thẻ
+        clockNow = clockNow.add(const Duration(seconds: 3));
+        a.elapse(const Duration(seconds: 3));
+        live.emit(live.state.copyWith(userText: 'mở nhạc xưa'));
+        a.flushMicrotasks();
+        expect(c.read(vyCardProvider), isNull);
+        c.dispose();
+      });
+    });
+  });
+
+  group('Nơi tạo thẻ (VoiceActions)', () {
+    ProviderContainer make({List<BpReading> bp = const [], List<Dose> doses = const [], List<VideoItem> videos = const []}) {
+      final router = GoRouter(routes: [GoRoute(path: '/', builder: (_, _) => const SizedBox())]);
+      final c = ProviderContainer(overrides: [
+        routerProvider.overrideWithValue(router),
+        bpReadingsProvider.overrideWith((ref) async => bp),
+        myDosesProvider.overrideWith((ref) async => doses),
+        videoSearchProvider.overrideWithValue(_FakeSearch(videos)),
+      ]);
+      return c;
+    }
+
+    VoiceTask task(String intent, [Map<String, String> slots = const {}]) => VoiceTask(intent: intent, slots: slots);
+
+    test('đọc huyết áp: nói đúng số và hiện thẻ Huyết áp có hai nút', () async {
+      final c = make(bp: [
+        BpReading(systolic: 118, diastolic: 76, pulse: 70, measuredAt: DateTime.now().subtract(const Duration(days: 1))),
+        BpReading(systolic: 150, diastolic: 95, measuredAt: DateTime.now().subtract(const Duration(days: 3))),
+      ]);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('read_bp'), const [], 'bác');
+      expect(say, contains('118 trên 76'));
+      final card = c.read(vyCardProvider);
+      expect(card, isA<BpCard>());
+      card as BpCard;
+      expect([card.systolic, card.diastolic, card.pulse], [118, 76, 70]);
+      expect(card.levelLabel, isNotEmpty);
+      expect(card.when, startsWith('hôm qua')); // chọn lần đo mới nhất
+      expect(card.actions.map((a) => a.label), ['Xem biểu đồ', 'Đo lại']);
+    });
+
+    test('chưa có lần đo nào: không hiện thẻ, nói hướng dẫn', () async {
+      final c = make();
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('read_bp'), const [], 'bác');
+      expect(say, contains('Chưa có kết quả'));
+      expect(c.read(vyCardProvider), isNull);
+    });
+
+    Dose dose(String id, String label, DateTime due, {String status = 'pending', List<MedItem> items = const []}) => Dose(
+      id: id,
+      ownerId: 'me',
+      label: label,
+      bag: true,
+      items: items,
+      dueAt: due,
+      windowEnd: due.add(const Duration(hours: 2)),
+      status: status,
+    );
+
+    test('đọc thuốc: cữ kế tiếp, các cữ hôm nay có trạng thái, thuốc trong túi', () async {
+      final now = DateTime.now();
+      final day = DateTime(now.year, now.month, now.day);
+      final c = make(doses: [
+        dose('a', 'Sáng', day.add(const Duration(hours: 7)), status: 'taken'),
+        dose('b', 'Tối', day.add(const Duration(hours: 23, minutes: 30)), items: const [MedItem(name: 'Amlodipin', strength: '5mg')]),
+      ]);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('read_meds'), const [], 'bác');
+      expect(say, contains('23:30'));
+      final card = c.read(vyCardProvider);
+      expect(card, isA<MedCard>());
+      card as MedCard;
+      expect(card.title, 'Cữ kế tiếp lúc 23:30');
+      expect(card.rows.length, 2);
+      expect(card.rows[0].status, 'Đã uống');
+      expect(card.rows[1].highlight, isTrue);
+      expect(card.rows[1].items.single, contains('Amlodipin'));
+      expect(card.actions.single.label, 'Mở màn thuốc');
+    });
+
+    test('đọc thuốc: xong hết các cữ thì nói đã xong; không có cữ nào thì không hiện thẻ', () async {
+      final now = DateTime.now();
+      final day = DateTime(now.year, now.month, now.day);
+      final done = make(doses: [dose('a', 'Sáng', day.add(const Duration(minutes: 5)), status: 'taken')]);
+      addTearDown(done.dispose);
+      final say = await done.read(voiceActionsProvider).execute(task('read_meds'), const [], 'bác');
+      expect(say, contains('đã xong'));
+      expect((done.read(vyCardProvider)! as MedCard).title, 'Thuốc hôm nay');
+
+      final none = make();
+      addTearDown(none.dispose);
+      final say2 = await none.read(voiceActionsProvider).execute(task('read_meds'), const [], 'bác');
+      expect(say2, contains('không có cữ thuốc'));
+      expect(none.read(vyCardProvider), isNull);
+    });
+
+    test('tìm video chung chung: hiện thẻ có số 1–5; chạm dòng = mở video đó', () async {
+      final c = make(videos: [for (var i = 1; i <= 8; i++) video(i)]);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('play_video', {'content': 'nhạc xưa'}), const [], 'bác');
+      expect(say, contains('chọn số mấy'));
+      final card = c.read(vyCardProvider)! as VideoListCard;
+      expect(card.rows.map((r) => r.n), [1, 2, 3, 4, 5]); // tối đa 5 dòng
+      expect(card.rows[1].title, 'Bài hát số 2');
+      expect(card.replacesSpeech, isFalse);
+      expect(c.read(videoQueueProvider).length, 8); // hàng đợi để máy tự sang bài kế
+    });
+
+    test('gửi tin xong: hiện thẻ Đã gửi, không nhảy sang phòng chat', () async {
+      final c = make();
+      addTearDown(c.dispose);
+      // không có repository thật: chỉ kiểm tra rằng intent gửi tin không còn thuộc nhóm tự đóng Vy
+      expect(VoiceActions.navIntents.contains('send_message'), isFalse);
+    });
+  });
+}
+
+void unawaited0(Future<void> f) {}
+

@@ -11,6 +11,7 @@ import '../data/voice_actions.dart';
 import '../data/vy_sounds.dart';
 import '../live/live_lab_controller.dart';
 import '../presentation/voice_controller.dart';
+import 'vy_card.dart';
 import 'vy_context.dart';
 import 'vy_greeting.dart';
 import 'vy_settings.dart';
@@ -80,6 +81,8 @@ class VyCore extends Notifier<VyView> {
   int _greetVariant = 0;
   Timer? _idleTimer;
   Timer? _closeTimer;
+  Timer? _holdTimer;
+  DateTime? _cardShownAt;
   ProviderSubscription<LiveLabState>? _liveSub; // chỉ tạo bộ điều khiển Live khi lần đầu dùng
   Future<void>? _greeting;
 
@@ -92,7 +95,12 @@ class VyCore extends Notifier<VyView> {
   VyView build() {
     ref.listen(voiceControllerProvider, (_, _) => _sync());
     ref.listen(vySettingsProvider, (_, _) => _sync());
+    ref.listen(vyCardProvider, (_, next) {
+      _onCard(next);
+      _sync();
+    });
     ref.onDispose(() {
+      _holdTimer?.cancel();
       _cancelTimers();
       _liveSub?.close();
     });
@@ -115,6 +123,7 @@ class VyCore extends Notifier<VyView> {
     _sig = '';
     _lastUser = '';
     _cancelTimers();
+    ref.read(vyCardProvider.notifier).clear();
     HapticFeedback.lightImpact();
     if (_settings.sounds) unawaited(VySounds.on());
     Analytics.track('vy_open');
@@ -152,6 +161,8 @@ class VyCore extends Notifier<VyView> {
     _lastClosedAt = _now();
     Analytics.track('vy_close', {'reason': reason, 'engine': engine.name});
     if (_settings.sounds) unawaited(VySounds.off());
+    _holdTimer?.cancel();
+    ref.read(vyCardProvider.notifier).clear();
     state = const VyView(); // giao diện đóng ngay, việc dọn dẹp chạy sau
     await _voice.stop();
     if (engine == VyEngine.live) {
@@ -191,6 +202,7 @@ class VyCore extends Notifier<VyView> {
   Future<void> primary() async {
     if (!_open || _engine != VyEngine.classic || !_classicStarted) return;
     _noteActivity();
+    ref.read(vyCardProvider.notifier).clear();
     await ref.read(voiceControllerProvider.notifier).toggle();
   }
 
@@ -198,6 +210,7 @@ class VyCore extends Notifier<VyView> {
   Future<void> tapChip(String chip) async {
     if (!_open) return;
     _noteActivity();
+    ref.read(vyCardProvider.notifier).clear();
     switch (_engine) {
       case VyEngine.live:
         await ref.read(liveLabProvider.notifier).tapChip(chip);
@@ -213,6 +226,7 @@ class VyCore extends Notifier<VyView> {
     final t = text.trim();
     if (!_open || t.isEmpty) return;
     _noteActivity();
+    ref.read(vyCardProvider.notifier).clear();
     Analytics.track('vy_text', {'len': t.length});
     switch (_engine) {
       case VyEngine.live:
@@ -222,6 +236,13 @@ class VyCore extends Notifier<VyView> {
       case VyEngine.none:
         break;
     }
+  }
+
+  /// Chạm một nút trên thẻ: làm việc đó rồi thu panel về thanh nhỏ để người dùng thấy kết quả (màn vừa mở, video vừa chọn...).
+  void runCardAction(VyCardAction a) {
+    _noteActivity();
+    a.run();
+    if (_open) collapse();
   }
 
   /// Đã đọc thẻ giải thích lần đầu.
@@ -326,16 +347,21 @@ class VyCore extends Notifier<VyView> {
       userExpanded: _userExpanded,
       collapsed: _collapsed,
       captions: settings.captions,
-    );
+    ).copyWith(card: ref.read(vyCardProvider));
 
     // Người dùng bắt đầu nói thì ngắt lời chào/câu hỏi của giọng máy ngay (không để Vy nói chen lên người dùng).
     if (view.userText.isNotEmpty && view.userText != _lastUser) {
       unawaited(_voice.stop());
+      // Người dùng nói việc mới thì thẻ cũ hết ý nghĩa (thẻ vừa hiện sau lời nói này thì giữ: chữ chép về có thể đến sau thẻ).
+      final shown = _cardShownAt;
+      if (ref.read(vyCardProvider) != null && shown != null && _now().difference(shown) > const Duration(milliseconds: 800)) {
+        ref.read(vyCardProvider.notifier).clear();
+      }
     }
     _lastUser = view.userText;
 
     // Có nội dung mới thì thẻ tự mở lại (người dùng đã thu gọn trước đó chỉ áp dụng cho nội dung cũ).
-    final sig = '${view.phase.name}|${view.userText}|${view.vyText}|${view.chips.join(',')}|${view.error}';
+    final sig = '${view.phase.name}|${view.userText}|${view.vyText}|${view.chips.join(',')}|${view.error}|${view.card == null ? 0 : identityHashCode(view.card)}';
     if (sig != _sig) {
       final first = _sig.isEmpty;
       _sig = sig;
@@ -346,6 +372,19 @@ class VyCore extends Notifier<VyView> {
     }
     _armIdle(view);
     state = view.copyWith(collapsed: _collapsed, idlePrompt: _idlePrompt);
+  }
+
+  /// Thẻ mới hiện: thẻ chỉ để xem lướt (có `hold`) thì tự thu về thanh nhỏ sau thời gian giữ, trừ khi người dùng đã tự mở rộng.
+  void _onCard(VyCard? card) {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _cardShownAt = card == null ? null : _now();
+    final hold = card?.hold;
+    if (card == null || hold == null || !_open) return;
+    _holdTimer = Timer(hold, () {
+      _holdTimer = null;
+      if (_open && !_userExpanded && ref.read(vyCardProvider) == card) collapse();
+    });
   }
 
   void _noteActivity() {

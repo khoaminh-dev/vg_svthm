@@ -179,6 +179,22 @@ export function videoControl(t: string): string | null {
   return null;
 }
 
+/** Câu HỎI về lịch uống thuốc ("tối nay tôi phải uống thuốc gì", "mấy giờ uống thuốc", "cữ thuốc kế tiếp"); t đã bỏ dấu.
+ *  Chỉ nhận câu hỏi, KHÔNG nhận câu khẳng định như "tôi uống thuốc rồi" (đó là báo đã uống) hay "mở thuốc" (mở màn). */
+export function medsQuery(t: string): boolean {
+  if (/^(cu|lan|dot) (ke tiep|tiep theo)$/.test(t)) return true; // "cữ kế tiếp" (cữ chỉ nói về thuốc)
+  if (!/\bthuoc\b/.test(t)) return false;
+  if (/\b(roi|chua uong|het thuoc|mua thuoc|doi thuoc|bo thuoc|dung thuoc|doc don|don thuoc|tac dung|phu|liet)\b/.test(t)) return false;
+  if (/^(mo|vao|xem|chuyen (sang|qua|den)|chup|quet|them|sua) /.test(t)) return false;
+  if (/\b(uong thuoc|thuoc)\b.*\b(gi|nao|may gio|bao gio|khi nao|luc nao|chua|the nao)\b/.test(t)) return true;
+  if (/\b(may gio|bao gio|khi nao|luc nao|gio nao)\b.*\b(uong thuoc|thuoc)\b/.test(t)) return true;
+  if (/\b(uong|phai uong)\b.*\bthuoc\b.*\b(hom nay|toi nay|sang nay|trua nay|chieu nay)\b/.test(t)) return true;
+  if (/\b(hom nay|toi nay|sang nay|trua nay|chieu nay)\b.*\b(uong|phai uong)\b.*\bthuoc\b/.test(t)) return true;
+  if (/^(cu |lan |dot )?(thuoc|lich thuoc|cu thuoc)( (hom nay|toi nay|sang nay|trua nay|chieu nay|ke tiep|tiep theo))+$/.test(t)) return true;
+  if (/\b(cu|lan|dot)\b( thuoc)? (ke tiep|tiep theo)\b/.test(t)) return true;
+  return false;
+}
+
 /** Câu hỏi về tình trạng sức khoẻ của chính người nói (t đã bỏ dấu): trả về loại câu hỏi hoặc null. */
 export function healthTopic(t: string): string | null {
   if (/(nguy co|dot quy|tim mach|co nguy hiem khong|nguy hiem khong)/.test(t)) return 'risk';
@@ -253,6 +269,7 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
   if (/(xem|mo|vao).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo|vao|chuyen (sang|qua|den)) (theo doi )?huyet ap$/.test(t)) return { intent: 'show_bp' };
   if (/(huyet ap).*(bao nhieu|gan nhat|hom nay|vua do)/.test(t) || /(doc|cho biet).*(huyet ap)/.test(t)) return { intent: 'read_bp' };
+  if (medsQuery(t)) return { intent: 'read_meds' };
   const hs = healthTopic(t);
   if (hs) return { intent: 'health_status', content: hs };
   if (/\b(do|chup|doc)\b.*\b(huyet ap|may do)\b/.test(t) || /^do huyet ap/.test(t)) return { intent: 'measure_bp' };
@@ -325,7 +342,7 @@ const REQUIRED: Record<string, string[]> = {
   open_feature: ['feature'],
   play_video: ['content'],
   video_control: ['content'],
-  measure_bp: [], show_bp: [], read_bp: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
+  measure_bp: [], show_bp: [], read_bp: [], read_meds: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
@@ -620,6 +637,6 @@ function progress(
       sayClass: 'important', chips: ['Gửi', 'Sửa', 'Hủy'], learnAlias,
     });
   }
-  const say = intent === 'read_bp' ? '' : S.opened();
+  const say = intent === 'read_bp' || intent === 'read_meds' ? '' : S.opened();
   return mk({ action: 'execute', intent, task, say, learnAlias });
 }

@@ -1,4 +1,5 @@
 import '../domain/voice_models.dart';
+import 'vy_card.dart';
 import '../live/live_lab_controller.dart';
 import '../presentation/voice_controller.dart';
 
@@ -35,6 +36,7 @@ class VyView {
     this.userExpanded = false,
     this.collapsed = false,
     this.captions = true,
+    this.card,
   });
 
   final VyPhase phase;
@@ -62,6 +64,9 @@ class VyView {
   /// Cài đặt "Hiện chữ khi Vy nói".
   final bool captions;
 
+  /// Thẻ kết quả đang hiện (huyết áp, thuốc, danh sách video, đã gửi) hoặc null.
+  final VyCard? card;
+
   bool get isOpen => phase != VyPhase.closed;
 
   /// Có việc cần thẻ lớn: xác nhận, khẩn cấp, lỗi, gợi ý bấm được, thẻ giải thích.
@@ -70,6 +75,7 @@ class VyView {
       phase == VyPhase.emergency ||
       error != null ||
       chips.isNotEmpty ||
+      card != null ||
       showIntro;
 
   /// Thẻ lớn (L2) đang mở: có việc cần thẻ hoặc người dùng mở, trừ khi người dùng vừa thu gọn.
@@ -120,6 +126,7 @@ class VyView {
     bool? userExpanded,
     bool? collapsed,
     bool? captions,
+    Object? card = _keep,
   }) => VyView(
     phase: phase ?? this.phase,
     engine: engine ?? this.engine,
@@ -133,6 +140,7 @@ class VyView {
     userExpanded: userExpanded ?? this.userExpanded,
     collapsed: collapsed ?? this.collapsed,
     captions: captions ?? this.captions,
+    card: identical(card, _keep) ? this.card : card as VyCard?,
   );
 
   @override
@@ -149,7 +157,8 @@ class VyView {
       other.showIntro == showIntro &&
       other.userExpanded == userExpanded &&
       other.collapsed == collapsed &&
-      other.captions == captions;
+      other.captions == captions &&
+      identical(other.card, card);
 
   @override
   int get hashCode => Object.hash(
@@ -165,6 +174,7 @@ class VyView {
     userExpanded,
     collapsed,
     captions,
+    card == null ? 0 : identityHashCode(card),
   );
 }
 

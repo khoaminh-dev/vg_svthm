@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/vy_orb.dart';
 import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
+import '../core/vy_card.dart';
 import '../core/vy_core.dart';
 import '../core/vy_view.dart';
+import 'vy_cards.dart';
 
 const _navy = Color(0xFF14213D);
 const _blue = Color(0xFF3C5BD6);
@@ -60,6 +62,7 @@ class VyPanelHost extends ConsumerWidget {
                       onPrimary: core.primary,
                       onChip: core.tapChip,
                       onText: core.sendText,
+                      onCardAction: core.runCardAction,
                       onCollapse: core.collapse,
                       onExpand: core.expand,
                       onDismissIntro: core.dismissIntro,
@@ -84,6 +87,7 @@ class VyPanel extends StatelessWidget {
     required this.onPrimary,
     required this.onChip,
     this.onText,
+    this.onCardAction,
     required this.onCollapse,
     required this.onExpand,
     required this.onDismissIntro,
@@ -95,6 +99,7 @@ class VyPanel extends StatelessWidget {
   final VoidCallback onPrimary;
   final ValueChanged<String> onChip;
   final ValueChanged<String>? onText;
+  final ValueChanged<VyCardAction>? onCardAction;
   final VoidCallback onCollapse;
   final VoidCallback onExpand;
   final VoidCallback onDismissIntro;
@@ -286,7 +291,12 @@ class VyPanel extends StatelessWidget {
                 ),
               ),
             ),
-          if (_showVyText)
+          if (view.card != null) ...[
+            VyCardView(card: view.card!, onAction: (a) => onCardAction?.call(a)),
+            const SizedBox(height: 12),
+          ],
+          // Thẻ đã nói đủ ý thì không lặp lại câu Vy nói bằng chữ lớn.
+          if (_showVyText && !(view.card?.replacesSpeech ?? false))
             Text(
               view.vyText,
               style: text.headlineSmall?.copyWith(

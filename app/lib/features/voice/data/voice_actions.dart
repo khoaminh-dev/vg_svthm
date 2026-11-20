@@ -5,12 +5,19 @@ import '../../../core/analytics/analytics.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/supabase/supabase_providers.dart';
+import 'package:flutter/material.dart' show Color;
+
+import '../../../core/theme/app_theme.dart';
 import '../../bp/domain/bp_models.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../chat/domain/room.dart';
 import '../../chat/presentation/providers/chat_providers.dart';
 import '../../entertainment/data/youtube_service.dart';
 import '../../entertainment/presentation/entertainment_providers.dart';
+import '../../health/presentation/providers/health_providers.dart';
+import '../../meds/domain/meds_models.dart';
+import '../../meds/presentation/meds_providers.dart';
+import '../core/vy_card.dart';
 import '../core/control_registry.dart';
 import '../domain/voice_models.dart';
 
@@ -26,7 +33,6 @@ class VoiceActions {
 
   /// Lệnh đổi màn hình: chạy xong thì Vy thường thu gọn màn Vy để người dùng thấy kết quả.
   static const navIntents = {
-    'send_message',
     'open_chat',
     'open_feature',
     'measure_bp',
@@ -116,7 +122,16 @@ class VoiceActions {
         Analytics.track('voice_send_message', {'ok': ok});
         if (!ok)
           return 'Con gửi chưa được, $honorific kiểm tra mạng rồi thử lại nhé.';
-        _openRoom(roomId);
+        // Thẻ "Đã gửi" hiện ngay tại màn đang đứng (không nhảy sang phòng chat).
+        _ref.read(vyCardProvider.notifier).show(
+          SentCard(
+            to: s['recipient_name'] ?? 'người nhận',
+            text: content,
+            actions: [
+              VyCardAction(label: 'Mở cuộc trò chuyện', run: () => _openRoom(roomId)),
+            ],
+          ),
+        );
         return null;
       case 'open_chat':
         final id = s['room_id'];
@@ -149,6 +164,8 @@ class VoiceActions {
         return null;
       case 'read_bp':
         return await readBp(honorific);
+      case 'read_meds':
+        return await readMeds(honorific);
       case 'go_home':
         router.go(Routes.home);
         return null;
@@ -204,7 +221,22 @@ class VoiceActions {
     _ref.read(videoQueryProvider.notifier).set(q);
     router.go(Routes.entertainment);
     if (isVagueVideoQuery(q)) {
-      return 'Dạ, con tìm được mấy video rồi, $honorific chọn một video nhé.';
+      _ref.read(videoQueueProvider.notifier).set(found);
+      _ref.read(vyCardProvider.notifier).show(
+        VideoListCard(
+          title: 'Chọn một video',
+          rows: [
+            for (var i = 0; i < found.length && i < 5; i++)
+              VideoRow(
+                n: i + 1,
+                title: found[i].title,
+                author: found[i].author,
+                onChoose: () => _ref.read(routerProvider).push(Routes.player, extra: found[i]),
+              ),
+          ],
+        ),
+      );
+      return 'Dạ, con tìm được mấy video rồi, $honorific chọn số mấy ạ?';
     }
     final first = found.first;
     _ref.read(videoQueueProvider.notifier).set(found);
@@ -257,6 +289,88 @@ class VoiceActions {
     router.push(Routes.roomPath(id), extra: room);
   }
 
+  /// "hôm nay 07:05", "hôm qua 19:30", "12/11 08:00".
+  static String _whenText(DateTime t, [DateTime? now]) {
+    final n = now ?? DateTime.now();
+    final hm = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    final d = DateTime(t.year, t.month, t.day);
+    final today = DateTime(n.year, n.month, n.day);
+    final diff = today.difference(d).inDays;
+    if (diff == 0) return 'hôm nay $hm';
+    if (diff == 1) return 'hôm qua $hm';
+    return '${t.day.toString().padLeft(2, '0')}/${t.month.toString().padLeft(2, '0')} $hm';
+  }
+
+  /// Đọc cữ thuốc kế tiếp và các cữ hôm nay, kèm thẻ Thuốc.
+  Future<String> readMeds(String honorific) async {
+    final cap = '${honorific[0].toUpperCase()}${honorific.substring(1)}';
+    final List<Dose> all;
+    try {
+      all = await _ref.read(myDosesProvider.future);
+    } catch (_) {
+      return 'Con chưa đọc được lịch thuốc, $honorific thử lại sau nhé.';
+    }
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todays = [
+      for (final d in all)
+        if (!d.dueAt.isBefore(today) && d.dueAt.isBefore(today.add(const Duration(days: 1)))) d,
+    ]..sort((a, b) => a.dueAt.compareTo(b.dueAt));
+    if (todays.isEmpty) {
+      return 'Hôm nay $honorific không có cữ thuốc nào ạ.';
+    }
+    Dose? next;
+    for (final d in todays) {
+      final st = d.stateAt(now);
+      if (st == DoseState.due || st == DoseState.upcoming) {
+        next = d;
+        break;
+      }
+    }
+    (String, Color) status(Dose d) => switch (d.stateAt(now)) {
+      DoseState.taken => ('Đã uống', AppColors.levelGood),
+      DoseState.skipped => ('Đã bỏ qua', AppColors.textMuted),
+      DoseState.missed => ('Chưa uống, quá giờ', AppColors.levelDanger),
+      DoseState.due => ('Đến giờ', AppColors.navy),
+      DoseState.upcoming => ('Sắp tới', AppColors.textMuted),
+    };
+    final router = _ref.read(routerProvider);
+    _ref.read(vyCardProvider.notifier).show(
+      MedCard(
+        title: next != null ? 'Cữ kế tiếp lúc ${next.hm}' : 'Thuốc hôm nay',
+        rows: [
+          for (final d in todays)
+            MedRow(
+              time: d.hm,
+              name: d.bag ? 'Túi ${d.label}' : d.label,
+              status: status(d).$1,
+              statusColor: status(d).$2,
+              items: [for (final i in d.items) i.text],
+              highlight: d.id == next?.id,
+            ),
+        ],
+        actions: [
+          VyCardAction(
+            label: 'Mở màn thuốc',
+            primary: true,
+            run: () {
+              _ref.read(healthTabProvider.notifier).set(2);
+              router.go(Routes.bp);
+            },
+          ),
+        ],
+      ),
+    );
+    if (next == null) {
+      return '$cap đã xong các cữ thuốc hôm nay rồi ạ.';
+    }
+    final left = todays
+        .where((d) => d.id != next!.id && (d.stateAt(now) == DoseState.upcoming || d.stateAt(now) == DoseState.due))
+        .length;
+    final more = left > 0 ? ' Hôm nay còn $left cữ nữa.' : '';
+    return 'Cữ kế tiếp lúc ${next.hm}: ${next.what}.$more';
+  }
+
   Future<String> readBp(String honorific) async {
     try {
       final list = await _ref.read(bpReadingsProvider.future);
@@ -265,9 +379,31 @@ class VoiceActions {
       final r = list.reduce(
         (a, b) => a.measuredAt.isAfter(b.measuredAt) ? a : b,
       );
-      final cat = BpCategory.of(r.systolic, r.diastolic).label;
+      final cat = BpCategory.of(r.systolic, r.diastolic);
       final pulse = r.pulse == null ? '' : ', mạch ${r.pulse}';
-      return 'Lần đo gần nhất: huyết áp ${r.systolic} trên ${r.diastolic}$pulse. Mức: $cat.';
+      final router = _ref.read(routerProvider);
+      _ref.read(vyCardProvider.notifier).show(
+        BpCard(
+          systolic: r.systolic,
+          diastolic: r.diastolic,
+          pulse: r.pulse,
+          levelLabel: cat.label,
+          levelColor: cat.color,
+          when: _whenText(r.measuredAt),
+          actions: [
+            VyCardAction(
+              label: 'Xem biểu đồ',
+              primary: true,
+              run: () {
+                _ref.read(healthTabProvider.notifier).set(0);
+                router.go(Routes.bp);
+              },
+            ),
+            VyCardAction(label: 'Đo lại', run: () => router.push(Routes.measure)),
+          ],
+        ),
+      );
+      return 'Lần đo gần nhất: huyết áp ${r.systolic} trên ${r.diastolic}$pulse. Mức: ${cat.label}.';
     } catch (_) {
       return 'Con chưa đọc được kết quả, $honorific thử lại sau nhé.';
     }

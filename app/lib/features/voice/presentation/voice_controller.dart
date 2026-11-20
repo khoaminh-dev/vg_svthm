@@ -8,6 +8,7 @@ import '../data/speech_player.dart';
 import '../data/thinking_sound.dart';
 import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
+import '../core/vy_card.dart';
 import '../core/vy_context.dart';
 import '../data/voice_recorder.dart';
 import '../domain/voice_models.dart';
@@ -320,8 +321,12 @@ class VoiceController extends Notifier<VoiceState> {
 
     _lastSay = say;
     _lastSayClass = sayClass;
+    // Lệnh có đổi màn thì thu bảng Vy để người dùng thấy kết quả, TRỪ khi lệnh vừa tạo ra một thẻ cần xem/chọn
+    // (ví dụ danh sách video có số): khi đó Vy ở lại để người dùng chọn.
     final navigated =
-        d.action == 'execute' && VoiceActions.navIntents.contains(d.task?.intent);
+        d.action == 'execute' &&
+        VoiceActions.navIntents.contains(d.task?.intent) &&
+        ref.read(vyCardProvider) == null;
     state = state.copyWith(
       transcript: res.transcript,
       say: say,
