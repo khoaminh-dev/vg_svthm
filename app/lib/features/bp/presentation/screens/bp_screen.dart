@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart' show CupertinoSlidingSegmentedControl;
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -204,7 +205,8 @@ class BpScreen extends ConsumerWidget {
                                 padding: const EdgeInsets.all(AppSpacing.lg),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(28),
+                                  borderRadius: BorderRadius.circular(22),
+                                  boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,9 +234,9 @@ class BpScreen extends ConsumerWidget {
                                               style: TextStyle(
                                                 fontSize: 64,
                                                 height: 1,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: -1.5,
-                                                color: latest.category.color,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: -2,
+                                                color: AppColors.navyDeep,
                                               ),
                                             ),
                                           ),
@@ -292,7 +294,8 @@ class BpScreen extends ConsumerWidget {
                                 padding: const EdgeInsets.all(AppSpacing.md),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(28),
+                                  borderRadius: BorderRadius.circular(22),
+                                  boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,7 +442,8 @@ class _ElderBpView extends ConsumerWidget {
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
             ),
             child: Text(
               'Bác chưa đo lần nào.\nBấm nút xanh ở trên để đo lần đầu.',
@@ -454,7 +458,8 @@ class _ElderBpView extends ConsumerWidget {
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
             ),
             child: Column(
               children: [
@@ -469,10 +474,11 @@ class _ElderBpView extends ConsumerWidget {
                   child: Text(
                     '${latest.systolic}/${latest.diastolic}',
                     style: TextStyle(
-                      fontSize: 88,
+                      fontSize: 84,
                       height: 1.05,
-                      fontWeight: FontWeight.w700,
-                      color: latest.category.color,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -3,
+                      color: AppColors.navyDeep,
                     ),
                   ),
                 ),
@@ -496,7 +502,7 @@ class _ElderBpView extends ConsumerWidget {
                     latest.category.label,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: latest.category.color,
                     ),
@@ -518,7 +524,8 @@ class _ElderBpView extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -326,7 +327,8 @@ class _Card extends StatelessWidget {
     padding: const EdgeInsets.all(AppSpacing.md),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(22),
+      boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,10 +411,16 @@ class _DoseCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: state == DoseState.due
-            ? Border.all(color: AppColors.navy, width: 2)
-            : null,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: state == DoseState.due
+                ? const Color(0x330B2447)
+                : AppColors.cardShadow,
+            blurRadius: state == DoseState.due ? 24 : 16,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,8 +429,9 @@ class _DoseCard extends StatelessWidget {
             children: [
               Text(
                 dose.hm,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -1,
                 ),
               ),
               const SizedBox(width: 12),
@@ -434,16 +443,15 @@ class _DoseCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(icon, color: color, size: 30),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            status,
-            key: Key('dose-status-${dose.id}'),
-            style: theme.textTheme.titleSmall?.copyWith(
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: StatusBadge(
+              key: Key('dose-status-${dose.id}'),
+              label: status,
               color: color,
-              fontWeight: FontWeight.w600,
             ),
           ),
           if (bagItems.isNotEmpty) ...[
@@ -476,8 +484,8 @@ class _DoseCard extends StatelessWidget {
                     ok: 'Đã ghi nhận bác uống thuốc',
                   );
                 },
-                icon: const Icon(Icons.check_rounded, size: 30),
-                label: const Text('Đã uống', style: TextStyle(fontSize: 22)),
+                icon: const Icon(Icons.check_rounded, size: 26),
+                label: const Text('Đã uống', style: TextStyle(fontSize: 20)),
               ),
             ),
             const SizedBox(height: 8),
