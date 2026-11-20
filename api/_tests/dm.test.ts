@@ -118,6 +118,41 @@ test('"mở giải trí" mở mục giải trí', async () => {
   assert.equal(d.task?.slots.feature, 'fun');
 });
 
+test('lời nói thật có đệm/đuôi vẫn ra đúng lệnh, không gọi LLM (lỗi đo thực tế 20/11)', async () => {
+  const cases: [string, string, string?][] = [
+    ['Ừ rồi mở màn hình huyết áp cho bác đi', 'show_bp'],
+    ['thì mở huyết áp cho bác để bác xem', 'show_bp'],
+    ['Mở trang huyết áp cho bác', 'show_bp'],
+    ['mở màn hình huyết áp', 'show_bp'],
+    ['quay lại đi', 'go_back'],
+    ['Mở cho tôi bài nhạc xưa', 'play_video'],
+    ['ừm mở tin nhắn cho bác nhé', 'open_feature', 'chat'],
+  ];
+  for (const [text, intent, feature] of cases) {
+    const d = await step({ text, state: {}, ui }, noNlu);
+    assert.equal(d.action, 'execute', text);
+    assert.equal(d.intent, intent, text);
+    if (feature) assert.equal(d.task?.slots.feature, feature, text);
+  }
+});
+
+test('tidy không làm hỏng lệnh nhắn tin và đo huyết áp', async () => {
+  const { tidy } = await import('../_lib/voice/dm.ts');
+  assert.equal(tidy('mo huyet ap'), 'mo huyet ap');
+  assert.equal(tidy('do huyet ap cho toi'), 'do huyet ap');
+  assert.equal(tidy('u'), 'u'); // không gọt thành rỗng
+  const d = await step({ text: 'nhắn cho Lan là mai bác về', state: {}, ui }, noNlu);
+  assert.equal(d.intent, 'send_message');
+  assert.equal(d.task?.slots.content, 'Mai bác về');
+});
+
+test('LLM chọn "mở một mục" nhưng quên mục: lấy từ câu nói, không hỏi lại', async () => {
+  const nluOpen: Nlu = async () => ({ intent: 'open_feature', recipient: '', content: '', feature: '', say: '' });
+  const d = await step({ text: 'cho bác xem cái phần huyết áp của bác nhé', state: {}, ui }, nluOpen);
+  assert.equal(d.action, 'execute');
+  assert.equal(d.task?.slots.feature, 'bp');
+});
+
 test('điều khiển video: dừng, bài khác, nhỏ đi', async () => {
   const { videoControl } = await import('../_lib/voice/dm.ts');
   assert.equal(videoControl('dung lai'), 'pause');

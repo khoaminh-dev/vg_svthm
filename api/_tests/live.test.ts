@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLiveSession, liveAllowed, pickMode, safetyId, validSdp, LIVE_TOOLS } from '../_lib/voice/live.ts';
+import { buildLiveSession, liveAllowed, pickMode, safetyId, validSdp, LIVE_TOOLS, ACK_DELAY_MS } from '../_lib/voice/live.ts';
 
 test('liveAllowed: rỗng thì không ai được, có trong danh sách thì được', () => {
   assert.equal(liveAllowed('u1', ''), false);
@@ -50,7 +50,9 @@ test('buildLiveSession chế độ R: cấu hình thêm hợp lệ được tr�
 
 test('buildLiveSession chế độ C: client delegation', () => {
   const s = buildLiveSession('C', 'cô', {}) as any;
-  assert.deepEqual(s.delegation, { type: 'client', acknowledgement_delay_ms: 800 });
+  assert.deepEqual(s.delegation, { type: 'client', acknowledgement_delay_ms: ACK_DELAY_MS });
+  assert.ok(ACK_DELAY_MS >= 2000, 'lời đệm phải chậm hơn thời gian xử lý bình thường để không nói đè');
+  assert.match(s.instructions, /CHỈ tự trả lời chào hỏi/);
   // Chế độ C buộc đọc nguyên văn và chuyển mọi câu trả lời kế tiếp; chế độ R không có các dòng này.
   assert.match(s.instructions, /NGUYÊN VĂN/);
   assert.match(s.instructions, /không tự xác nhận/);

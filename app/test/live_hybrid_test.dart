@@ -66,6 +66,21 @@ void main() {
     });
   });
 
+  test('classifyConfirmReply đưa câu nói tự do về nút Gửi/Sửa/Hủy, thiên về an toàn', () {
+    expect(classifyConfirmReply('Bấm gửi cho bác luôn đi'), 'Gửi');
+    expect(classifyConfirmReply('gửi'), 'Gửi');
+    expect(classifyConfirmReply('Đồng ý gửi đi con'), 'Gửi');
+    expect(classifyConfirmReply('sửa lại giúp bác'), 'Sửa');
+    expect(classifyConfirmReply('không gửi nữa'), 'Hủy');
+    expect(classifyConfirmReply('đừng gửi'), 'Hủy');
+    expect(classifyConfirmReply('thôi hủy đi'), 'Hủy');
+    expect(classifyConfirmReply('không sửa gửi luôn đi'), 'Hủy'); // mơ hồ → an toàn là không gửi
+    expect(classifyConfirmReply('nhắn cho con gái là gửi tiền'), isNull); // lệnh mới
+    expect(classifyConfirmReply('bác muốn đo huyết áp'), isNull);
+    expect(classifyConfirmReply('một hai ba bốn năm sáu bảy tám chín gửi'), isNull); // quá dài
+    expect(classifyConfirmReply(''), isNull);
+  });
+
   test('sayFidelity đo mức đọc đúng nguyên văn', () {
     expect(sayFidelity('Dạ, con gửi rồi ạ.', 'Dạ con gửi rồi ạ'), 1);
     expect(sayFidelity('Con gửi cho Lan: mai bác về', 'Dạ đã gửi'), lessThan(0.5));

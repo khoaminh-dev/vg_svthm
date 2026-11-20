@@ -29,6 +29,32 @@ class LiveLabScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Nút Bắt đầu/Kết thúc luôn nằm cố định trên cùng, không bị lỗi dài hay số liệu đẩy mất.
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: s.phase == LivePhase.idle ? c.start : null,
+                      child: const Text('Bắt đầu'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: busy && s.phase != LivePhase.closing ? c.end : null,
+                      child: const Text('Kết thúc'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Phần dưới cuộn được, để ô nhật ký luôn còn chỗ (trước đây chip số liệu đẩy nhật ký ra ngoài màn hình).
+              Flexible(
+                flex: 3,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'R', label: Text('R: Luna chọn hàm')),
@@ -48,7 +74,15 @@ class LiveLabScreen extends ConsumerWidget {
                 SwitchListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Cho GỬI TIN THẬT sau khi xác nhận'),
+                  title: const Text('Tự gửi ngay, không hỏi xác nhận'),
+                  subtitle: const Text('Bật: nói xong là gửi, rồi đọc lại đã gửi gì cho ai'),
+                  value: s.autoSend,
+                  onChanged: c.setAutoSend,
+                ),
+                SwitchListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Cho GỬI TIN THẬT'),
                   subtitle: const Text('Tắt: chỉ giả lập, không nhắn người thân'),
                   value: s.sendReal,
                   onChanged: c.setSendReal,
@@ -61,24 +95,6 @@ class LiveLabScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(s.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: s.phase == LivePhase.idle ? c.start : null,
-                      child: const Text('Bắt đầu'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: busy && s.phase != LivePhase.closing ? c.end : null,
-                      child: const Text('Kết thúc'),
-                    ),
-                  ),
-                ],
-              ),
               if (s.emergency)
                 Container(
                   margin: const EdgeInsets.only(top: 8),
@@ -126,6 +142,10 @@ class LiveLabScreen extends ConsumerWidget {
                   ],
                 ),
               ],
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -148,6 +168,7 @@ class LiveLabScreen extends ConsumerWidget {
                 ],
               ),
               Expanded(
+                flex: 2,
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(

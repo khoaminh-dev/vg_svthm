@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../../core/diagnostics/app_trace.dart';
 import '../data/speech_player.dart';
 import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
@@ -35,6 +36,7 @@ class LiveLabState {
     this.error,
     this.execReal = true,
     this.sendReal = false,
+    this.autoSend = true,
     this.confirmSay,
     this.confirmChips = const [],
     this.emergency = false,
@@ -54,6 +56,10 @@ class LiveLabState {
   /// Cho phép GỬI TIN THẬT sau khi xác nhận (mặc định tắt: giả lập, không nhắn nhầm người thân).
   final bool sendReal;
 
+  /// Chủ dự án chọn (20/11/2026): nói xong là gửi ngay, không hỏi xác nhận. Vẫn chặn gửi trùng, chỉ gửi khi đã
+  /// khớp đúng một người trong danh bạ và có nội dung, và đọc lại cho người dùng nghe đã gửi cho ai, gửi gì.
+  final bool autoSend;
+
   /// Đang chờ xác nhận gửi tin: câu đã đọc lại và các nút (Gửi/Sửa/Hủy).
   final String? confirmSay;
   final List<String> confirmChips;
@@ -71,6 +77,7 @@ class LiveLabState {
     Object? error = _keep,
     bool? execReal,
     bool? sendReal,
+    bool? autoSend,
     Object? confirmSay = _keep,
     List<String>? confirmChips,
     bool? emergency,
@@ -84,6 +91,7 @@ class LiveLabState {
     error: identical(error, _keep) ? this.error : error as String?,
     execReal: execReal ?? this.execReal,
     sendReal: sendReal ?? this.sendReal,
+    autoSend: autoSend ?? this.autoSend,
     confirmSay: identical(confirmSay, _keep) ? this.confirmSay : confirmSay as String?,
     confirmChips: confirmChips ?? this.confirmChips,
     emergency: emergency ?? this.emergency,
@@ -96,6 +104,7 @@ class LiveLabController extends Notifier<LiveLabState> {
   RTCPeerConnection? _pc;
   RTCDataChannel? _dc;
   MediaStream? _mic;
+  MediaStreamTrack? _remoteAudio; // giọng Live nhận về
   Timer? _flushTimer;
   Timer? _closeTimeout;
   Timer? _capTimer;
@@ -127,6 +136,12 @@ class LiveLabController extends Notifier<LiveLabState> {
   String _lastSayClass = 'static';
   String _expectSay = '';
   String _heard = '';
+  String _endReason = '';
+  bool _collecting = false; // đang chờ phiên âm của một lệnh ủy quyền: đừng bỏ chữ
+  DateTime? _dialogAt; // lúc Vy cũ mở một câu hỏi/xác nhận dở dang
+
+  /// Câu hỏi/xác nhận dở dang quá lâu thì bỏ, để câu nói không liên quan không bị hiểu là trả lời nó.
+  static const _dialogTtl = Duration(seconds: 45);
 
   VoiceActions get _actions => ref.read(voiceActionsProvider);
 
@@ -134,9 +149,11 @@ class LiveLabController extends Notifier<LiveLabState> {
   LiveLabState build() {
     _lifecycle = AppLifecycleListener(
       onStateChange: (s) {
+        if (state.phase != LivePhase.idle) _log('vòng đời app: $s');
         // Phiên Live tính tiền theo giây: app xuống nền là kết thúc.
         if (s == AppLifecycleState.paused || s == AppLifecycleState.detached) {
           if (state.phase != LivePhase.idle) {
+            _endReason = 'app xuống nền ($s)';
             _log('app xuống nền → kết thúc phiên');
             unawaited(end());
           }
@@ -144,6 +161,8 @@ class LiveLabController extends Notifier<LiveLabState> {
       },
     );
     ref.onDispose(() {
+      _endReason = 'provider bị hủy (rời màn/đóng app)';
+      _log('provider bị hủy');
       _lifecycle?.dispose();
       unawaited(_teardown());
     });
@@ -156,9 +175,11 @@ class LiveLabController extends Notifier<LiveLabState> {
 
   void setExecReal(bool v) => state = state.copyWith(execReal: v);
   void setSendReal(bool v) => state = state.copyWith(sendReal: v);
+  void setAutoSend(bool v) => state = state.copyWith(autoSend: v);
 
   void _log(String s) {
     final line = '${_sw.isRunning ? _sw.elapsedMilliseconds : 0}ms  $s';
+    AppTrace.line('LIVE $line'); // chỉ ghi khi build thử với VG_TRACE (xem app_trace.dart)
     final next = [...state.log, line];
     state = state.copyWith(log: next.length > 400 ? next.sublist(next.length - 400) : next);
   }
@@ -193,15 +214,18 @@ class LiveLabController extends Notifier<LiveLabState> {
     _pendingFingerprint = null;
     _lastSay = '';
     _expectSay = _heard = '';
+    _endReason = '';
+    _dialogAt = null;
     state = LiveLabState(
       phase: LivePhase.connecting,
       mode: state.mode,
       execReal: state.execReal,
       sendReal: state.sendReal,
+      autoSend: state.autoSend,
       log: const [],
     );
     ref.read(liveActiveProvider.notifier).set(true);
-    _log('bắt đầu, chế độ ${state.mode}, thực thi thật=${state.execReal}, gửi tin thật=${state.sendReal}');
+    _log('bắt đầu, chế độ ${state.mode}, thực thi thật=${state.execReal}, gửi tin thật=${state.sendReal}, tự gửi=${state.autoSend}');
     try {
       final api = ref.read(voiceApiProvider);
       // Cách xưng hô và danh bạ nạp song song với việc mở micro để không kéo dài thời gian kết nối.
@@ -215,7 +239,10 @@ class LiveLabController extends Notifier<LiveLabState> {
       for (final t in mic.getAudioTracks()) {
         await pc.addTrack(t, mic);
       }
-      pc.onTrack = (e) => _log('nhận track ${e.track.kind}');
+      pc.onTrack = (e) {
+        _log('nhận track ${e.track.kind}');
+        if (e.track.kind == 'audio') _remoteAudio = e.track;
+      };
       pc.onConnectionState = (s) => _log('kết nối: $s');
       pc.onIceConnectionState = (s) => _log('ice: $s');
       // Kênh sự kiện phải tạo trước khi tạo offer.
@@ -243,9 +270,15 @@ class LiveLabController extends Notifier<LiveLabState> {
       _metric('server_roundtrip_ms', '${_sw.elapsedMilliseconds - tOffer}');
       _metric('server_ms', '${r.serverMs}');
       _log('phiên ${r.sessionId} (chế độ ${r.mode})');
+      // Trong lúc chờ máy chủ, kết nối có thể đã bị đóng (rời màn, bấm Kết thúc, app xuống nền...):
+      // đừng gắn câu trả lời vào kết nối đã chết, báo rõ lý do.
+      if (_pc != pc) {
+        throw StateError('Phiên bị đóng trong lúc chờ máy chủ (${_endReason.isEmpty ? 'không rõ lý do' : _endReason})');
+      }
       await pc.setRemoteDescription(RTCSessionDescription(r.sdp, 'answer'));
       await Helper.setSpeakerphoneOn(true);
       _capTimer = Timer(const Duration(seconds: _maxSessionSec), () {
+        _endReason = 'hết trần $_maxSessionSec giây';
         _log('hết trần $_maxSessionSec giây → kết thúc');
         unawaited(end());
       });
@@ -268,6 +301,8 @@ class LiveLabController extends Notifier<LiveLabState> {
 
   Future<void> end() async {
     if (state.phase == LivePhase.idle || state.phase == LivePhase.closing) return;
+    if (_endReason.isEmpty) _endReason = 'người dùng bấm Kết thúc';
+    _log('kết thúc phiên: $_endReason');
     final dc = _dc;
     if (state.phase == LivePhase.live && dc != null && dc.state == RTCDataChannelState.RTCDataChannelOpen) {
       state = state.copyWith(phase: LivePhase.closing);
@@ -309,6 +344,7 @@ class LiveLabController extends Notifier<LiveLabState> {
       await _mic?.dispose();
     } catch (_) {}
     _mic = null;
+    _remoteAudio = null;
     try {
       await _player?.dispose();
     } catch (_) {}
@@ -336,6 +372,7 @@ class LiveLabController extends Notifier<LiveLabState> {
     }
     final type = (e['type'] as String?) ?? '?';
     final now = _sw.elapsedMilliseconds;
+    AppTrace.line('SỰ KIỆN ${now}ms ${_clip(raw, 400)}');
     // Chưa biết hết tên sự kiện: ghi lần đầu của mỗi loại (kèm mẫu) để xem lại sau.
     if (_seenTypes.add(type) && type != 'response.event') {
       _log('SỰ KIỆN MỚI $type ${_clip(raw, 260)}');
@@ -356,6 +393,18 @@ class LiveLabController extends Notifier<LiveLabState> {
         _awaitingFirstSpeech = true;
       case 'session.output_transcript.delta':
         final d = (e['delta'] as String?) ?? '';
+        // Chế độ C: Live tự trả lời một câu (chào hỏi...) mà không ủy quyền thì câu người dùng đó đã xong.
+        // Phải bỏ phiên âm đi, nếu không nó dính vào đầu lệnh kế tiếp ("Con có thể làm gì Nhắn tin cho Giang...").
+        // Chỉ bỏ khi người dùng đã im > 700 ms để không cắt ngang một câu đang nói dở.
+        if (state.mode == 'C' &&
+            !_collecting &&
+            !_user.isEmpty &&
+            _delegationAt < _lastUserAt &&
+            _user.lastChangeMs >= 0 &&
+            now - _user.lastChangeMs > 700) {
+          _log('bỏ phiên âm câu Live tự trả lời: "${_user.text}"');
+          _user.take();
+        }
         if (_awaitingFirstSpeech && _lastUserAt >= 0) {
           _awaitingFirstSpeech = false;
           _metric('user_stop_to_first_reply_ms', '${now - _lastUserAt}');
@@ -447,7 +496,13 @@ class LiveLabController extends Notifier<LiveLabState> {
   /// Một lượt: Live báo có việc cần ủy quyền → lấy phiên âm → hỏi Vy cũ → chạy lệnh → trả lời qua Live.
   Future<void> _hybridTurn(String? delegationId) async {
     final seq = ++_seq;
-    final text = await _stableTranscript();
+    _collecting = true;
+    final String text;
+    try {
+      text = await _stableTranscript();
+    } finally {
+      _collecting = false;
+    }
     if (seq != _seq) {
       _silentClose(delegationId, 'lượt cũ bị thay bằng lượt mới');
       return;
@@ -472,7 +527,16 @@ class LiveLabController extends Notifier<LiveLabState> {
       );
       return;
     }
-    await _askBrain(text, delegationId, seq);
+    // Đang chờ xác nhận gửi tin mà người dùng nói cả câu ("bấm gửi cho bác luôn đi"): coi như bấm đúng nút.
+    var toBrain = text;
+    if (_gate.pending) {
+      final chip = classifyConfirmReply(text);
+      if (chip != null) {
+        _log('C: "$text" → coi như bấm nút "$chip"');
+        toBrain = chip;
+      }
+    }
+    await _askBrain(toBrain, delegationId, seq);
   }
 
   /// Chờ phiên âm ổn định: có chữ và 150 ms không đổi, tối đa 1,2 giây.
@@ -498,8 +562,18 @@ class LiveLabController extends Notifier<LiveLabState> {
 
   Future<void> _askBrain(String text, String? delegationId, int seq) async {
     final api = ref.read(voiceApiProvider);
+    // Câu hỏi/xác nhận bỏ dở quá lâu thì quên đi (nếu không, câu nói không liên quan sẽ bị hiểu là trả lời nó).
+    final at = _dialogAt;
+    if (at != null && DateTime.now().difference(at) > _dialogTtl) {
+      _log('bỏ ngữ cảnh hội thoại cũ (quá ${_dialogTtl.inSeconds}s)');
+      _dialog = const VoiceDialog();
+      _dialogAt = null;
+      _gate.clear();
+      state = state.copyWith(confirmSay: null, confirmChips: const []);
+    }
     _turnNo++;
     final t0 = _sw.elapsedMilliseconds;
+    _log('NÃO HỎI: "$text" (màn=${_actions.screenName()}, đang chờ=${_dialog.pending ?? '-'})');
     final VoiceTurnResult res;
     try {
       res = await api.turn(
@@ -521,6 +595,11 @@ class LiveLabController extends Notifier<LiveLabState> {
     final ms = _sw.elapsedMilliseconds - t0;
     _metric('brain_ms', '$ms');
     _log('NÃO ${res.timings.entries.map((e) => '${e.key}=${e.value}').join(' ')}');
+    final dd = res.decision;
+    _log(
+      'NÃO TRẢ: action=${dd.action} lớp=${dd.sayClass} task=${dd.task?.intent ?? '-'} '
+      'slots=${jsonEncode(dd.task?.slots ?? const {})} chips=${dd.chips} nói="${_clip(dd.say, 160)}"',
+    );
     if (seq != _seq) return _silentClose(delegationId, 'bỏ kết quả cũ');
     await _applyDecision(res.decision, delegationId, seq);
   }
@@ -534,6 +613,14 @@ class LiveLabController extends Notifier<LiveLabState> {
     switch (d.action) {
       case 'confirm':
         final task = d.task;
+        if (state.autoSend && _canAutoSend(task)) {
+          // Chủ dự án không cần bước xác nhận: gửi ngay rồi đọc lại đã gửi cho ai, gửi gì (qua giọng Live, không giọng máy).
+          _gate.clear();
+          state = state.copyWith(confirmSay: null, confirmChips: const []);
+          say = await _sendNow(task!);
+          cls = 'static';
+          break;
+        }
         if (task != null) {
           _pendingFingerprint = _fingerprint(task);
           final code = _gate.issue(_pendingFingerprint!);
@@ -570,9 +657,36 @@ class LiveLabController extends Notifier<LiveLabState> {
         state = state.copyWith(confirmSay: null, confirmChips: const []);
     }
     _dialog = dialog;
+    _dialogAt = (dialog.task != null || dialog.pending != null) ? DateTime.now() : null;
     _lastSay = say;
     _lastSayClass = cls;
     await _deliver(say, cls, delegationId, seq);
+  }
+
+  /// Chỉ tự gửi khi đã khớp đúng một người/nhóm trong danh bạ (có room_id) và có nội dung. Còn lại vẫn hỏi như cũ.
+  bool _canAutoSend(VoiceTask? t) =>
+      t != null &&
+      t.intent == 'send_message' &&
+      (t.slots['room_id'] ?? '').isNotEmpty &&
+      (t.slots['content'] ?? '').trim().isNotEmpty;
+
+  /// Gửi ngay (không hỏi xác nhận) và trả câu đọc lại cho người dùng. Vẫn chặn gửi trùng trong 2 phút.
+  Future<String> _sendNow(VoiceTask task) async {
+    final name = task.slots['recipient_name'] ?? 'người đó';
+    final content = (task.slots['content'] ?? '').trim();
+    final fp = _fingerprint(task);
+    if (!_gate.firstSend(fp)) {
+      _log('CHẶN gửi tin trùng (tự gửi)');
+      return 'Tin này con vừa gửi rồi ạ.';
+    }
+    if (!state.sendReal) {
+      _log('TỰ GỬI (GIẢ LẬP) tới $name: "$content"');
+      return 'Dạ, con đã nhắn cho $name: $content. (Thử nghiệm: chưa gửi thật.)';
+    }
+    _log('TỰ GỬI tới $name: "$content"');
+    final out = await _actions.execute(task, _contacts, _honorific);
+    _log('KẾT QUẢ gửi tin: ${out ?? 'ok'}');
+    return out ?? 'Dạ, con đã nhắn cho $name: $content.';
   }
 
   /// Chạy lệnh nếu được phép. Gửi tin chỉ chạy khi cổng xác nhận đang mở đúng cho nội dung đó.
@@ -599,6 +713,7 @@ class LiveLabController extends Notifier<LiveLabState> {
     }
     _log('CHẠY ${task.intent} ${jsonEncode(task.slots)}');
     final out = await _actions.execute(task, _contacts, _honorific);
+    _log('KẾT QUẢ ${task.intent}: ${out == null ? '(không có lời, dùng câu của não)' : _clip(out, 160)}');
     return out ?? say;
   }
 
@@ -656,6 +771,9 @@ class LiveLabController extends Notifier<LiveLabState> {
     for (final t in tracks) {
       t.enabled = false;
     }
+    // Tắt tiếng luôn cả giọng Live: nếu Live đang tự nói (lời đệm...) thì hai giọng sẽ chồng nhau (lỗi đo 20/11).
+    final remote = _remoteAudio;
+    remote?.enabled = false;
     try {
       final p = _player ??= SpeechPlayer(ref.read(voiceApiProvider));
       await p.speak(say, sayClass: cls);
@@ -663,6 +781,7 @@ class LiveLabController extends Notifier<LiveLabState> {
       for (final t in tracks) {
         t.enabled = true;
       }
+      remote?.enabled = true;
     }
   }
 

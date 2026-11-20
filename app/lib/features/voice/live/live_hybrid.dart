@@ -54,6 +54,22 @@ final RegExp _emergency = RegExp('\\b(${emergencyWords.join('|')})\\b');
 /// Dò khẩn cấp ngay trong app, độc lập với model và máy chủ. Không bao giờ tự gọi hay bấm SOS.
 bool looksLikeEmergency(String text) => _emergency.hasMatch(foldVi(text));
 
+/// Khi đang chờ xác nhận gửi tin, người lớn tuổi hay nói cả câu ("bấm gửi cho bác luôn đi") chứ không
+/// chỉ "gửi". Đưa câu đó về đúng một trong ba nút (Gửi/Sửa/Hủy) để máy chủ hiểu như bấm nút.
+/// Trả null khi không chắc (câu dài, có vẻ là lệnh mới) → để Vy cũ tự xử lý như bình thường.
+/// Thiên về an toàn: có từ phủ định hoặc "hủy/thôi" thì luôn là Hủy, không bao giờ gửi.
+String? classifyConfirmReply(String text) {
+  final w = foldVi(text).split(' ').where((e) => e.isNotEmpty).toList();
+  if (w.isEmpty || w.length > 8) return null;
+  const neg = {'khong', 'ko', 'dung', 'thoi', 'huy', 'chua', 'dut', 'bo'};
+  if (w.any(neg.contains)) return 'Hủy';
+  // Có nhắc nhắn tin/người nhận mới thì là lệnh mới, không phải trả lời xác nhận.
+  if (w.contains('nhan') || w.contains('tin')) return null;
+  if (w.contains('sua') || w.contains('doi')) return 'Sửa';
+  if (w.contains('gui') || w.contains('dong') && w.contains('y')) return 'Gửi';
+  return null;
+}
+
 /// Cổng xác nhận gửi tin: mã dùng một lần, có hạn, gắn với đúng nội dung đã đọc lại.
 /// Hành động có ghi chỉ chạy khi cổng đang mở cho đúng nội dung đó (model không tự xác nhận được).
 class ConfirmGate {

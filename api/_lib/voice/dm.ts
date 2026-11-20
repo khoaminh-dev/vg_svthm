@@ -226,15 +226,30 @@ const GREETING = /^(xin chao|chao|alo|hello|hi)( vy| co vy| em vy| ban| con)?( a
 const THANKS = /^(cam on|cam on vy|cam on con|cam on em)( nhieu| a| nhe| lam)*$/;
 const NOT_SUPPORTED = /^(goi (dien|cho|video)|goi dien thoai|thoi tiet|may gio|bay gio la may gio|hom nay (la )?(thu|ngay) may|dat bao thuc|bao thuc)/;
 
-function fastIntent(t: string, orig: string, contacts: Contact[], roomId: string | null | undefined, hon: string): Fast | null {
-  if (GREETING.test(t)) return { intent: 'chitchat', say: `Dạ, con chào ${hon} ạ. ${hon[0].toUpperCase()}${hon.slice(1)} cần con giúp gì ạ?` };
-  if (THANKS.test(t)) return { intent: 'chitchat', say: 'Dạ, không có gì ạ.' };
-  if (NOT_SUPPORTED.test(t)) return { intent: 'unsupported' };
+const PRON = '(toi|bac|co|chu|ong|ba|anh|chi|em|con)';
+const LEAD_FILLER = new RegExp(`^((u|um|uhm|uh|o|a|da|vang|roi|the|thi|ma|vay|nao|ok|okay|nay|vy oi|vy|lam on|cho ${PRON}|giup ${PRON}|${PRON} muon|${PRON} can)\\s+)+`);
+const TRAIL_FILLER = new RegExp(`(\\s+(cho ${PRON}|giup ${PRON}|de ${PRON} (xem|nghe)|di|nhe|nha|a|ne|nao|voi|luon|ngay|duoc khong|dum))+$`);
+
+/** Lời nói thật hay thừa đệm/đuôi ("ừ rồi mở màn hình huyết áp cho bác đi"): gọt về lệnh gọn trước khi so luật nhanh.
+ *  Chỉ dùng cho luật nhanh; nội dung tin nhắn và phần gửi vẫn dùng câu gốc. t đã bỏ dấu. */
+export function tidy(t: string): string {
+  let s = t.replace(LEAD_FILLER, '').replace(TRAIL_FILLER, '').trim();
+  // "mở cho tôi bài nhạc xưa" → "mở bài nhạc xưa"; "mở màn hình huyết áp" → "mở huyết áp"
+  s = s.replace(new RegExp(`^(mo|bat|phat|nghe|xem|cho) cho ${PRON}\\s+`), '$1 ');
+  s = s.replace(/^(mo|vao|xem|chuyen (?:sang|qua|den)) (?:man hinh|trang|phan|muc|tab) /, '$1 ');
+  return s || t;
+}
+
+function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: string | null | undefined, hon: string): Fast | null {
+  if (GREETING.test(t0)) return { intent: 'chitchat', say: `Dạ, con chào ${hon} ạ. ${hon[0].toUpperCase()}${hon.slice(1)} cần con giúp gì ạ?` };
+  if (THANKS.test(t0)) return { intent: 'chitchat', say: 'Dạ, không có gì ạ.' };
+  if (NOT_SUPPORTED.test(t0)) return { intent: 'unsupported' };
   const send = fastSend(orig, contacts, roomId);
   if (send) return send;
+  const t = tidy(t0);
   if (/^(ve )?(trang chu|man hinh chinh)$/.test(t) || /^ve trang chu/.test(t)) return { intent: 'go_home' };
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
-  if (/(xem|mo).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo) huyet ap$/.test(t)) return { intent: 'show_bp' };
+  if (/(xem|mo|vao).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo|vao|chuyen (sang|qua|den)) (theo doi )?huyet ap$/.test(t)) return { intent: 'show_bp' };
   if (/(huyet ap).*(bao nhieu|gan nhat|hom nay|vua do)/.test(t) || /(doc|cho biet).*(huyet ap)/.test(t)) return { intent: 'read_bp' };
   const hs = healthTopic(t);
   if (hs) return { intent: 'health_status', content: hs };
@@ -443,7 +458,8 @@ export async function step(
   if (nluOut.recipient) task.slots.recipient_text = nluOut.recipient.slice(0, 40);
   if (nluOut.content) task.slots.content = cleanContent(nluOut.content.slice(0, 500));
   if (intent === 'open_feature') {
-    const f = featureOf(nluOut.feature || '');
+    // Mô hình đôi khi chọn "mở một mục" mà quên nói mục nào: lấy từ chính câu người dùng thay vì hỏi lại.
+    const f = featureOf(nluOut.feature || '') || featureOf(text);
     if (f) task.slots.feature = f;
   }
   return progress(task, ui, hon, contacts, null, undefined);
