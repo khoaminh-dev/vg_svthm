@@ -3,7 +3,8 @@ import { requireUser, rateLimitParallel } from '../_lib/auth.js';
 import { bodyObject } from '../_lib/http.js';
 import { dbInsert } from '../_lib/db.js';
 import { deepseekChat, elevenScribe, groqJsonChat, groqWhisper, type Msg, type SttResult } from '../_lib/voice/providers.js';
-import { INTENT_LIST, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
+import { INTENT_LIST, UI_INTENTS, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
+import { parseUiContext } from '../_lib/voice/ui_cmd.js';
 import { failCode } from '../_lib/voice/llm_body.js';
 import { getPolicy } from '../_lib/voice/gate.js';
 import { isReliable } from '../_lib/voice/stt_guard.js';
@@ -41,6 +42,7 @@ function parseUi(v: unknown): Ui {
     roomId: str(o.room_id, 80) || null,
     contacts,
     honorific: honorificOf(str(o.honorific, 10)),
+    context: parseUiContext(o.context),
   };
 }
 
@@ -63,7 +65,7 @@ function parseState(v: unknown): DState {
       }).filter((c) => c.id && c.name)
     : [];
   return {
-    task: intent && INTENT_LIST.includes(intent) ? { intent, slots } : null,
+    task: intent && (INTENT_LIST.includes(intent) || UI_INTENTS.includes(intent)) ? { intent, slots } : null,
     pending: str(o.pending, 20) || null,
     expects: (valid.includes(expects) ? expects : 'command') as DState['expects'],
     choices,
