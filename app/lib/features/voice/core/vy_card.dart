@@ -83,6 +83,40 @@ class MedCard extends VyCard {
   final List<MedRow> rows;
 }
 
+/// Một tin nhắn trên thẻ Tin nhắn.
+@immutable
+class MsgRow {
+  const MsgRow({required this.from, required this.time, required this.text, this.onOpen});
+
+  final String from;
+  final String time;
+  final String text;
+
+  /// Chạm dòng này để mở cuộc trò chuyện.
+  final VoidCallback? onOpen;
+}
+
+/// Thẻ Tin nhắn: người gửi, giờ, nội dung (Vy đọc to các tin mới nhất).
+class MsgCard extends VyCard {
+  MsgCard({required this.rows, super.actions, super.replacesSpeech = false});
+
+  final List<MsgRow> rows;
+}
+
+/// Thẻ Gọi: tên, số, đếm ngược [seconds] giây rồi TỰ GỌI; nút Huỷ dừng ngay (quyết định D2/D15).
+/// Chỉ gọi khi thẻ còn hiện: đóng Vy hoặc người dùng nói việc khác thì thẻ bị xoá và KHÔNG gọi.
+class CallCard extends VyCard {
+  CallCard({required this.name, required this.number, required this.seconds, required this.onCall, super.actions})
+    : super(replacesSpeech: false);
+
+  final String name;
+  final String number;
+  final int seconds;
+
+  /// Gọi (chỉ chạy một lần, khi hết đếm ngược).
+  final VoidCallback onCall;
+}
+
 /// Thẻ "Đã gửi": tick xanh, gửi cho ai, nội dung. Tự thu về sau vài giây.
 class SentCard extends VyCard {
   SentCard({required this.to, required this.text, super.actions}) : super(hold: const Duration(seconds: 5));

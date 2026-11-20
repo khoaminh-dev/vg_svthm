@@ -125,7 +125,7 @@ export function emergencyTexts(): Set<string> {
 
 const EMERGENCY = /\b(dau nguc|kho tho|bat tinh|ngat xiu|te liet|cap cuu|chay mau|nga roi|tim dap nhanh|met lam|choang vang)\b/;
 const CANCEL = /^(thoi|huy|dung|dung lai|bo di|thoi khong|khong gui nua|khong can nua)( a| nhe| di| roi)?$/;
-const YES = /^(co|co a|vang|da|u|uh|um|dung|dung roi|gui|gui di|gui nhe|gui di nhe|gui luon|ok|okay|duoc|dong y|chuan|chinh xac|ung)( a| nhe| di| roi| nha)?$/;
+const YES = /^(co|co a|vang|da|u|uh|um|dung|dung roi|luu|luu di|ghi|ghi di|gui|gui di|gui nhe|gui di nhe|gui luon|ok|okay|duoc|dong y|chuan|chinh xac|ung)( a| nhe| di| roi| nha)?$/;
 const NO = /^(khong|khong phai|sai|sai roi|chua|khong dung|khong gui)( a| roi)?$/;
 const EDIT_PREFIX = /^((khong phai|khong|sai roi|nham roi)\s*)?((sua lai|sua|nhan lai|doi thanh)(\s+(la|thanh))?\s*)?(?=\S|$)/;
 const REPEAT = /(doc lai|nhac lai|nghe lai|noi lai|lap lai)/;
@@ -177,6 +177,49 @@ export function videoControl(t: string): string | null {
   ];
   for (const [re, action] of rules) if (re.test(t)) return action;
   return null;
+}
+
+/** Số đo huyết áp đọc từ lời nói (t đã bỏ dấu): "huyết áp 130 trên 80 mạch 72", "cao 130 thấp 80", "130 trên 80".
+ *  `ok:false` khi có số nhưng vô lý (để hỏi lại, không ghi bậy). null khi không phải câu nhập số đo. */
+export type BpParse = { ok: true; sys: number; dia: number; pulse?: number } | { ok: false };
+export function parseBp(t: string): BpParse | null {
+  const hasContext = /\b(huyet ap|vua do|do duoc|ghi|luu|nhap|tam thu|tam truong|so do)\b/.test(t) || /\b\d{2,3} tren \d{2,3}\b/.test(t);
+  if (!hasContext) return null;
+  let rest = t;
+  let pulse: number | undefined;
+  const pm = rest.match(/\b(?:mach|nhip tim|nhip)\s*(?:la\s*)?(\d{2,3})\b/);
+  if (pm) {
+    pulse = Number(pm[1]);
+    rest = rest.replace(pm[0], ' ');
+  }
+  let sys: number | undefined;
+  let dia: number | undefined;
+  const words = rest.match(/\b(?:cao|tam thu)\D{0,12}?(\d{2,3})\D{1,20}?(?:thap|tam truong)\D{0,12}?(\d{2,3})\b/);
+  if (words) {
+    sys = Number(words[1]);
+    dia = Number(words[2]);
+  } else {
+    const m = rest.match(/\b(\d{2,3})\s*(?:tren|va|voi)?\s+(\d{2,3})\b/) ?? rest.match(/\b(\d{2,3})\s*tren\s*(\d{2,3})\b/);
+    if (m) {
+      sys = Number(m[1]);
+      dia = Number(m[2]);
+    }
+  }
+  if (sys === undefined || dia === undefined) return null;
+  if (sys < 70 || sys > 260 || dia < 40 || dia > 160 || sys <= dia) return { ok: false };
+  if (pulse !== undefined && (pulse < 30 || pulse > 220)) pulse = undefined;
+  return { ok: true, sys, dia, pulse };
+}
+
+/** Người nhận cuộc gọi ("gọi cho con trai", "gọi điện cho cô Lan", "gọi 115"); chỉ nhận khi có "điện/cho/đến/tới" hoặc số.
+ *  Trả về cụm tên (có thể rỗng nếu chỉ nói "gọi điện"), hoặc null nếu không phải lệnh gọi. t đã bỏ dấu. */
+export function callTarget(t: string): string | null {
+  if (/\bvideo\b/.test(t)) return null;
+  let m = t.match(/^goi (?:dien )?(?:thoai )?(?:cho|den|toi) (.+)$/);
+  if (!m) m = t.match(/^goi dien(?: thoai)?(?: cho)?\s*(.*)$/);
+  if (!m) m = t.match(/^(?:goi|bam may goi) (115|113|114)$/);
+  if (!m) return null;
+  return m[1].replace(/\s+(di|nhe|nha|a|giup toi|giup con|cho toi|cho con|ngay|luon)$/g, '').trim();
 }
 
 /** Câu HỎI về lịch uống thuốc ("tối nay tôi phải uống thuốc gì", "mấy giờ uống thuốc", "cữ thuốc kế tiếp"); t đã bỏ dấu.
@@ -242,7 +285,7 @@ export function fastSend(orig: string, contacts: Contact[], roomId?: string | nu
 
 const GREETING = /^(xin chao|chao|alo|hello|hi)( vy| co vy| em vy| ban| con)?( a| nhe)?$|^vy( oi)?( a)?$/;
 const THANKS = /^(cam on|cam on vy|cam on con|cam on em)( nhieu| a| nhe| lam)*$/;
-const NOT_SUPPORTED = /^(goi (dien|cho|video)|goi dien thoai|thoi tiet|may gio|bay gio la may gio|hom nay (la )?(thu|ngay) may|dat bao thuc|bao thuc)/;
+const NOT_SUPPORTED = /^(goi video|thoi tiet|may gio|bay gio la may gio|hom nay (la )?(thu|ngay) may|dat bao thuc|bao thuc)/;
 
 const PRON = '(toi|bac|co|chu|ong|ba|anh|chi|em|con)';
 const LEAD_FILLER = new RegExp(`^((u|um|uhm|uh|o|a|da|vang|roi|the|thi|ma|vay|nao|ok|okay|nay|vy oi|vy|lam on|cho ${PRON}|giup ${PRON}|${PRON} muon|${PRON} can)\\s+)+`);
@@ -259,6 +302,9 @@ export function tidy(t: string): string {
 }
 
 function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: string | null | undefined, hon: string): Fast | null {
+  // gọi điện: kiểm tra trước các luật "không hỗ trợ"
+  const callee = callTarget(t0);
+  if (callee !== null) return { intent: 'call_contact', recipient: callee };
   if (GREETING.test(t0)) return { intent: 'chitchat', say: `Dạ, con chào ${hon} ạ. ${hon[0].toUpperCase()}${hon.slice(1)} cần con giúp gì ạ?` };
   if (THANKS.test(t0)) return { intent: 'chitchat', say: 'Dạ, không có gì ạ.' };
   if (NOT_SUPPORTED.test(t0)) return { intent: 'unsupported' };
@@ -269,6 +315,13 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
   if (/(xem|mo|vao).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo|vao|chuyen (sang|qua|den)) (theo doi )?huyet ap$/.test(t)) return { intent: 'show_bp' };
   if (/(huyet ap).*(bao nhieu|gan nhat|hom nay|vua do)/.test(t) || /(doc|cho biet).*(huyet ap)/.test(t)) return { intent: 'read_bp' };
+  const bp = parseBp(t);
+  if (bp) {
+    if (!bp.ok) return { intent: 'chitchat', say: `Dạ, con nghe số đo chưa hợp lý. ${cap(hon)} đọc lại số huyết áp giúp con nhé.` };
+    return { intent: 'record_bp', content: `${bp.sys},${bp.dia},${bp.pulse ?? ''}` };
+  }
+  if (/^(doc|nghe|cho nghe|xem) (tin nhan|tin)( moi| gan day| vua toi)?$|^(co|con) tin (nhan )?(moi )?(nao|khong)$|^ai (vua )?(nhan|gui)( tin)?( cho (toi|bac|con|co|chu))?$/.test(t))
+    return { intent: 'read_messages' };
   if (medsQuery(t)) return { intent: 'read_meds' };
   const hs = healthTopic(t);
   if (hs) return { intent: 'health_status', content: hs };
@@ -342,9 +395,9 @@ const REQUIRED: Record<string, string[]> = {
   open_feature: ['feature'],
   play_video: ['content'],
   video_control: ['content'],
-  measure_bp: [], show_bp: [], read_bp: [], read_meds: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
+  measure_bp: [], show_bp: [], read_bp: [], read_meds: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
-const NEEDS_CONFIRM = new Set(['send_message']);
+const NEEDS_CONFIRM = new Set(['send_message', 'record_bp']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
 /** Ý định do bộ ghép với màn hình tạo ra (không nằm trong INTENT_LIST để mô hình không tự chọn). Có thể quay lại trong `state.task` khi chờ xác nhận. */
 export const UI_INTENTS = ['invoke_control', 'choose_item', 'point_control'];
@@ -381,6 +434,11 @@ export async function step(
     const d = uiDecision(text, ui.context, hon);
     if (d) return d;
   }
+  // 1c) "đúng rồi" và "dừng" cùng thành "dung" khi bỏ dấu: đang chờ xác nhận thì xét chữ CÓ DẤU, để "đúng rồi" luôn là đồng ý.
+  if (expects === 'yes_no' && state.task && !input.lowConfidence && /^đúng( rồi| ạ| vậy| nhé)?[.!]?$/i.test(text.trim())) {
+    const tk: Task = { intent: state.task.intent, slots: { ...state.task.slots } };
+    return mk({ action: 'execute', intent: tk.intent, task: tk, say: doneSay(tk) });
+  }
   // 2) hủy
   if (CANCEL.test(t)) return mk({ action: 'cancel', say: S.cancelled() });
   if (REPEAT.test(t) && t.split(' ').length <= 4) return mk({ action: 'repeat', say: '' });
@@ -408,7 +466,7 @@ export async function step(
         delete task.slots.content;
         return mk({ action: 'ask', intent: task.intent, task, pending: 'content', expects: 'free_text', say: S.askContent(hon), expectsReply: true });
       }
-      return mk({ action: 'cancel', say: S.cancelled() });
+      return mk({ action: 'cancel', say: task.intent === 'record_bp' ? `Dạ, con chưa ghi. ${cap(hon)} đọc lại số đo giúp con nhé.` : S.cancelled() });
     }
     // Trả lời khác ("gửi cho Lan đi"...): để NLU xử lý như lệnh mới.
     task = null;
@@ -504,6 +562,7 @@ function cap(h: string): string {
 /** Câu Vy nói khi xong một việc đã được xác nhận. */
 function doneSay(task: Task): string {
   if (task.intent === 'send_message') return S.sentOk();
+  if (task.intent === 'record_bp') return 'Dạ, con ghi rồi ạ.';
   return task.slots.say || S.opened();
 }
 
@@ -630,6 +689,18 @@ function progress(
     return mk({ action: 'ask', intent, task, pending: 'feature', expects: 'command', say: S.askFeatureMissing(hon), expectsReply: true, chips: ['Tin nhắn', 'Huyết áp', 'Giải trí'] });
   }
 
+  if (intent === 'record_bp') {
+    const [sys, dia, pulse] = (task.slots.content ?? '').split(',');
+    task.slots.systolic = sys ?? '';
+    task.slots.diastolic = dia ?? '';
+    task.slots.pulse = pulse ?? '';
+    const pl = pulse ? `, mạch ${pulse}` : '';
+    return mk({
+      action: 'confirm', intent, task, expects: 'yes_no', expectsReply: true,
+      say: `Con ghi huyết áp ${sys} trên ${dia}${pl}. ${cap(hon)} nói đúng không ạ?`,
+      sayClass: 'important', chips: ['Lưu', 'Sửa', 'Hủy'],
+    });
+  }
   if (NEEDS_CONFIRM.has(intent)) {
     const name = task.slots.recipient_name ?? '';
     const content = task.slots.content ?? '';
@@ -639,6 +710,6 @@ function progress(
       sayClass: 'important', chips: ['Gửi', 'Sửa', 'Hủy'], learnAlias,
     });
   }
-  const say = intent === 'read_bp' || intent === 'read_meds' ? '' : S.opened();
+  const say = ['read_bp', 'read_meds', 'read_messages', 'call_contact'].includes(intent) ? '' : S.opened();
   return mk({ action: 'execute', intent, task, say, learnAlias });
 }

@@ -196,6 +196,8 @@ test('chào hỏi, cảm ơn, việc chưa hỗ trợ trả lời ngay không g�
   assert.equal(g.intent, 'chitchat');
   assert.match(g.say, /^Dạ, con chào bác/);
   assert.equal((await step({ text: 'cảm ơn con', state: {}, ui }, noNlu)).intent, 'chitchat');
-  assert.equal((await step({ text: 'gọi điện cho con trai', state: {}, ui }, noNlu)).action, 'unsupported');
+  const call = await step({ text: 'gọi điện cho con trai', state: {}, ui }, noNlu); // đã hỗ trợ từ Vy giai đoạn 5
+  assert.equal(call.intent, 'call_contact');
+  assert.equal((await step({ text: 'gọi video cho con', state: {}, ui }, noNlu)).action, 'unsupported');
   assert.equal((await step({ text: 'thời tiết hôm nay', state: {}, ui }, noNlu)).action, 'unsupported');
 });

@@ -20,7 +20,12 @@ import '../../health/presentation/providers/health_providers.dart';
 import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../core/vy_card.dart';
+import '../core/vi_text.dart';
 import '../core/vy_cursor.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
+import '../../safety/domain/safety_models.dart' show CardContact, EmergencyCard;
+import '../../safety/presentation/safety_providers.dart';
+import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 import '../core/control_registry.dart';
 import '../domain/voice_models.dart';
 
@@ -169,6 +174,12 @@ class VoiceActions {
         return await readBp(honorific);
       case 'read_meds':
         return await readMeds(honorific);
+      case 'record_bp':
+        return await recordBp(s, honorific);
+      case 'read_messages':
+        return await readMessages(honorific);
+      case 'call_contact':
+        return await callContact(s['recipient_text'] ?? '', honorific);
       case 'go_home':
         router.go(Routes.home);
         return null;
@@ -287,6 +298,157 @@ class VoiceActions {
     router.go(Routes.rooms);
     router.push(Routes.roomPath(id), extra: room);
   }
+
+  /// Ghi số đo huyết áp người dùng vừa đọc (đã được xác nhận ở bước trước). Kiểm tra lại số ở app, không tin hoàn toàn máy chủ.
+  Future<String> recordBp(Map<String, String> s, String honorific) async {
+    final sys = int.tryParse(s['systolic'] ?? '');
+    final dia = int.tryParse(s['diastolic'] ?? '');
+    final pulse = int.tryParse(s['pulse'] ?? '');
+    if (sys == null || dia == null) {
+      return 'Con chưa ghi được số đo, $honorific đọc lại giúp con nhé.';
+    }
+    if (sys < 70 || sys > 260 || dia < 40 || dia > 160 || sys <= dia) {
+      return 'Con nghe số đo chưa hợp lý nên con chưa ghi. ${_cap(honorific)} đọc lại giúp con nhé.';
+    }
+    final okPulse = pulse != null && pulse >= 30 && pulse <= 220 ? pulse : null;
+    try {
+      await _ref.read(bpRepositoryProvider).add(
+        BpReading(
+          systolic: sys,
+          diastolic: dia,
+          pulse: okPulse,
+          measuredAt: DateTime.now(),
+          source: 'manual', // cột source chỉ nhận ocr_ai/ocr_local/manual
+          note: 'Nhập bằng giọng nói',
+        ),
+      );
+    } catch (_) {
+      return 'Con ghi chưa được, $honorific kiểm tra mạng rồi thử lại nhé.';
+    }
+    Analytics.track('voice_record_bp', {'pulse': okPulse != null});
+    _ref.invalidate(bpReadingsProvider);
+    final cat = BpCategory.of(sys, dia);
+    final router = _ref.read(routerProvider);
+    _ref.read(vyCardProvider.notifier).show(
+      BpCard(
+        systolic: sys,
+        diastolic: dia,
+        pulse: okPulse,
+        levelLabel: cat.label,
+        levelColor: cat.color,
+        when: 'vừa ghi xong',
+        actions: [
+          VyCardAction(
+            label: 'Xem biểu đồ',
+            primary: true,
+            run: () {
+              _ref.read(healthTabProvider.notifier).set(0);
+              router.go(Routes.bp);
+            },
+          ),
+        ],
+      ),
+    );
+    final pl = okPulse == null ? '' : ', mạch $okPulse';
+    return 'Dạ, con đã ghi huyết áp $sys trên $dia$pl. Mức: ${cat.label}.';
+  }
+
+  /// Đọc các tin nhắn gần đây của người khác gửi cho mình (3 ngày), kèm thẻ Tin nhắn.
+  Future<String> readMessages(String honorific) async {
+    final List<IncomingMsg> list;
+    try {
+      list = await _ref.read(recentIncomingMessagesProvider.future);
+    } catch (_) {
+      return 'Con chưa đọc được tin nhắn, $honorific kiểm tra mạng rồi thử lại nhé.';
+    }
+    final cap = _cap(honorific);
+    if (list.isEmpty) return '$cap không có tin nhắn mới trong mấy ngày qua ạ.';
+    final router = _ref.read(routerProvider);
+    _ref.read(vyCardProvider.notifier).show(
+      MsgCard(
+        rows: [
+          for (final m in list.take(3))
+            MsgRow(
+              from: m.from,
+              time: _whenText(m.at),
+              text: m.text,
+              onOpen: () {
+                router.go(Routes.rooms);
+                router.push(Routes.roomPath(m.roomId));
+              },
+            ),
+        ],
+      ),
+    );
+    // Đọc to tối đa 2 tin mới nhất (từng tin ngắn gọn); còn lại xem trong thẻ.
+    final spoken = list.take(2).map((m) => '${m.from} nhắn: ${m.text}').join('. ');
+    final more = list.length > 2 ? ' Còn ${list.length - 2} tin nữa trong thẻ.' : '';
+    return '$cap có ${list.length} tin nhắn. $spoken.$more';
+  }
+
+  /// Gọi điện: tìm số trong thẻ y tế (người liên hệ) hoặc 115, rồi hiện thẻ đếm ngược 3 giây (2 giây cho 115) có nút Huỷ.
+  Future<String> callContact(String who, String honorific) async {
+    final cap = _cap(honorific);
+    final q = viNorm(who);
+    if (q.isEmpty) return 'Dạ, $honorific muốn gọi cho ai ạ?';
+    String name;
+    String number;
+    var seconds = 3;
+    if (q == '115' || q == 'cap cuu' || q.contains('cuu thuong')) {
+      name = 'Cấp cứu 115';
+      number = '115';
+      seconds = 2;
+    } else {
+      final uid = _ref.read(currentUserProvider)?.id;
+      EmergencyCard? card;
+      try {
+        card = uid == null ? null : await _ref.read(emergencyCardProvider(uid).future);
+      } catch (_) {}
+      final people = <CardContact>[
+        ...?card?.contacts.where((c) => c.phone.trim().isNotEmpty),
+      ];
+      final hits = matchContacts(q, people);
+      if (hits.isEmpty) {
+        return 'Con chưa thấy số của "${who.trim()}" trong thẻ y tế khẩn cấp. $cap thêm người liên hệ ở Hồ sơ giúp con nhé.';
+      }
+      if (hits.length > 1) {
+        return 'Con thấy nhiều người giống vậy: ${hits.take(3).map((c) => c.name).join(', ')}. $cap nói rõ tên giúp con nhé.';
+      }
+      name = hits.first.name.isEmpty ? hits.first.phone : hits.first.name;
+      number = hits.first.phone;
+    }
+    final call = _ref.read(phoneLauncherProvider);
+    _ref.read(vyCardProvider.notifier).show(
+      CallCard(
+        name: name,
+        number: number,
+        seconds: seconds,
+        onCall: () {
+          Analytics.track('voice_call', {'emergency': number == '115'});
+          unawaited(call(number));
+        },
+        actions: [
+          VyCardAction(label: 'Huỷ', primary: true, run: () => _ref.read(vyCardProvider.notifier).clear()),
+        ],
+      ),
+    );
+    return 'Dạ, con gọi $name sau $seconds giây. $cap bấm Huỷ nếu không muốn gọi ạ.';
+  }
+
+  /// Người liên hệ khớp với cụm đã bỏ dấu [q]: tên chứa cụm, cụm chứa tên, hoặc mọi từ của cụm có trong tên.
+  static List<CardContact> matchContacts(String q, List<CardContact> people) {
+    final qt = q.split(' ').where((w) => w.isNotEmpty).toList();
+    final out = <CardContact>[];
+    for (final c in people) {
+      final n = viNorm(c.name);
+      if (n.isEmpty) continue;
+      final nt = n.split(' ');
+      if (n == q || n.contains(q) || q.contains(n) || qt.every(nt.contains)) out.add(c);
+    }
+    return out;
+  }
+
+  static String _cap(String h) => h.isEmpty ? h : '${h[0].toUpperCase()}${h.substring(1)}';
 
   /// "hôm nay 07:05", "hôm qua 19:30", "12/11 08:00".
   static String _whenText(DateTime t, [DateTime? now]) {
@@ -410,3 +572,45 @@ class VoiceActions {
 }
 
 final voiceActionsProvider = Provider<VoiceActions>(VoiceActions.new);
+
+/// Một tin nhắn người khác gửi cho mình (để Vy đọc).
+class IncomingMsg {
+  const IncomingMsg({required this.roomId, required this.from, required this.text, required this.at});
+
+  final String roomId;
+  final String from;
+  final String text;
+  final DateTime at;
+}
+
+/// Tin nhắn người khác gửi trong 3 ngày qua (mới nhất trước, tối đa 5). Tin chỉ có hình thì đọc là "gửi một hình ảnh".
+final recentIncomingMessagesProvider = FutureProvider.autoDispose<List<IncomingMsg>>((ref) async {
+  final c = ref.read(supabaseClientProvider);
+  final uid = c.auth.currentUser?.id;
+  if (uid == null) return const [];
+  final since = DateTime.now().subtract(const Duration(days: 3)).toUtc().toIso8601String();
+  final rows = await c
+      .from('messages')
+      .select('room_id, user_id, content, image_path, created_at')
+      .neq('user_id', uid)
+      .gte('created_at', since)
+      .order('created_at', ascending: false)
+      .limit(5);
+  final rooms = await ref.read(roomsProvider.future);
+  final names = {for (final r in rooms) r.id: r.displayName};
+  return [
+    for (final r in rows)
+      IncomingMsg(
+        roomId: r['room_id'] as String,
+        from: names[r['room_id']] ?? 'Người thân',
+        text: _spokenText((r['content'] as String?) ?? '', r['image_path'] != null),
+        at: DateTime.parse(r['created_at'] as String).toLocal(),
+      ),
+  ];
+});
+
+String _spokenText(String content, bool hasImage) {
+  final t = content.trim();
+  if (t.isEmpty) return hasImage ? 'gửi một hình ảnh' : '(tin trống)';
+  return t.length > 200 ? '${t.substring(0, 200)}…' : t;
+}
