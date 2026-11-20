@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/elder_text_scale.dart';
+import '../../../shared/widgets/ios_components.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../../shared/widgets/vy_orb.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -132,8 +134,9 @@ class ElderHomeScreen extends ConsumerWidget {
                           user?.displayName ?? 'Viegrand',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.6,
                           ),
                         ),
                       ],
@@ -324,31 +327,40 @@ class _TileButton extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        elevation: 1.5,
+        shadowColor: AppColors.cardShadow,
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           key: Key('elder-tile-${tile.key}'),
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
           child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border),
-            ),
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(tile.icon, size: 30, color: AppColors.navy),
-                  const SizedBox(height: 2),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEAF0FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(tile.icon, size: 24, color: AppColors.navyDeep),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     tile.label,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.navyDeep,
                     ),
                   ),
@@ -398,8 +410,11 @@ class _DueCardState extends ConsumerState<_DueCard> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.navyDeep,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: const [
+          BoxShadow(color: Color(0x330B2447), blurRadius: 22, offset: Offset(0, 8)),
+        ],
       ),
       child: Row(
         children: [
@@ -537,8 +552,10 @@ class _MiniBp extends StatelessWidget {
 
 final _boxDecoration = BoxDecoration(
   color: Colors.white,
-  borderRadius: BorderRadius.circular(18),
-  border: Border.all(color: AppColors.border),
+  borderRadius: BorderRadius.circular(20),
+  boxShadow: const [
+    BoxShadow(color: AppColors.cardShadow, blurRadius: 14, offset: Offset(0, 3)),
+  ],
 );
 
 class _InfoBox extends StatelessWidget {
@@ -578,20 +595,29 @@ class _InfoBox extends StatelessWidget {
             value,
             maxLines: 1,
             style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              height: 1.05,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.8,
+              height: 1.1,
             ),
           ),
-          Text(
-            sub,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: subColor ?? AppColors.textMuted,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: 2),
+          if (subColor != null)
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: StatusBadge(label: sub, color: subColor!),
+            )
+          else
+            Text(
+              sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
         ],
       ),
     );
