@@ -408,10 +408,23 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_editing ? 'Sửa đơn thuốc' : 'Thêm đơn thuốc'),
-        leading: IconButton(
-          tooltip: 'Quay lại',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Center(
+          child: IconButton.filled(
+            tooltip: 'Quay lại',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.navyDeep,
+              fixedSize: const Size(48, 48),
+              elevation: 2,
+              shadowColor: AppColors.cardShadow,
+            ),
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => context.pop(),
+          ),
+        ),
         ),
       ),
       body: SafeArea(
@@ -428,7 +441,23 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
               key: const Key('plan-title'),
               controller: _title,
               maxLength: 80,
-              decoration: const InputDecoration(labelText: 'Tên đơn thuốc'),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFFEDEFF4),
+                border: const UnderlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(24)),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: const UnderlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(24)),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(24)),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                labelText: 'Tên đơn thuốc'),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text('Uống trong bao lâu?', style: theme.textTheme.titleSmall),
@@ -500,7 +529,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
                       setState(() => _prn = [..._prn]..removeAt(i)),
                 ),
               ),
-            TextButton.icon(
+            OutlinedButton.icon(
               key: const Key('prn-add'),
               onPressed: _addPrn,
               icon: const Icon(Icons.add),
@@ -585,7 +614,8 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,6 +651,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
             children: [
               for (final m in MealRel.values)
                 ChoiceChip(
+                  backgroundColor: const Color(0xFFF2F2F7),
                   label: Text(m.label),
                   selected: s.mealRel == m,
                   onSelected: (v) => setState(
@@ -666,7 +697,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
                 ),
               ),
             ),
-          TextButton.icon(
+          OutlinedButton.icon(
             key: Key('item-add-$i'),
             onPressed: () async {
               final r = await _itemDialog();
@@ -674,7 +705,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
                 setState(() => _slots[i] = s.copyWith(items: [...s.items, r]));
             },
             icon: const Icon(Icons.add),
-            label: const Text('Ghi thuốc trong túi (không bắt buộc)'),
+            label: const Text('Ghi thuốc trong túi'),
           ),
         ],
       ),

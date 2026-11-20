@@ -112,6 +112,9 @@ class _SosHoldButtonState extends State<SosHoldButton>
               decoration: BoxDecoration(
                 color: AppColors.levelDanger,
                 borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x40C94A4A), blurRadius: 18, offset: Offset(0, 6)),
+                ],
               ),
               clipBehavior: Clip.antiAlias,
               child: Stack(
@@ -144,7 +147,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 19,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -211,8 +214,8 @@ class EmergencyCardView extends ConsumerWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.levelDanger.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,18 +265,28 @@ class CallButtons extends ConsumerWidget {
               minimumSize: const Size(0, 56),
               backgroundColor: AppColors.levelDanger,
             )
-          : FilledButton.styleFrom(minimumSize: const Size(0, 52));
+          : null;
+      final icon = const Icon(Icons.call);
+      final text = Text(label, style: const TextStyle(fontSize: 18));
       return Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: SizedBox(
           width: double.infinity,
-          child: FilledButton.icon(
-            key: k,
-            style: style,
-            onPressed: () => call(number),
-            icon: const Icon(Icons.call),
-            label: Text(label, style: const TextStyle(fontSize: 18)),
-          ),
+          child: primary
+              ? FilledButton.icon(
+                  key: k,
+                  style: style,
+                  onPressed: () => call(number),
+                  icon: icon,
+                  label: text,
+                )
+              : OutlinedButton.icon(
+                  key: k,
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
+                  onPressed: () => call(number),
+                  icon: icon,
+                  label: text,
+                ),
         ),
       );
     }

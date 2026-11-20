@@ -255,10 +255,23 @@ class _SosScreenState extends ConsumerState<SosScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('SOS'),
-        leading: IconButton(
-          tooltip: 'Quay lại',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.home),
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Center(
+            child: IconButton.filled(
+              tooltip: 'Quay lại',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.navyDeep,
+                fixedSize: const Size(48, 48),
+                elevation: 2,
+                shadowColor: AppColors.cardShadow,
+              ),
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => context.canPop() ? context.pop() : context.go(Routes.home),
+            ),
+          ),
         ),
       ),
       body: SafeArea(child: body),
@@ -271,20 +284,28 @@ class _SosScreenState extends ConsumerState<SosScreen> {
       key: key,
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: c.withValues(alpha: 0.5)),
+        color: Color.alphaBlend(c.withValues(alpha: 0.10), Colors.white),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: c, size: 32),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: c.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: c, size: 26),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: c)),
+                Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: AppColors.navyDeep)),
                 const SizedBox(height: 4),
                 Text(text, style: theme.textTheme.bodyLarge),
               ],
