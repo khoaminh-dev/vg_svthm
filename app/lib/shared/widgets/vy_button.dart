@@ -12,7 +12,7 @@ class VyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Blob vẽ lớn hơn ô một chút để quầng sáng toả ra ngoài mà không đẩy bố cục.
-    final paint = size * 1.7;
+    final paint = size * 1.35;
     return Semantics(
       button: true,
       label: 'Nói chuyện với Vy',
@@ -30,7 +30,7 @@ class VyButton extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 VyOrb(size: paint),
-                Icon(Icons.mic_rounded, color: Colors.white, size: size * 0.4),
+                Icon(Icons.mic_rounded, color: const Color(0xFF14213D), size: size * 0.36),
               ],
             ),
           ),

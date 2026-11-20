@@ -12,6 +12,7 @@ import '../../auth/presentation/providers/auth_providers.dart';
 import '../domain/voice_models.dart';
 import '../live/live_lab_controller.dart';
 import '../live/live_state.dart';
+import '../data/vy_sounds.dart';
 import 'voice_controller.dart';
 
 /// Lớp phủ trợ lý giọng nói trên mọi màn hình: nút Vy nhỏ + màn hội thoại toàn màn hình.
@@ -54,6 +55,15 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
     final router = ref.watch(routerProvider);
     final open = ref.watch(voiceControllerProvider.select((s) => s.panelOpen));
     final liveOn = ref.watch(liveActiveProvider);
+    // Tiếng bật/tắt Vy: phát ngay lúc chạm, cho cả Vy thường và Vy Live.
+    ref.listen<bool>(voiceControllerProvider.select((v) => v.panelOpen), (prev, next) {
+      if (prev == next) return;
+      next ? VySounds.on() : VySounds.off();
+    });
+    ref.listen<bool>(liveActiveProvider, (prev, next) {
+      if (prev == next) return;
+      next ? VySounds.on() : VySounds.off();
+    });
     return Stack(
       children: [
         widget.child,
@@ -153,82 +163,87 @@ class VoiceScreen extends ConsumerWidget {
         s.chips.isNotEmpty &&
         (s.status == VoiceStatus.speaking || s.status == VoiceStatus.idle);
 
+    final busy = s.status == VoiceStatus.thinking;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Material(
-        color: scheme.surface,
+        color: Colors.white,
         child: DecoratedBox(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: RadialGradient(
-              center: const Alignment(0, -0.35),
-              radius: 0.95,
-              colors: [AppColors.aqua.withValues(alpha: 0.16), scheme.surface],
+              center: Alignment(0, -0.62),
+              radius: 1.05,
+              colors: [Color(0xFFE3EBFF), Color(0xFFF3F6FF), Colors.white],
+              stops: [0.0, 0.55, 1.0],
             ),
           ),
           child: SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Trợ lý Vy',
-                  style: text.titleMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Trợ lý Vy',
+                        style: text.titleMedium?.copyWith(
+                          color: const Color(0xFF7A8699),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
                   child: Center(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          VyOrb(mode: mode, level: s.level, size: 240),
-                          const SizedBox(height: AppSpacing.md),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            child: Text(
-                              status,
-                              key: ValueKey(status),
-                              textAlign: TextAlign.center,
-                              style: text.headlineSmall?.copyWith(
-                                color: scheme.primary,
-                              ),
-                            ),
+                          Center(
+                            child: VyOrb(mode: mode, level: s.level, size: 280),
                           ),
-                          if (s.transcript.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.md),
+                          const SizedBox(height: 22),
+                          if (s.transcript.isNotEmpty)
                             Text(
-                              '“${s.transcript}”',
-                              textAlign: TextAlign.center,
+                              s.transcript,
                               style: text.titleMedium?.copyWith(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                                color: scheme.onSurfaceVariant,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w400,
+                                color: const Color(0xFF9AA6BA),
                               ),
                             ),
-                          ],
                           if (s.say.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: 12),
                             Text(
                               s.say,
-                              textAlign: TextAlign.center,
                               style: text.headlineSmall?.copyWith(
-                                fontSize: 26,
-                                height: 1.3,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 28,
+                                height: 1.38,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: -0.3,
+                                color: const Color(0xFF14213D),
                               ),
                             ),
-                          ],
+                          ] else if (s.transcript.isEmpty)
+                            Center(
+                              child: Text(
+                                status,
+                                style: text.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF14213D),
+                                ),
+                              ),
+                            ),
                           if (s.error != null) ...[
-                            const SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: 12),
                             Text(
                               s.error!,
-                              textAlign: TextAlign.center,
                               style: text.bodyLarge?.copyWith(
                                 color: scheme.error,
-                                fontSize: 20,
+                                fontSize: 19,
                               ),
                             ),
                           ],
@@ -239,49 +254,43 @@ class VoiceScreen extends ConsumerWidget {
                 ),
                 if (showChips)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      0,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                     child: confirming
                         ? _ConfirmButtons(chips: s.chips, onTap: c.tapChip)
                         : _ChipWrap(chips: s.chips, onTap: c.tapChip),
                   ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 4, 24, 22),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _RoundAction(
                         key: const Key('vy-primary'),
-                        size: 84,
+                        size: 68,
                         icon: switch (s.status) {
                           VoiceStatus.listening => Icons.arrow_upward_rounded,
                           VoiceStatus.thinking => Icons.stop_rounded,
-                          _ => Icons.mic_rounded,
+                          _ => Icons.mic_none_rounded,
                         },
                         label: switch (s.status) {
-                          VoiceStatus.listening => 'Bấm để gửi',
+                          VoiceStatus.listening => 'Gửi',
                           VoiceStatus.thinking => 'Huỷ',
                           _ => 'Bấm để nói',
                         },
-                        color: scheme.primary,
+                        color: const Color(0xFFF1F4FA),
+                        iconColor: const Color(0xFF14213D),
                         onTap: c.toggle,
+                        highlight: busy,
                       ),
+                      const SizedBox(width: 44),
                       _RoundAction(
                         key: const Key('vy-end'),
-                        size: 64,
+                        size: 68,
                         icon: Icons.close_rounded,
                         label: 'Kết thúc',
-                        color: AppColors.levelDanger,
+                        color: const Color(0xFF14213D),
+                        iconColor: Colors.white,
                         onTap: c.close,
                       ),
                     ],
@@ -304,12 +313,16 @@ class _RoundAction extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.iconColor = Colors.white,
+    this.highlight = false,
   });
 
   final double size;
   final IconData icon;
   final String label;
   final Color color;
+  final Color iconColor;
+  final bool highlight;
   final VoidCallback onTap;
 
   @override
@@ -319,36 +332,38 @@ class _RoundAction extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
         behavior: HitTestBehavior.opaque,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: 84,
-              child: Center(
-                child: Container(
-                  width: size,
-                  height: size,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.3),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A1E325A),
+                    blurRadius: 14,
+                    offset: Offset(0, 4),
                   ),
-                  child: Icon(icon, color: Colors.white, size: size * 0.5),
-                ),
+                ],
               ),
+              child: Icon(icon, color: iconColor, size: size * 0.42),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 9),
             Text(
               label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF44516B),
+              ),
             ),
           ],
         ),
@@ -408,7 +423,10 @@ class _ChipWrap extends StatelessWidget {
       children: [
         for (final chip in chips)
           ActionChip(
-            label: Text(chip, style: const TextStyle(fontSize: 18)),
+            label: Text(chip, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500)),
+            backgroundColor: Colors.white,
+            elevation: 1,
+            shadowColor: const Color(0x261E325A),
             onPressed: () => onTap(chip),
           ),
       ],
@@ -417,7 +435,7 @@ class _ChipWrap extends StatelessWidget {
 }
 
 
-/// Thanh nổi khi Vy Live đang chạy: hiện trạng thái, nút Kết thúc, và các nút xác nhận khi chờ gửi tin.
+/// Thanh nổi khi Vy Live đang chạy: quả cầu, trạng thái, nút Kết thúc; hiện nút xác nhận khi chờ gửi tin.
 class _LiveBar extends ConsumerWidget {
   const _LiveBar();
 
@@ -425,47 +443,80 @@ class _LiveBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(liveLabProvider);
     final c = ref.read(liveLabProvider.notifier);
-    final scheme = Theme.of(context).colorScheme;
     final label = switch (s.phase) {
-      LivePhase.connecting => 'Vy Live đang kết nối…',
-      LivePhase.closing => 'Vy Live đang kết thúc…',
-      _ => 'Vy Live đang nghe',
+      LivePhase.connecting => 'Đang kết nối…',
+      LivePhase.closing => 'Đang kết thúc…',
+      _ => 'Con đang nghe',
     };
-    return Material(
-      elevation: 6,
-      color: scheme.primaryContainer,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.graphic_eq_rounded, color: scheme.primary),
-                const SizedBox(width: 8),
-                Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
-                TextButton(
-                  onPressed: s.phase == LivePhase.closing ? null : c.end,
-                  child: const Text('Kết thúc'),
-                ),
-              ],
-            ),
-            if (s.emergency)
-              const Text('Phát hiện lời khẩn cấp: hãy bấm nút gọi người nhà hoặc gọi 115.'),
-            if (s.confirmSay != null) ...[
-              Text(s.confirmSay!),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
+    final mode = s.phase == LivePhase.live ? OrbMode.listening : OrbMode.thinking;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: Colors.white,
+        elevation: 6,
+        shadowColor: const Color(0x331E325A),
+        borderRadius: BorderRadius.circular(34),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  for (final chip in s.confirmChips)
-                    OutlinedButton(onPressed: () => c.tapChip(chip), child: Text(chip)),
+                  VyOrb(mode: mode, size: 54),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF14213D),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: s.phase == LivePhase.closing ? null : c.end,
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F4FA),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close_rounded, color: Color(0xFF14213D)),
+                    ),
+                  ),
                 ],
               ),
+              if (s.emergency)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(8, 6, 8, 4),
+                  child: Text('Phát hiện lời khẩn cấp: hãy bấm nút gọi người nhà hoặc gọi 115.'),
+                ),
+              if (s.confirmSay != null) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  child: Text(s.confirmSay!),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final chip in s.confirmChips)
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(88, 48)),
+                          onPressed: () => c.tapChip(chip),
+                          child: Text(chip),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -100,124 +100,131 @@ class _OrbPainter extends CustomPainter {
   final double t; // 0..1 lặp mỗi 4 giây
   final double level;
 
-  /// Đường viền mềm, méo nhẹ theo thời gian: nhiều điểm trên vòng tròn, nối bằng Catmull-Rom.
-  Path _blob(Offset c, double r, double phase, double wobble) {
-    const n = 7;
-    final pts = <Offset>[];
-    for (var i = 0; i < n; i++) {
-      final a = i / n * 2 * math.pi;
-      final k =
-          1 +
-          wobble * math.sin(t * 2 * math.pi * (1 + i % 3) + phase + i * 1.7);
-      pts.add(c + Offset(math.cos(a), math.sin(a)) * r * k);
-    }
-    final path = Path()
-      ..moveTo(
-        (pts[0].dx + pts[n - 1].dx) / 2,
-        (pts[0].dy + pts[n - 1].dy) / 2,
-      );
-    for (var i = 0; i < n; i++) {
-      final p = pts[i];
-      final next = pts[(i + 1) % n];
-      path.quadraticBezierTo(
-        p.dx,
-        p.dy,
-        (p.dx + next.dx) / 2,
-        (p.dy + next.dy) / 2,
-      );
-    }
-    return path..close();
-  }
+  static const _skyTop = Color(0xFF7F93FF);
+  static const _skyMid = Color(0xFF9DB6FF);
+  static const _skyLow = Color(0xFFDDE8FF);
 
+  /// Mây khói xanh da trời: hình tròn phẳng, bên trong là các mảng mờ trôi chậm.
+  /// Rảnh: trôi rất chậm; nghe: mây trắng dâng theo âm lượng; nghĩ: các mảng xoáy nhanh; nói: nhịp theo giọng.
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final r = size.shortestSide / 2;
-    final scale = switch (mode) {
-      OrbMode.idle => 1 + 0.03 * math.sin(t * 2 * math.pi),
-      OrbMode.listening => 1 + 0.22 * level,
-      OrbMode.thinking => 1 + 0.02 * math.sin(t * 4 * math.pi),
-      OrbMode.speaking => 1 + 0.07 * math.sin(t * 8 * math.pi).abs(),
+    final tau = 2 * math.pi;
+    final speed = switch (mode) {
+      OrbMode.idle => 1.0,
+      OrbMode.listening => 1.6,
+      OrbMode.thinking => 3.2,
+      OrbMode.speaking => 2.2,
     };
-    final wobble = switch (mode) {
-      OrbMode.idle => 0.11,
-      OrbMode.listening => 0.1 + 0.12 * level,
-      OrbMode.thinking => 0.13,
-      OrbMode.speaking => 0.15,
+    final pulse = switch (mode) {
+      OrbMode.idle => 1 + 0.02 * math.sin(t * tau),
+      OrbMode.listening => 1 + 0.10 * level,
+      OrbMode.thinking => 1 + 0.015 * math.sin(t * 2 * tau),
+      OrbMode.speaking => 1 + 0.05 * math.sin(t * 4 * tau).abs(),
     };
-    final body = r * 0.62 * scale;
-    final warm = mode == OrbMode.speaking;
+    final body = r * 0.74 * pulse;
+    final lift = switch (mode) {
+      OrbMode.listening => 0.10 + 0.28 * level,
+      OrbMode.speaking => 0.12 + 0.10 * math.sin(t * 3 * tau).abs(),
+      _ => 0.06,
+    };
+    final a = t * tau * speed;
 
-    // Quầng sáng lan toả phía sau.
+    // Bóng xanh mềm phía dưới, tạo cảm giác nổi.
     canvas.drawCircle(
-      center,
-      body * 1.35,
+      center + Offset(0, body * 0.18),
+      body * 1.02,
       Paint()
-        ..color = AppColors.sky.withValues(alpha: 0.32)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.3),
+        ..color = const Color(0xFF6F86FF).withValues(alpha: 0.30)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, body * 0.35),
     );
 
-    // Ba lớp màu mềm chồng lên nhau, mỗi lớp méo theo nhịp riêng.
-    void layer(
-      Offset shift,
-      double k,
-      double phase,
-      List<Color> colors,
-      double blur,
-    ) {
-      final c = center + shift * body;
-      final path = _blob(c, body * k, phase, wobble);
-      canvas.drawPath(
-        path,
+    final disc = Rect.fromCircle(center: center, radius: body);
+    canvas.save();
+    canvas.clipPath(Path()..addOval(disc));
+    canvas.drawRect(
+      disc,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_skyTop, _skyMid, _skyLow],
+          stops: [0.0, 0.55, 1.0],
+        ).createShader(disc),
+    );
+
+    void cloud(Offset at, double w, double h, Color c, double blur) {
+      canvas.drawOval(
+        Rect.fromCenter(center: center + at, width: w, height: h),
         Paint()
-          ..shader = RadialGradient(
-            center: const Alignment(-0.3, -0.4),
-            radius: 1.0,
-            colors: colors,
-          ).createShader(Rect.fromCircle(center: c, radius: body * k * 1.1))
-          ..maskFilter = blur > 0
-              ? MaskFilter.blur(BlurStyle.normal, blur)
-              : null,
+          ..color = c
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur),
       );
     }
 
-    final o = math.sin(t * 2 * math.pi);
-    final q = math.cos(t * 2 * math.pi);
-    layer(Offset.zero, 1.0, 0, [AppColors.sky, AppColors.navy], 0);
-    layer(Offset(0.28 * o, 0.18 * q), 0.78, 2, [
-      warm ? const Color(0xFFFFC9B8) : AppColors.aqua,
-      AppColors.aqua.withValues(alpha: 0),
-    ], r * 0.05);
-    layer(Offset(-0.3 * q, 0.25 * o), 0.7, 4, [
-      const Color(0xFFA78BFF),
-      const Color(0x00A78BFF),
-    ], r * 0.07);
-    layer(Offset(0.1 * q, -0.3 * o), 0.4, 5, [
-      Colors.white.withValues(alpha: 0.7),
-      const Color(0x00FFFFFF),
-    ], r * 0.09);
+    // Mảng xanh đậm phía trên, trôi vòng nhỏ.
+    cloud(
+      Offset(-0.22 * body + 0.10 * body * math.cos(a), -0.55 * body + 0.06 * body * math.sin(a)),
+      body * 1.15,
+      body * 0.85,
+      const Color(0xFF6F86FF).withValues(alpha: 0.95),
+      body * 0.22,
+    );
+    // Mảng xanh nhạt bên phải.
+    cloud(
+      Offset(0.50 * body + 0.08 * body * math.sin(a + 1), -0.10 * body + 0.10 * body * math.cos(a + 2)),
+      body * 0.80,
+      body * 0.70,
+      const Color(0xFFA9C4FF).withValues(alpha: 0.92),
+      body * 0.20,
+    );
+    // Đám mây trắng lớn ở dưới, dâng lên theo [lift].
+    cloud(
+      Offset(0.06 * body * math.sin(a + 3), body * (0.78 - 1.1 * lift) + 0.05 * body * math.cos(a)),
+      body * 2.2,
+      body * 1.15,
+      Colors.white.withValues(alpha: 0.97),
+      body * 0.20,
+    );
+    cloud(
+      Offset(-0.30 * body + 0.10 * body * math.cos(a + 4), body * (0.48 - 0.9 * lift)),
+      body * 0.95,
+      body * 0.60,
+      const Color(0xFFEAF1FF).withValues(alpha: 0.95),
+      body * 0.16,
+    );
+    // Điểm sáng nhỏ.
+    cloud(
+      Offset(0.30 * body + 0.05 * body * math.sin(a * 1.3), -0.30 * body),
+      body * 0.50,
+      body * 0.32,
+      Colors.white.withValues(alpha: 0.55),
+      body * 0.12,
+    );
+    canvas.restore();
 
-    // Vòng sáng xoay khi đang nghĩ.
+    // Vòng sáng mảnh khi đang nghĩ.
     if (mode == OrbMode.thinking) {
       canvas.save();
       canvas.translate(center.dx, center.dy);
-      canvas.rotate(t * 2 * math.pi);
+      canvas.rotate(t * tau * 1.5);
       canvas.translate(-center.dx, -center.dy);
       canvas.drawCircle(
         center,
-        body * 1.18,
+        body * 1.06,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = r * 0.04
+          ..strokeWidth = r * 0.03
           ..strokeCap = StrokeCap.round
           ..shader = SweepGradient(
             colors: [
               Colors.white.withValues(alpha: 0),
-              AppColors.aqua,
+              Colors.white.withValues(alpha: 0.9),
               Colors.white.withValues(alpha: 0),
             ],
-            stops: const [0.0, 0.25, 0.5],
-          ).createShader(Rect.fromCircle(center: center, radius: body * 1.18)),
+            stops: const [0.0, 0.2, 0.45],
+          ).createShader(Rect.fromCircle(center: center, radius: body * 1.06)),
       );
       canvas.restore();
     }
