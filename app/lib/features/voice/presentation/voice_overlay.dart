@@ -7,6 +7,8 @@ import '../../../core/router/routes.dart';
 import '../../../shared/widgets/vy_button.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../core/vy_core.dart';
+import '../core/vy_cursor.dart';
+import 'vy_cursor_layer.dart';
 import 'vy_panel.dart';
 
 /// Lớp phủ trợ lý giọng nói trên mọi màn hình: nút Vy nổi + panel Vy ([VyPanelHost]).
@@ -76,6 +78,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
             },
           ),
         if (enabled) const Positioned.fill(child: VyPanelHost()),
+        // Con trỏ nổi trên cả panel (không nhận chạm).
+        if (enabled) Positioned.fill(child: VyCursorLayer(key: ref.read(vyCursorSurfaceKeyProvider))),
       ],
     );
   }

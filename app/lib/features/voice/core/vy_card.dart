@@ -83,24 +83,6 @@ class MedCard extends VyCard {
   final List<MedRow> rows;
 }
 
-@immutable
-class VideoRow {
-  const VideoRow({required this.n, required this.title, required this.author, required this.onChoose});
-
-  final int n;
-  final String title;
-  final String author;
-  final VoidCallback onChoose;
-}
-
-/// Thẻ Danh sách video có số: người dùng nói "cái thứ hai" hoặc chạm vào dòng.
-class VideoListCard extends VyCard {
-  VideoListCard({required this.title, required this.rows, super.actions, super.replacesSpeech = false});
-
-  final String title;
-  final List<VideoRow> rows;
-}
-
 /// Thẻ "Đã gửi": tick xanh, gửi cho ai, nội dung. Tự thu về sau vài giây.
 class SentCard extends VyCard {
   SentCard({required this.to, required this.text, super.actions}) : super(hold: const Duration(seconds: 5));

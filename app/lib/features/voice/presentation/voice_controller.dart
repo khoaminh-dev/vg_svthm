@@ -8,6 +8,7 @@ import '../data/speech_player.dart';
 import '../data/thinking_sound.dart';
 import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
+import '../../entertainment/presentation/entertainment_providers.dart';
 import '../core/vy_card.dart';
 import '../core/vy_context.dart';
 import '../data/voice_recorder.dart';
@@ -326,7 +327,8 @@ class VoiceController extends Notifier<VoiceState> {
     final navigated =
         d.action == 'execute' &&
         VoiceActions.navIntents.contains(d.task?.intent) &&
-        ref.read(vyCardProvider) == null;
+        ref.read(vyCardProvider) == null &&
+        !ref.read(videoMarksProvider);
     state = state.copyWith(
       transcript: res.transcript,
       say: say,

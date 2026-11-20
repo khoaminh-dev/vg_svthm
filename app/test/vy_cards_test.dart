@@ -130,29 +130,6 @@ void main() {
       expect(opened, 1);
     });
 
-    testWidgets('thẻ Danh sách video có số: chạm dòng = chọn số đó', (t) async {
-      final picked = <int>[];
-      await showCard(
-        t,
-        VideoListCard(
-          title: 'Chọn một video',
-          rows: [
-            for (var i = 1; i <= 5; i++)
-              VideoRow(n: i, title: 'Bài hát số $i', author: 'Kênh $i', onChoose: () => picked.add(i)),
-          ],
-        ),
-        [],
-      );
-      for (var i = 1; i <= 5; i++) {
-        expect(find.byKey(Key('vy-video-$i')), findsOneWidget);
-        expect(find.text('Bài hát số $i'), findsOneWidget);
-      }
-      expect(find.text('3'), findsOneWidget); // số hiện to ở đầu dòng
-      await t.tap(find.byKey(const Key('vy-video-2')));
-      await t.tap(find.byKey(const Key('vy-video-5')));
-      expect(picked, [2, 5]);
-    });
-
     testWidgets('thẻ Đã gửi: tick, gửi cho ai, nội dung', (t) async {
       var opened = 0;
       await showCard(
@@ -206,17 +183,6 @@ void main() {
       expect(find.text('130/85'), findsOneWidget);
       // thẻ đã nói đủ ý: không lặp lại câu dài trong thẻ lớn
       expect(find.text('Lần đo gần nhất: huyết áp 130 trên 85.'), findsNothing);
-    });
-
-    testWidgets('thẻ danh sách video không thay câu Vy nói ("chọn số mấy ạ")', (t) async {
-      final card = VideoListCard(title: 'Chọn một video', rows: [VideoRow(n: 1, title: 'A', author: '', onChoose: () {})]);
-      await pumpPanel(
-        t,
-        VyView(phase: VyPhase.speaking, engine: VyEngine.live, vyText: 'Dạ, con tìm được mấy video rồi, bác chọn số mấy ạ?', card: card),
-        [],
-      );
-      expect(find.text('Dạ, con tìm được mấy video rồi, bác chọn số mấy ạ?'), findsOneWidget);
-      expect(find.byKey(const Key('vy-video-1')), findsOneWidget);
     });
 
     testWidgets('chạm nút trên thẻ đi qua onCardAction', (t) async {
@@ -452,16 +418,14 @@ void main() {
       expect(none.read(vyCardProvider), isNull);
     });
 
-    test('tìm video chung chung: hiện thẻ có số 1–5; chạm dòng = mở video đó', () async {
+    test('tìm video chung chung: KHÔNG hiện thẻ che màn, mà bật đánh số trên video thật và giữ hàng đợi', () async {
       final c = make(videos: [for (var i = 1; i <= 8; i++) video(i)]);
       addTearDown(c.dispose);
       final say = await c.read(voiceActionsProvider).execute(task('play_video', {'content': 'nhạc xưa'}), const [], 'bác');
       expect(say, contains('chọn số mấy'));
-      final card = c.read(vyCardProvider)! as VideoListCard;
-      expect(card.rows.map((r) => r.n), [1, 2, 3, 4, 5]); // tối đa 5 dòng
-      expect(card.rows[1].title, 'Bài hát số 2');
-      expect(card.replacesSpeech, isFalse);
-      expect(c.read(videoQueueProvider).length, 8); // hàng đợi để máy tự sang bài kế
+      expect(c.read(vyCardProvider), isNull);
+      expect(c.read(videoMarksProvider), isTrue);
+      expect(c.read(videoQueueProvider).length, 8);
     });
 
     test('gửi tin xong: hiện thẻ Đã gửi, không nhảy sang phòng chat', () async {

@@ -409,11 +409,14 @@ test('step: mức 2 hỏi lại, "đồng ý" mới làm, và nói đúng việc
   assert.equal(d3.action, 'cancel');
 });
 
-test('step: mức 3 không bao giờ execute, chỉ nhắc người dùng tự bấm', async () => {
+test('step: mức 3 không bao giờ invoke_control; chỉ point_control (con trỏ chỉ) và nhắc người dùng tự bấm', async () => {
   for (const say of ['bấm đăng xuất', 'đăng xuất', 'bấm SOS']) {
     const x = say.includes('SOS') ? HOME : PROFILE;
     const d = await step({ text: say, state: {}, ui: uiOf(x) }, noNlu);
-    assert.equal(d.action, 'answer', say);
+    assert.equal(d.intent, 'point_control', say);
+    assert.ok(d.task && d.task.intent === 'point_control');
+    assert.equal(d.task!.slots.control_id, undefined, 'không được có control_id để bấm');
+    assert.ok(d.task!.slots.target_id);
     assert.match(d.say, /tự bấm/);
   }
 });
@@ -423,7 +426,8 @@ test('step: hộp thoại đang mở thì "huỷ"/"đồng ý" là nút của h�
   assert.equal(d.action, 'execute');
   assert.equal(d.task?.slots.control_id, 'dlg.logout.stay');
   const e = await step({ text: 'đồng ý', state: {}, ui: uiOf(DIALOG_LOGOUT) }, noNlu);
-  assert.equal(e.action, 'answer'); // đăng xuất là mức 3: Vy không bấm thay
+  assert.equal(e.intent, 'point_control'); // đăng xuất là mức 3: Vy chỉ chỉ vào nút, không bấm thay
+  assert.equal(e.task?.slots.control_id, undefined);
 });
 
 test('step: công tắc có động từ rõ thì set đúng giá trị', async () => {

@@ -23,7 +23,6 @@ class VyCardView extends StatelessWidget {
     final body = switch (c) {
       BpCard() => _BpBody(card: c),
       MedCard() => _MedBody(card: c),
-      VideoListCard() => _VideoBody(card: c, onAction: onAction),
       SentCard() => _SentBody(card: c),
     };
     return Container(
@@ -188,66 +187,6 @@ class _MedRowView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(it, style: const TextStyle(fontSize: 17, color: Color(0xFF44516B))),
-          ),
-      ],
-    );
-  }
-}
-
-class _VideoBody extends StatelessWidget {
-  const _VideoBody({required this.card, required this.onAction});
-
-  final VideoListCard card;
-  final ValueChanged<VyCardAction> onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(card.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: _navy)),
-        const SizedBox(height: 8),
-        for (final r in card.rows)
-          InkWell(
-            key: Key('vy-video-${r.n}'),
-            borderRadius: BorderRadius.circular(16),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onAction(VyCardAction(label: r.title, run: r.onChoose));
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(color: AppColors.navyDeep, shape: BoxShape.circle),
-                    child: Text(
-                      '${r.n}',
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          r.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 18, height: 1.25, color: _navy),
-                        ),
-                        if (r.author.isNotEmpty)
-                          Text(r.author, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, color: _muted)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
       ],
     );

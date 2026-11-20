@@ -66,6 +66,19 @@ final playerCommandProvider =
       PlayerCommandNotifier.new,
     );
 
+/// Vy đang nhờ người dùng chọn video theo số: màn Giải trí vẽ số 1, 2, 3… ngay trên các video thật
+/// (không dùng thẻ che màn). Tắt khi chọn xong, khi Vy đóng hoặc khi rời màn.
+class VideoMarksNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool v) {
+    if (state != v) state = v;
+  }
+}
+
+final videoMarksProvider = NotifierProvider<VideoMarksNotifier, bool>(VideoMarksNotifier.new);
+
 /// Màn phát đang mở hay không (để Vy biết có thể điều khiển).
 class PlayerOpenNotifier extends Notifier<bool> {
   @override

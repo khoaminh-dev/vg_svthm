@@ -11,8 +11,10 @@ import '../data/voice_actions.dart';
 import '../data/vy_sounds.dart';
 import '../live/live_lab_controller.dart';
 import '../presentation/voice_controller.dart';
+import '../../entertainment/presentation/entertainment_providers.dart';
 import 'vy_card.dart';
 import 'vy_context.dart';
+import 'vy_cursor.dart';
 import 'vy_greeting.dart';
 import 'vy_settings.dart';
 import 'vy_view.dart';
@@ -163,6 +165,8 @@ class VyCore extends Notifier<VyView> {
     if (_settings.sounds) unawaited(VySounds.off());
     _holdTimer?.cancel();
     ref.read(vyCardProvider.notifier).clear();
+    ref.read(videoMarksProvider.notifier).set(false);
+    ref.read(vyCursorProvider).cancel(); // đóng Vy thì con trỏ dừng ngay, không bấm nữa
     state = const VyView(); // giao diện đóng ngay, việc dọn dẹp chạy sau
     await _voice.stop();
     if (engine == VyEngine.live) {

@@ -162,6 +162,19 @@ class ControlRegistry {
 
   List<VyList> get lists => [for (final e in _screens) ...e.lists];
 
+  /// Tìm điều khiển đang với tới được (hộp thoại che màn sau) theo mã.
+  VyControl? find(String id) => _find(id);
+
+  /// Kiểm tra bấm được hay không, KHÔNG bấm: dùng để quyết định nói gì trước khi con trỏ bay.
+  VyInvokeResult check(String id) {
+    final c = _find(id);
+    if (c == null) return VyInvokeResult.notFound;
+    if (c.level == VyLevel.selfOnly) return VyInvokeResult.selfOnly;
+    if (!c.enabled) return VyInvokeResult.disabled;
+    if (c.onInvoke == null && c.onSet == null) return VyInvokeResult.notFound;
+    return VyInvokeResult.done;
+  }
+
   VyControl? _find(String id) {
     final d = _topDialog;
     // Có hộp thoại: chỉ với tới nút của hộp thoại (màn phía sau bị che).

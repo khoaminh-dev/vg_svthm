@@ -23,6 +23,14 @@ class EntertainmentScreen extends ConsumerStatefulWidget {
 }
 
 class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
+  // Giữ notifier từ lúc khởi tạo: không được dùng `ref` trong dispose().
+  late final VideoMarksNotifier _marks;
+
+  @override
+  void initState() {
+    super.initState();
+    _marks = ref.read(videoMarksProvider.notifier);
+  }
   late final TextEditingController _text = TextEditingController(
     text: ref.read(videoQueryProvider),
   );
@@ -51,6 +59,15 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
   @override
   void dispose() {
     _text.dispose();
+    // Rời màn thì thôi đánh số (ghi sau khung hình hiện tại để không đổi provider giữa lúc dựng cây).
+    final marks = _marks;
+    Future.microtask(() {
+      try {
+        marks.set(false);
+      } catch (_) {
+        // bộ chứa provider đã bị huỷ (đóng app/kiểm thử): không còn gì để tắt
+      }
+    });
     super.dispose();
   }
 
@@ -115,7 +132,9 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
 
     final elder = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
     final videos = results.value ?? const <VideoItem>[];
+    final marks = ref.watch(videoMarksProvider);
     void openVideo(List<VideoItem> list, int i) {
+      ref.read(videoMarksProvider.notifier).set(false);
       Analytics.track('video_open', {'from': 'voice_or_list'});
       ref.read(videoQueueProvider.notifier).set(list);
       context.push(Routes.player, extra: list[i]);
@@ -272,7 +291,9 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                           const SizedBox(height: AppSpacing.md),
                       itemBuilder: (_, i) => VideoCard(
                         item: list[i],
+                        number: marks && i < 10 ? i + 1 : null,
                         onTap: () {
+                          ref.read(videoMarksProvider.notifier).set(false);
                           Analytics.track('video_open', {'from': 'list'});
                           ref.read(videoQueueProvider.notifier).set(list);
                           context.push(Routes.player, extra: list[i]);
@@ -350,17 +371,20 @@ class _CategoryTile extends StatelessWidget {
 
 /// Thẻ video: ảnh lớn có thời lượng, tiêu đề 2 dòng, tên kênh.
 class VideoCard extends StatelessWidget {
-  const VideoCard({super.key, required this.item, required this.onTap});
+  const VideoCard({super.key, required this.item, required this.onTap, this.number});
 
   final VideoItem item;
   final VoidCallback onTap;
+
+  /// Số thứ tự Vy đánh để người dùng nói "cái thứ hai" (null = không đánh số).
+  final int? number;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
       button: true,
-      label: 'Phát video ${item.title}',
+      label: number == null ? 'Phát video ${item.title}' : 'Số $number. Phát video ${item.title}',
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -398,6 +422,27 @@ class VideoCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (number != null)
+                      Positioned(
+                        left: 12,
+                        top: 12,
+                        child: Container(
+                          key: Key('video-number-$number'),
+                          width: 56,
+                          height: 56,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF14213D),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 10, offset: Offset(0, 3))],
+                          ),
+                          child: Text(
+                            '$number',
+                            style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600, height: 1),
+                          ),
+                        ),
+                      ),
                     if (item.durationLabel.isNotEmpty)
                       Positioned(
                         right: 10,

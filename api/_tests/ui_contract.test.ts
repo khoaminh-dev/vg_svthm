@@ -101,7 +101,10 @@ test('hợp đồng thật: mức 3 trong ngữ cảnh thật không bao giờ t
         for (const v of verbs) {
           const d = await step({ text: `${v}${name} đi`, state: {}, ui: { screen: c.route, contacts: [], honorific: 'bác', context: c } }, noNlu).catch(() => null);
           n++;
-          if (d && d.action === 'execute') assert.notEqual(d.task?.slots.control_id, l3.id, `"${v}${name}" thực thi mức 3 ${l3.id}`);
+          if (d) {
+            assert.notEqual(d.intent, 'invoke_control', `"${v}${name}" bấm mức 3 ${l3.id}`);
+            assert.notEqual(d.task?.slots.control_id, l3.id, `"${v}${name}" có control_id mức 3 ${l3.id}`);
+          }
         }
       }
     }

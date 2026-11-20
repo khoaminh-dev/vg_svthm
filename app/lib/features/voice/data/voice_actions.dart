@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,6 +20,7 @@ import '../../health/presentation/providers/health_providers.dart';
 import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../core/vy_card.dart';
+import '../core/vy_cursor.dart';
 import '../core/control_registry.dart';
 import '../domain/voice_models.dart';
 
@@ -174,16 +177,24 @@ class VoiceActions {
         final id = s['control_id'];
         if (id == null) return null;
         final set = s['set'];
-        final r = _ref
-            .read(controlRegistryProvider)
-            .invoke(id, set: set == null ? null : set == '1');
+        // Kiểm tra trước; được thì để con trỏ bay tới rồi bấm (không chờ: Vy nói câu của nút ngay lúc con trỏ khởi hành).
+        final cursor = _ref.read(vyCursorProvider);
+        final r = cursor.check(id);
         Analytics.track('voice_invoke_control', {'id': id, 'result': r.name});
+        if (r == VyInvokeResult.done) {
+          unawaited(cursor.press(id, set: set == null ? null : set == '1'));
+        }
         return switch (r) {
           VyInvokeResult.done => null,
           VyInvokeResult.notFound => 'Con chưa thấy nút đó trên màn hình ạ.',
           VyInvokeResult.disabled => 'Dạ, nút này bây giờ chưa bấm được ạ.',
           VyInvokeResult.selfOnly => '${honorific[0].toUpperCase()}${honorific.substring(1)} tự bấm nút này giúp con nhé.',
         };
+      case 'point_control':
+        // Việc người dùng phải tự bấm (mức 3): con trỏ chỉ vào nút, tuyệt đối không bấm.
+        final target = s['target_id'];
+        if (target != null) unawaited(_ref.read(vyCursorProvider).point(target));
+        return null;
       case 'choose_item':
         final n = int.tryParse(s['n'] ?? '');
         final listId = s['list_id'];
@@ -221,21 +232,9 @@ class VoiceActions {
     _ref.read(videoQueryProvider.notifier).set(q);
     router.go(Routes.entertainment);
     if (isVagueVideoQuery(q)) {
+      // Không dùng thẻ che màn: đánh số 1, 2, 3… ngay trên các video thật của màn Giải trí.
       _ref.read(videoQueueProvider.notifier).set(found);
-      _ref.read(vyCardProvider.notifier).show(
-        VideoListCard(
-          title: 'Chọn một video',
-          rows: [
-            for (var i = 0; i < found.length && i < 5; i++)
-              VideoRow(
-                n: i + 1,
-                title: found[i].title,
-                author: found[i].author,
-                onChoose: () => _ref.read(routerProvider).push(Routes.player, extra: found[i]),
-              ),
-          ],
-        ),
-      );
+      _ref.read(videoMarksProvider.notifier).set(true);
       return 'Dạ, con tìm được mấy video rồi, $honorific chọn số mấy ạ?';
     }
     final first = found.first;
