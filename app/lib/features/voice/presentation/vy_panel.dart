@@ -7,6 +7,7 @@ import '../../../shared/widgets/vy_orb.dart';
 import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 import '../core/vy_card.dart';
 import '../core/vy_core.dart';
+import '../core/vy_cursor.dart';
 import '../core/vy_view.dart';
 import 'vy_cards.dart';
 
@@ -54,7 +55,8 @@ class VyPanelHost extends ConsumerWidget {
                   child: child,
                 ),
               ),
-              child: view.isOpen
+              // Con trỏ đang làm việc thì thanh Vy lùi ra, để không che nút đang chỉ.
+              child: view.isOpen && !ref.watch(vyCursorBusyProvider)
                   ? VyPanel(
                       key: const ValueKey('vy-panel'),
                       view: view,

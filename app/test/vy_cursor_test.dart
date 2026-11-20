@@ -85,6 +85,7 @@ void main() {
     late bool reduce;
     late bool enabled;
     late List<String> hits;
+    late List<bool> busy;
 
     VyCursorController make() => VyCursorController(
       registry: reg,
@@ -92,6 +93,7 @@ void main() {
       surface: () => surface,
       onStart: () => started++,
       orb: () => const Offset(48, 800),
+      onBusy: busy.add,
       reduceMotion: () => reduce,
       enabled: () => enabled,
       timeScale: 0,
@@ -105,6 +107,7 @@ void main() {
       reduce = false;
       enabled = true;
       hits = [];
+      busy = [];
       reg.set(Object(), controls: [
         VyControl(id: 'meds.taken', label: 'Đã uống', onInvoke: () => hits.add('taken')),
         VyControl(id: 'prof.captions', label: 'Hiện chữ', kind: VyKind.toggle, value: true, onSet: (v) => hits.add('set:$v')),
@@ -122,6 +125,7 @@ void main() {
       expect(surface.events, ['fly', 'click', 'hide']);
       expect(hits, ['taken']);
       expect(c.active, isFalse);
+      expect(busy, [true, false]); // thanh Vy lùi ra rồi quay lại
     });
 
     test('công tắc: nhãn "Tắt" và đặt đúng giá trị', () async {
@@ -162,6 +166,7 @@ void main() {
       expect(surface.events, ['fly', 'glow', 'hide']);
       expect(surface.label, 'Bác tự bấm');
       expect(hits, isEmpty);
+      expect(busy, [true, false]);
       surface.events.clear();
       await c.press('prof.logout');
       expect(hits, isEmpty); // registry từ chối mức 3 dù con trỏ có bay
@@ -184,6 +189,7 @@ void main() {
         surface: () => surface,
         onStart: () => started++,
         orb: () => Offset.zero,
+        onBusy: busy.add,
         timeScale: 1,
       );
       final f = c.press('meds.taken');
@@ -195,6 +201,7 @@ void main() {
       expect(surface.events.contains('click'), isFalse);
       expect(surface.events.last, 'hide');
       expect(c.active, isFalse);
+      expect(busy.last, isFalse); // chạm là thanh Vy quay lại ngay
     });
 
     test('hai việc liên tiếp: việc sau huỷ việc trước, chỉ việc sau bấm', () async {
@@ -204,6 +211,7 @@ void main() {
         surface: () => surface,
         onStart: () {},
         orb: () => Offset.zero,
+        onBusy: busy.add,
         timeScale: 1,
       );
       final first = c.press('meds.taken');

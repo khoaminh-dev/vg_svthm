@@ -31,6 +31,7 @@ class VyCursorController {
     required VyCursorSurface? Function() surface,
     required VoidCallback onStart,
     required Offset Function() orb,
+    void Function(bool busy)? onBusy,
     bool Function()? reduceMotion,
     bool Function()? enabled,
     this.timeScale = 1,
@@ -39,6 +40,7 @@ class VyCursorController {
        _surface = surface,
        _onStart = onStart,
        _orb = orb,
+       _onBusy = onBusy ?? ((_) {}),
        _reduceMotion = reduceMotion ?? (() => false),
        _enabled = enabled ?? (() => true);
 
@@ -47,6 +49,9 @@ class VyCursorController {
   final VyCursorSurface? Function() _surface;
   final VoidCallback _onStart;
   final Offset Function() _orb;
+
+  /// Báo cho giao diện: con trỏ đang làm việc thì thanh Vy tạm lùi ra khỏi màn hình (không che nút đang chỉ).
+  final void Function(bool busy) _onBusy;
   final bool Function() _reduceMotion;
   final bool Function() _enabled;
 
@@ -69,6 +74,7 @@ class VyCursorController {
     if (!_active) return;
     _run++;
     _active = false;
+    _onBusy(false);
     unawaited(_surface()?.hide());
   }
 
@@ -106,6 +112,7 @@ class VyCursorController {
     _listenTouches(onPointer, true);
     try {
       _onStart(); // thu panel về thanh nhỏ để thấy màn thật
+      _onBusy(true);
       await _wait(260);
       if (run != _run) return;
       final rect = await _locator.locate(c);
@@ -135,7 +142,10 @@ class VyCursorController {
       await surface.hide(instant: instant);
     } finally {
       _listenTouches(onPointer, false);
-      if (run == _run) _active = false;
+      if (run == _run) {
+        _active = false;
+        _onBusy(false);
+      }
     }
   }
 
@@ -153,6 +163,7 @@ class VyCursorController {
     _listenTouches(onPointer, true);
     try {
       _onStart();
+      _onBusy(true);
       await _wait(260);
       if (run != _run) return;
       final rect = await _locator.locate(c);
@@ -165,7 +176,10 @@ class VyCursorController {
       await surface.hide(instant: instant);
     } finally {
       _listenTouches(onPointer, false);
-      if (run == _run) _active = false;
+      if (run == _run) {
+        _active = false;
+        _onBusy(false);
+      }
     }
   }
 
@@ -180,6 +194,18 @@ final vyCursorSurfaceKeyProvider = Provider<GlobalKey>((ref) => GlobalKey(debugL
 
 final controlLocatorProvider = Provider<ControlLocator>((ref) => SemanticsControlLocator());
 
+/// Con trỏ đang làm việc: thanh Vy lùi ra để thấy nút thật (nhất là nút ở đáy màn hình như SOS).
+class VyCursorBusy extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool v) {
+    if (state != v) state = v;
+  }
+}
+
+final vyCursorBusyProvider = NotifierProvider<VyCursorBusy, bool>(VyCursorBusy.new);
+
 final vyCursorProvider = Provider<VyCursorController>((ref) {
   final key = ref.read(vyCursorSurfaceKeyProvider);
   final c = VyCursorController(
@@ -190,6 +216,7 @@ final vyCursorProvider = Provider<VyCursorController>((ref) {
       return s is VyCursorSurface ? s as VyCursorSurface : null;
     },
     onStart: () => ref.read(vyCoreProvider.notifier).collapse(),
+    onBusy: (b) => ref.read(vyCursorBusyProvider.notifier).set(b),
     orb: () {
       final v = WidgetsBinding.instance.platformDispatcher.views.first;
       final size = v.physicalSize / v.devicePixelRatio;
