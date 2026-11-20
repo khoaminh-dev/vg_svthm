@@ -54,7 +54,8 @@ class ElderBackBar extends StatelessWidget {
     child: SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        // Chừa chỗ bên phải cho nút Vy nổi để không đè lên nút Quay lại.
+        padding: const EdgeInsets.fromLTRB(16, 10, 112, 10),
         child: SizedBox(
           height: 68,
           width: double.infinity,
