@@ -136,6 +136,12 @@ function matchPrefixWords(t: string, re: RegExp): number {
   return s ? s.split(' ').length : 0;
 }
 
+/** Người dùng NÓI RÕ muốn báo SOS ("gọi SOS", "báo SOS", "kích hoạt SOS"); t đã bỏ dấu.
+ *  Chỉ nói "SOS" trơn hoặc "bấm SOS" thì KHÔNG tính (có thể là nhắc tới nút): khi đó con trỏ chỉ vào nút. */
+export function sosExplicit(t: string): boolean {
+  return /^(goi|bao|kich hoat|phat|goi bao|bam goi) (nut )?sos( di| nhe| ngay| giup toi| giup con)*$/.test(t);
+}
+
 const FEATURE_WORDS: Record<string, string> = {
   chat: 'chat', 'tin nhan': 'chat', 'tro chuyen': 'chat',
   ocr: 'ocr', 'so lieu': 'ocr', 'doc so lieu': 'ocr',
@@ -400,7 +406,7 @@ const REQUIRED: Record<string, string[]> = {
 const NEEDS_CONFIRM = new Set(['send_message', 'record_bp']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
 /** Ý định do bộ ghép với màn hình tạo ra (không nằm trong INTENT_LIST để mô hình không tự chọn). Có thể quay lại trong `state.task` khi chờ xác nhận. */
-export const UI_INTENTS = ['invoke_control', 'choose_item', 'point_control'];
+export const UI_INTENTS = ['invoke_control', 'choose_item', 'point_control', 'sos_start'];
 
 function mk(p: Partial<Decision> & Pick<Decision, 'action' | 'say'>): Decision {
   return {
@@ -509,6 +515,15 @@ export async function step(
     }
     if (r.kind === 'many') return askChoice(task, r.list, hon, aliasPhrase);
     return mk({ action: 'ask', intent: task.intent, task, pending: 'recipient', expects: 'name', say: noContactSay(hon, text), sayClass: 'other', expectsReply: true, aliasPhrase, chips: contacts.slice(0, 4).map((c) => c.name) });
+  }
+
+  // 6a) SOS nói rõ: bắt đầu đếm ngược 5 giây có nút Huỷ ở app (người thật khởi động; Vy không tự bắt đầu). Bản app cũ chỉ đọc câu hướng dẫn.
+  if (sosExplicit(t)) {
+    const task: Task = { intent: 'sos_start', slots: {} };
+    return mk({
+      action: 'execute', intent: 'sos_start', task, sayClass: 'important',
+      say: `Dạ, ${hon} giữ nút SOS màu đỏ ở dưới màn hình giúp con nhé.`,
+    });
   }
 
   // 6b) màn hình thật: ghép với điều khiển/danh sách đang hiện (hộp thoại che màn sau)
