@@ -10,6 +10,7 @@ import '../data/speech_player.dart';
 import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
 import '../domain/voice_models.dart';
+import '../core/vy_card.dart';
 import '../core/vy_context.dart';
 import '../presentation/voice_controller.dart';
 import 'live_hybrid.dart';
@@ -670,6 +671,7 @@ class LiveLabController extends Notifier<LiveLabState> {
         say = await _executeGated(d, say);
       default:
         // cancel | answer | unsupported
+        if (d.action == 'cancel') ref.read(vyCardProvider.notifier).clear(); // gỡ thẻ đếm ngược (gọi điện, SOS)
         _gate.clear();
         state = state.copyWith(confirmSay: null, confirmChips: const []);
     }

@@ -28,6 +28,7 @@ class VyCardView extends StatelessWidget {
       SentCard() => _SentBody(card: c),
       MsgCard() => _MsgBody(card: c, onAction: onAction),
       CallCard() => _CallBody(card: c),
+      SosCard() => _SosBody(card: c),
     };
     return Container(
       key: Key('vy-card-${c.runtimeType}'),
@@ -278,20 +279,22 @@ class _MsgBody extends StatelessWidget {
   }
 }
 
-/// Đếm ngược rồi tự gọi. Chỉ gọi nếu thẻ còn trên màn hình (dispose huỷ bộ đếm).
-class _CallBody extends StatefulWidget {
-  const _CallBody({required this.card});
+/// Đếm ngược dùng chung (gọi điện, SOS): hết giờ thì chạy [onDone] đúng MỘT lần. Gỡ widget thì huỷ bộ đếm (không chạy).
+class _Countdown extends StatefulWidget {
+  const _Countdown({required this.seconds, required this.onDone, required this.builder});
 
-  final CallCard card;
+  final int seconds;
+  final VoidCallback onDone;
+  final Widget Function(BuildContext context, int left, bool done) builder;
 
   @override
-  State<_CallBody> createState() => _CallBodyState();
+  State<_Countdown> createState() => _CountdownState();
 }
 
-class _CallBodyState extends State<_CallBody> {
-  late int _left = widget.card.seconds;
+class _CountdownState extends State<_Countdown> {
+  late int _left = widget.seconds;
   Timer? _t;
-  bool _called = false;
+  bool _done = false;
 
   @override
   void initState() {
@@ -302,9 +305,9 @@ class _CallBodyState extends State<_CallBody> {
         t.cancel();
         setState(() {
           _left = 0;
-          _called = true;
+          _done = true;
         });
-        widget.card.onCall();
+        widget.onDone();
       } else {
         setState(() => _left--);
       }
@@ -318,31 +321,94 @@ class _CallBodyState extends State<_CallBody> {
   }
 
   @override
+  Widget build(BuildContext context) => widget.builder(context, _left, _done);
+}
+
+class _Ring extends StatelessWidget {
+  const _Ring({required this.color, required this.child});
+
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 84,
+    height: 84,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    child: child,
+  );
+}
+
+class _CallBody extends StatelessWidget {
+  const _CallBody({required this.card});
+
+  final CallCard card;
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      key: const Key('vy-call'),
-      children: [
-        Container(
-          width: 76,
-          height: 76,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(color: _navy, shape: BoxShape.circle),
-          child: _called
-              ? const Icon(Icons.call, color: Colors.white, size: 36)
-              : Text('$_left', key: const Key('vy-call-count'), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w600, height: 1)),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_called ? 'Đang gọi…' : 'Sắp gọi', style: const TextStyle(fontSize: 16, color: _muted)),
-              Text(widget.card.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: _navy)),
-              Text(widget.card.number, style: const TextStyle(fontSize: 20, color: Color(0xFF44516B))),
-            ],
+    return _Countdown(
+      seconds: card.seconds,
+      onDone: card.onCall,
+      builder: (context, left, done) => Row(
+        key: const Key('vy-call'),
+        children: [
+          _Ring(
+            color: _navy,
+            child: done
+                ? const Icon(Icons.call, color: Colors.white, size: 38)
+                : Text('$left', key: const Key('vy-call-count'), style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w600, height: 1)),
           ),
-        ),
-      ],
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(done ? 'Đang gọi…' : 'Sắp gọi', style: const TextStyle(fontSize: 16, color: _muted)),
+                Text(card.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: _navy)),
+                Text(card.number, style: const TextStyle(fontSize: 20, color: Color(0xFF44516B))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SosBody extends StatelessWidget {
+  const _SosBody({required this.card});
+
+  final SosCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    const red = Color(0xFFC94A4A);
+    return _Countdown(
+      seconds: card.seconds,
+      onDone: card.onFire,
+      builder: (context, left, done) => Row(
+        key: const Key('vy-sos'),
+        children: [
+          _Ring(
+            color: red,
+            child: done
+                ? const Icon(Icons.sos_rounded, color: Colors.white, size: 44)
+                : Text('$left', key: const Key('vy-sos-count'), style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w600, height: 1)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(done ? 'Đã báo SOS' : 'Sắp báo SOS cho người thân', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: _navy)),
+                const SizedBox(height: 2),
+                Text(done ? 'Người thân đã nhận được tin' : 'Bấm Huỷ nếu bấm nhầm', style: const TextStyle(fontSize: 17, color: Color(0xFF44516B))),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

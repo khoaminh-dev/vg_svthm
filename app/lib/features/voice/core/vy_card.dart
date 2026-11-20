@@ -117,6 +117,17 @@ class CallCard extends VyCard {
   final VoidCallback onCall;
 }
 
+/// Thẻ SOS bằng giọng: đếm ngược [seconds] giây rồi mới báo người thân (D18). Người thật khởi động (nói rõ "gọi SOS"),
+/// nút Huỷ dừng ngay; thẻ bị gỡ (đóng Vy, nói việc khác) thì KHÔNG báo.
+class SosCard extends VyCard {
+  SosCard({required this.seconds, required this.onFire, super.actions}) : super(replacesSpeech: false);
+
+  final int seconds;
+
+  /// Báo SOS (chỉ chạy một lần, khi hết đếm ngược).
+  final VoidCallback onFire;
+}
+
 /// Thẻ "Đã gửi": tick xanh, gửi cho ai, nội dung. Tự thu về sau vài giây.
 class SentCard extends VyCard {
   SentCard({required this.to, required this.text, super.actions}) : super(hold: const Duration(seconds: 5));

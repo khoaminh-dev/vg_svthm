@@ -306,6 +306,9 @@ class VoiceController extends Notifier<VoiceState> {
           choices: d.choices,
           aliasPhrase: d.aliasPhrase,
         );
+      case 'cancel':
+        // Người dùng nói "huỷ/thôi/dừng": gỡ thẻ đếm ngược (gọi điện, SOS) để KHÔNG gọi/báo.
+        ref.read(vyCardProvider.notifier).clear();
       case 'repeat':
         say = _lastSay ?? 'Con chưa nói gì để nhắc lại ạ.';
         sayClass = _lastSayClass;

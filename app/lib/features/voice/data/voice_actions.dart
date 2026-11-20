@@ -21,11 +21,13 @@ import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../core/vy_card.dart';
 import '../core/vi_text.dart';
+import '../core/vy_core.dart';
+import '../../safety/presentation/sos_screen.dart' show sosFailedId;
+import 'direct_caller.dart';
 import '../core/vy_cursor.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../safety/domain/safety_models.dart' show CardContact, EmergencyCard;
 import '../../safety/presentation/safety_providers.dart';
-import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 import '../core/control_registry.dart';
 import '../domain/voice_models.dart';
 
@@ -178,6 +180,8 @@ class VoiceActions {
         return await recordBp(s, honorific);
       case 'read_messages':
         return await readMessages(honorific);
+      case 'sos_start':
+        return startSos(honorific);
       case 'call_contact':
         return await callContact(s['recipient_text'] ?? '', honorific);
       case 'go_home':
@@ -417,7 +421,7 @@ class VoiceActions {
       name = hits.first.name.isEmpty ? hits.first.phone : hits.first.name;
       number = hits.first.phone;
     }
-    final call = _ref.read(phoneLauncherProvider);
+    final call = _ref.read(directCallProvider);
     _ref.read(vyCardProvider.notifier).show(
       CallCard(
         name: name,
@@ -433,6 +437,44 @@ class VoiceActions {
       ),
     );
     return 'Dạ, con gọi $name sau $seconds giây. $cap bấm Huỷ nếu không muốn gọi ạ.';
+  }
+
+  /// SOS bằng giọng: người dùng NÓI RÕ "gọi SOS" thì đếm ngược 5 giây có nút Huỷ rồi báo người thân (D18).
+  /// Vy không tự bắt đầu; thẻ bị gỡ (đóng Vy, nói việc khác) trước khi hết giờ thì KHÔNG báo.
+  Future<String> startSos(String honorific) async {
+    final cap = _cap(honorific);
+    Analytics.track('voice_sos_start');
+    _ref.read(vyCardProvider.notifier).show(
+      SosCard(
+        seconds: 5,
+        onFire: () => unawaited(fireSos()),
+        actions: [
+          VyCardAction(
+            label: 'Huỷ',
+            primary: true,
+            run: () {
+              Analytics.track('voice_sos_cancel');
+              _ref.read(vyCardProvider.notifier).clear();
+            },
+          ),
+        ],
+      ),
+    );
+    return 'Dạ, con báo SOS cho người thân sau 5 giây. $cap bấm Huỷ nếu bấm nhầm ạ.';
+  }
+
+  /// Báo SOS thật (như bấm giữ nút SOS) rồi mở màn SOS. Mất mạng thì vẫn mở màn SOS để gọi 115.
+  Future<void> fireSos() async {
+    Analytics.track('sos_trigger', {'via': 'voice'});
+    String id;
+    try {
+      id = await _ref.read(safetyRepositoryProvider).triggerSos();
+    } catch (_) {
+      id = sosFailedId;
+    }
+    _ref.read(vyCardProvider.notifier).clear();
+    unawaited(_ref.read(vyCoreProvider.notifier).close(reason: 'sos'));
+    _ref.read(routerProvider).push(Routes.sosFor(id));
   }
 
   /// Người liên hệ khớp với cụm đã bỏ dấu [q]: tên chứa cụm, cụm chứa tên, hoặc mọi từ của cụm có trong tên.

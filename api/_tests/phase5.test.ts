@@ -122,3 +122,33 @@ test('"đúng rồi" là đồng ý (không bị hiểu thành "dừng" → hu�
   const stop2 = await step({ text: 'dừng lại', state: st, ui }, noNlu);
   assert.equal(stop2.action, 'cancel');
 });
+
+test('SOS nói rõ: "gọi SOS" → sos_start (app đếm ngược 5 giây có Huỷ); "bấm SOS"/"SOS" trơn chỉ chỉ vào nút, không bắt đầu', async () => {
+  const { sosExplicit } = await import('../_lib/voice/dm.ts');
+  for (const say of ['gọi SOS', 'báo SOS', 'gọi sos đi', 'kích hoạt SOS', 'gọi nút SOS', 'báo SOS ngay', 'gọi SOS giúp tôi']) {
+    assert.equal(sosExplicit(n(say)), true, say);
+    const d = await step({ text: say, state: {}, ui }, noNlu);
+    assert.equal(d.intent, 'sos_start', say);
+    assert.equal(d.action, 'execute');
+    assert.match(d.say, /giữ nút SOS/); // bản app cũ vẫn có hướng dẫn, không im lặng
+  }
+  for (const say of ['SOS', 'bấm SOS', 'nút SOS ở đâu', 'tôi muốn xem SOS', 'sos của tôi', 'đăng xuất']) {
+    assert.equal(sosExplicit(n(say)), false, say);
+  }
+  // có ngữ cảnh màn hình (SOS là mức 3): "gọi SOS" nói rõ vẫn là sos_start, còn "bấm SOS" thì chỉ chỉ
+  const ctx = {
+    role: 'elder' as const, route: '/', dialog: null, lists: [], player: { open: false, playing: false },
+    controls: [{ id: 'home.sos', label: 'SOS', aliases: ['báo động', 'gọi sos'], kind: 'button' as const, level: 3 as const, enabled: true }],
+  };
+  const uic = { screen: '/', contacts: [], honorific: 'bác', context: ctx };
+  assert.equal((await step({ text: 'gọi SOS', state: {}, ui: uic }, noNlu)).intent, 'sos_start');
+  const pt = await step({ text: 'bấm SOS', state: {}, ui: uic }, noNlu);
+  assert.equal(pt.intent, 'point_control');
+  assert.equal(pt.task?.slots.control_id, undefined);
+});
+
+test('khẩn cấp thật (đau ngực...) vẫn đi đường khẩn cấp, không tự bắt đầu SOS', async () => {
+  const d = await step({ text: 'tôi đau ngực quá', state: {}, ui }, noNlu);
+  assert.equal(d.intent, 'emergency');
+  assert.notEqual(d.intent, 'sos_start');
+});
