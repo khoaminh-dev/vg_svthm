@@ -25,7 +25,7 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    final fg = isMine ? scheme.onPrimary : scheme.onSurface;
+    final fg = isMine ? Colors.white : const Color(0xFF14213D);
     final path = message.imagePath;
 
     final bubble = Container(
@@ -36,14 +36,23 @@ class MessageBubble extends StatelessWidget {
           ? const EdgeInsets.fromLTRB(6, 6, 6, 8)
           : const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: isMine ? scheme.primary : scheme.surfaceContainerLowest,
+        color: isMine ? const Color(0xFF0B2447) : Colors.white,
+        boxShadow: isMine
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x141E325A),
+                  blurRadius: 10,
+                  offset: Offset(0, 2),
+                ),
+              ],
         border: null,
         // Góc phía người gửi nhọn hơn để nhận ra ai nói.
         borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(AppSpacing.radiusLg),
-          topRight: const Radius.circular(AppSpacing.radiusLg),
-          bottomLeft: Radius.circular(isMine ? AppSpacing.radiusLg : 6),
-          bottomRight: Radius.circular(isMine ? 6 : AppSpacing.radiusLg),
+          topLeft: const Radius.circular(22),
+          topRight: const Radius.circular(22),
+          bottomLeft: Radius.circular(isMine ? 22 : 6),
+          bottomRight: Radius.circular(isMine ? 6 : 22),
         ),
       ),
       child: Column(
@@ -57,8 +66,8 @@ class MessageBubble extends StatelessWidget {
               child: Text(
                 senderName,
                 style: text.labelMedium?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF7A8699),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -94,7 +103,7 @@ class MessageBubble extends StatelessWidget {
                   : EdgeInsets.zero,
               child: Text(
                 message.content,
-                style: TextStyle(color: fg, fontSize: 18, height: 1.35),
+                style: TextStyle(color: fg, fontSize: 18, height: 1.4, fontWeight: FontWeight.w400),
               ),
             ),
           const SizedBox(height: 2),

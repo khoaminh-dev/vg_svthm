@@ -177,6 +177,20 @@ class _MessageInputState extends State<MessageInput> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
                     decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFFEDEFF4),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(26),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(26),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(26),
+                        borderSide: BorderSide.none,
+                      ),
                       hintText: image != null
                           ? 'Thêm chú thích (không bắt buộc)'
                           : 'Nhập tin nhắn...',
@@ -187,8 +201,13 @@ class _MessageInputState extends State<MessageInput> {
                 const SizedBox(width: 4),
                 IconButton.filled(
                   tooltip: 'Gửi',
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B2447),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(52, 52),
+                  ),
                   onPressed: _sending ? null : _send,
-                  icon: const Icon(Icons.send),
+                  icon: const Icon(Icons.arrow_upward_rounded),
                 ),
               ],
             ),

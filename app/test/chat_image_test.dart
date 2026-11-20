@@ -65,7 +65,7 @@ void main() {
     );
 
     // Chưa có ảnh: gửi rỗng không làm gì.
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byTooltip('Gửi'));
     await tester.pump();
     expect(sent, isEmpty);
 
@@ -78,7 +78,7 @@ void main() {
     expect(find.text('Thêm chú thích (không bắt buộc)'), findsOneWidget);
 
     // Gửi ngay không chú thích.
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byTooltip('Gửi'));
     await tester.pumpAndSettle();
     expect(sent, hasLength(1));
     expect(sent.single.$2, '');
@@ -90,7 +90,7 @@ void main() {
     await tester.tap(find.text('Chọn từ thư viện'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Đơn thuốc mới');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byTooltip('Gửi'));
     await tester.pumpAndSettle();
     expect(sent, hasLength(2));
     expect(sent.last.$2, 'Đơn thuốc mới');
@@ -125,7 +125,7 @@ void main() {
     expect(find.byType(Image), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'chào');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byTooltip('Gửi'));
     await tester.pumpAndSettle();
     expect(texts, ['chào']);
   });

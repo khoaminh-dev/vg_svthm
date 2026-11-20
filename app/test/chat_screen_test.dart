@@ -126,7 +126,7 @@ void main() {
     expect(find.textContaining('Chưa có tin nhắn'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'xin chào');
-    await tester.tap(find.byIcon(Icons.send));
+    await tester.tap(find.byTooltip('Gửi'));
     await tester.pumpAndSettle();
     expect(find.text('xin chào'), findsOneWidget);
 
