@@ -1,0 +1,431 @@
+{
+ "meds": {
+  "role": "elder",
+  "route": "/bp",
+  "dialog": null,
+  "controls": [
+   {
+    "id": "meds.manage",
+    "label": "Xem và sửa lịch thuốc",
+    "aliases": [
+     "lịch thuốc",
+     "xem lịch thuốc",
+     "sửa lịch thuốc"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "meds.add",
+    "label": "Thêm lịch thuốc",
+    "aliases": [
+     "thêm đơn thuốc",
+     "thêm đơn"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "meds.scan",
+    "label": "Chụp đơn thuốc",
+    "aliases": [
+     "chụp đơn thuốc mới",
+     "quét đơn thuốc"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "nav.home",
+    "label": "Về trang chủ",
+    "aliases": [
+     "trang chủ",
+     "màn hình chính"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "meds.undo.c2a1f309-c283-4a9f-a110-35f89d0586c8",
+    "label": "Hoàn tác Túi Sáng",
+    "aliases": [
+     "hoàn tác"
+    ],
+    "kind": "button",
+    "level": 2,
+    "enabled": true,
+    "say": "Dạ, con hoàn tác cữ Túi Sáng rồi ạ."
+   },
+   {
+    "id": "meds.taken.f4e9f672-1622-4942-8b66-cb6b8c3ddf80",
+    "label": "Đã uống Túi Tối",
+    "aliases": [
+     "đã uống",
+     "tôi uống rồi",
+     "bác uống rồi",
+     "uống rồi",
+     "đã uống rồi",
+     "uống thuốc rồi"
+    ],
+    "kind": "button",
+    "level": 1,
+    "enabled": true,
+    "say": "Dạ, con ghi {hon} đã uống Túi Tối rồi ạ."
+   },
+   {
+    "id": "meds.skip.f4e9f672-1622-4942-8b66-cb6b8c3ddf80",
+    "label": "Bỏ qua cữ Túi Tối",
+    "aliases": [
+     "bỏ qua",
+     "bỏ qua cữ này"
+    ],
+    "kind": "button",
+    "level": 2,
+    "enabled": true,
+    "say": "Dạ, con ghi {hon} bỏ qua cữ Túi Tối ạ."
+   }
+  ],
+  "lists": [],
+  "player": {
+   "open": false,
+   "playing": false
+  }
+ },
+ "videos": {
+  "role": "elder",
+  "route": "/",
+  "dialog": null,
+  "controls": [
+   {
+    "id": "ent.categories",
+    "label": "Chọn mục khác",
+    "aliases": [
+     "mục khác",
+     "thể loại",
+     "các mục"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   }
+  ],
+  "lists": [
+   {
+    "id": "ent.videos",
+    "title": "Kết quả video",
+    "items": [
+     {
+      "n": 1,
+      "title": "Lk Ca Nhạc Bolero Trữ Tình CỰC ÊM TAI - Nhạc Vàng Xưa Hải Ngoại Đặc Biệt Hay, Lk Ngõ Hồn Qua Đêm"
+     },
+     {
+      "n": 2,
+      "title": "Ca Nhạc Trữ Tình Bolero TOÀN BÀI HAY CỰC ÊM TAI - LK Nhạc Vàng Xưa Dễ Nghe Dễ Ngủ HAY NHẤT HIỆN NAY"
+     },
+     {
+      "n": 3,
+      "title": "Mưa Đêm Tỉnh Nhỏ, Đoạn Buồn Đêm Mưa - LK Nhạc Vàng Hải Ngoại Xưa Bất Hủ Nghe Là Ngủ - Công Tuấn"
+     },
+     {
+      "n": 4,
+      "title": "NGƯỜI XA VỀ THÀNH PHỐ - LK Nhạc Vàng Xưa MỚI NHẤT,BOLERO Tuyển Chọn Giọng Ca DIỄN QUÂN ĐẶC BIỆT HAY"
+     },
+     {
+      "n": 5,
+      "title": "LK Nhạc BOLERO 5.0* 17/11/2026 GIỌNG CA VÀNG HAY NHẤT HIỆN NAY ➤ Lk Ca Nhạc Trữ Tình MỚI ĐÉT 2026"
+     },
+     {
+      "n": 6,
+      "title": "100 Bài Nhạc Xưa 1975 Bản Gốc Bất Hủ - Nhạc Vàng Xưa Nhiều Danh Ca Hội Tụ Hiếm Ai Còn Nhớ"
+     },
+     {
+      "n": 7,
+      "title": "20 Bài Nhạc Xưa Bản Gốc Đắt Giá Nhất - Nhạc Vàng Xưa Sài Gòn 1975 Bất Hủ Chọn Lọc Hay Vượt Thời Gian"
+     },
+     {
+      "n": 8,
+      "title": "LK Nhạc Lính Xưa 1975 \"CỰC ÊM TAI\"- Thư Tình Em Gái ➤BOLERO CÔNG TUẤN | Nhạc Xưa Hải Ngoại Chọn Lọc"
+     },
+     {
+      "n": 9,
+      "title": "TUYỂN TẬP NHẠC VÀNG XƯA PHÚC LINH - List 12 Bài Hát Bolero Được Yêu Thích Nhất - CẤM NGHE VÌ QUÁ HAY"
+     },
+     {
+      "n": 10,
+      "title": "Nhạc Vàng Xưa 1975 Chọn Lọc Bất Hủ - Nhạc Xưa Bản Gốc Hay Nhất Nghe Hoài Không Chán"
+     }
+    ]
+   }
+  ],
+  "player": {
+   "open": false,
+   "playing": false
+  }
+ },
+ "home": {
+  "role": "elder",
+  "route": "/",
+  "dialog": null,
+  "controls": [
+   {
+    "id": "home.measure",
+    "label": "Đo huyết áp",
+    "aliases": [
+     "chụp huyết áp",
+     "đo huyết áp bây giờ"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "home.meds",
+    "label": "Thuốc",
+    "aliases": [
+     "lịch uống thuốc"
+    ],
+    "kind": "tab",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "home.health",
+    "label": "Sức khoẻ",
+    "kind": "tab",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "home.messages",
+    "label": "Tin nhắn",
+    "kind": "tab",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "home.community",
+    "label": "Cộng đồng",
+    "kind": "tab",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "home.relax",
+    "label": "Thư giãn",
+    "aliases": [
+     "giải trí"
+    ],
+    "kind": "tab",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "home.sos",
+    "label": "SOS",
+    "aliases": [
+     "báo động",
+     "gọi sos",
+     "nút sos"
+    ],
+    "kind": "button",
+    "level": 3,
+    "enabled": true
+   }
+  ],
+  "lists": [],
+  "player": {
+   "open": false,
+   "playing": false
+  }
+ },
+ "profile": {
+  "role": "elder",
+  "route": "/profile",
+  "dialog": null,
+  "controls": [
+   {
+    "id": "prof.captions",
+    "label": "Hiện chữ khi Vy nói",
+    "aliases": [
+     "chữ phụ đề",
+     "phụ đề",
+     "chữ khi vy nói"
+    ],
+    "kind": "toggle",
+    "level": 1,
+    "enabled": true,
+    "value": true
+   },
+   {
+    "id": "prof.sounds",
+    "label": "Tiếng khi bật và tắt Vy",
+    "aliases": [
+     "tiếng ting",
+     "âm thanh vy"
+    ],
+    "kind": "toggle",
+    "level": 1,
+    "enabled": true,
+    "value": true
+   },
+   {
+    "id": "prof.speak",
+    "label": "Đọc lời khuyên sau khi đo",
+    "aliases": [
+     "đọc lời khuyên",
+     "lời khuyên"
+    ],
+    "kind": "toggle",
+    "level": 1,
+    "enabled": true,
+    "value": true
+   },
+   {
+    "id": "prof.bpremind",
+    "label": "Nhắc đo huyết áp",
+    "aliases": [
+     "nhắc nhở đo huyết áp"
+    ],
+    "kind": "toggle",
+    "level": 1,
+    "enabled": true,
+    "value": true
+   },
+   {
+    "id": "prof.push",
+    "label": "Thông báo tin nhắn",
+    "kind": "toggle",
+    "level": 1,
+    "enabled": true,
+    "value": true
+   },
+   {
+    "id": "prof.invite",
+    "label": "Mời người thân",
+    "aliases": [
+     "mã mời"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "prof.emergency",
+    "label": "Thẻ y tế khẩn cấp",
+    "aliases": [
+     "thẻ y tế"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "prof.health",
+    "label": "Hồ sơ sức khoẻ",
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "prof.role",
+    "label": "Đổi vai trò",
+    "kind": "button",
+    "level": 3,
+    "enabled": true
+   },
+   {
+    "id": "prof.logout",
+    "label": "Đăng xuất",
+    "aliases": [
+     "thoát tài khoản"
+    ],
+    "kind": "button",
+    "level": 3,
+    "enabled": true
+   },
+   {
+    "id": "nav.home",
+    "label": "Về trang chủ",
+    "aliases": [
+     "trang chủ",
+     "màn hình chính"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   }
+  ],
+  "lists": [],
+  "player": {
+   "open": false,
+   "playing": false
+  }
+ },
+ "categories": {
+  "role": "elder",
+  "route": "/entertainment",
+  "dialog": null,
+  "controls": [
+   {
+    "id": "ent.cat.881334026",
+    "label": "Nhạc xưa",
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "ent.cat.560660871",
+    "label": "Cải lương",
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "ent.cat.677660641",
+    "label": "Tin tức",
+    "aliases": [
+     "thời sự"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "ent.cat.647704149",
+    "label": "Thiền thư giãn",
+    "aliases": [
+     "thiền"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "ent.cat.268461510",
+    "label": "Hài kịch",
+    "aliases": [
+     "hài"
+    ],
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   },
+   {
+    "id": "ent.cat.885318232",
+    "label": "Dưỡng sinh",
+    "kind": "button",
+    "level": 0,
+    "enabled": true
+   }
+  ],
+  "lists": [],
+  "player": {
+   "open": false,
+   "playing": false
+  }
+ }
+}

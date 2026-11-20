@@ -2,9 +2,11 @@
 // Nguyên tắc: LLM chỉ "hiểu" (intent + slot thô). Việc đủ/thiếu slot, hỏi lại, xác nhận, phân giải người nhận
 // đều do code ở đây quyết định để chắc chắn và kiểm thử được. Xem docs/VOICE_AGENT.md mục 4.
 
+import { resolveUiCommand, type UiContext, type UiControl } from './ui_cmd.js';
+
 export type Expect = 'command' | 'free_text' | 'yes_no' | 'choice' | 'name' | 'none';
 export type Contact = { id: string; kind: 'direct' | 'group'; name: string; username?: string; aliases?: string[] };
-export type Ui = { screen?: string; roomId?: string | null; contacts?: Contact[]; honorific?: string };
+export type Ui = { screen?: string; roomId?: string | null; contacts?: Contact[]; honorific?: string; context?: UiContext };
 export type Task = { intent: string; slots: Record<string, string> };
 export type DState = {
   task?: Task | null;
@@ -327,6 +329,8 @@ const REQUIRED: Record<string, string[]> = {
 };
 const NEEDS_CONFIRM = new Set(['send_message']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
+/** Ý định do bộ ghép với màn hình tạo ra (không nằm trong INTENT_LIST để mô hình không tự chọn). Có thể quay lại trong `state.task` khi chờ xác nhận. */
+export const UI_INTENTS = ['invoke_control', 'choose_item'];
 
 function mk(p: Partial<Decision> & Pick<Decision, 'action' | 'say'>): Decision {
   return {
@@ -355,6 +359,11 @@ export async function step(
   if (expects !== 'free_text' && EMERGENCY.test(t)) {
     return mk({ action: 'answer', intent: 'emergency', say: S.emergency(hon), sayClass: 'emergency', chips: [] });
   }
+  // 1b) có hộp thoại đang mở trên màn hình: "đồng ý"/"huỷ"/"ở lại" là nút của hộp thoại, không phải việc đang dở
+  if (ui.context?.dialog) {
+    const d = uiDecision(text, ui.context, hon);
+    if (d) return d;
+  }
   // 2) hủy
   if (CANCEL.test(t)) return mk({ action: 'cancel', say: S.cancelled() });
   if (REPEAT.test(t) && t.split(' ').length <= 4) return mk({ action: 'repeat', say: '' });
@@ -366,7 +375,7 @@ export async function step(
   // 3) đang chờ xác nhận
   if (expects === 'yes_no' && task) {
     if (YES.test(t) && !input.lowConfidence) {
-      return mk({ action: 'execute', intent: task.intent, task, say: S.sentOk() });
+      return mk({ action: 'execute', intent: task.intent, task, say: doneSay(task) });
     }
     const editWords = matchPrefixWords(t, EDIT_PREFIX);
     if (editWords > 0 && task.intent === 'send_message') {
@@ -427,6 +436,12 @@ export async function step(
     return mk({ action: 'ask', intent: task.intent, task, pending: 'recipient', expects: 'name', say: noContactSay(hon, text), sayClass: 'other', expectsReply: true, aliasPhrase, chips: contacts.slice(0, 4).map((c) => c.name) });
   }
 
+  // 6b) màn hình thật: ghép với điều khiển/danh sách đang hiện (hộp thoại che màn sau)
+  if (ui.context) {
+    const d = uiDecision(text, ui.context, hon);
+    if (d) return d;
+  }
+
   // 7) lệnh mới: luật nhanh → LLM
   const fast = fastIntent(t, text, contacts, ui.roomId, hon);
   let nluOut: NluResult | null = null;
@@ -463,6 +478,76 @@ export async function step(
     if (f) task.slots.feature = f;
   }
   return progress(task, ui, hon, contacts, null, undefined);
+}
+
+function cap(h: string): string {
+  return `${h[0].toUpperCase()}${h.slice(1)}`;
+}
+
+/** Câu Vy nói khi xong một việc đã được xác nhận. */
+function doneSay(task: Task): string {
+  if (task.intent === 'send_message') return S.sentOk();
+  return task.slots.say || S.opened();
+}
+
+function actPhrase(c: UiControl, set?: boolean): string {
+  if (c.kind === 'toggle') return `${set ? 'bật' : 'tắt'} ${c.label}`;
+  if (c.kind === 'tab') return `mở ${c.label}`;
+  return `bấm ${c.label}`;
+}
+
+function controlSay(c: UiControl, set: boolean | undefined, hon: string): string {
+  // `{hon}` trong câu của nút được thay bằng cách xưng hô của người dùng ("Dạ, con ghi {hon} đã uống rồi ạ.").
+  if (c.say) return c.say.replaceAll('{hon}', hon);
+  if (c.kind === 'toggle') return `Dạ, con ${set ? 'bật' : 'tắt'} ${c.label} rồi ạ.`;
+  if (c.kind === 'tab') return `Dạ, con mở ${c.label} rồi ạ.`;
+  return `Dạ, con bấm ${c.label} rồi ạ.`;
+}
+
+/** Biến kết quả ghép màn hình thành quyết định. Mức xác nhận: 0/1 làm ngay, 2 hỏi lại, 3 không bao giờ bấm. */
+export function uiDecision(text: string, ctx: UiContext, hon: string): Decision | null {
+  const cmd = resolveUiCommand(text, ctx);
+  if (!cmd) return null;
+  switch (cmd.kind) {
+    case 'choose': {
+      const it = cmd.list.items[cmd.n - 1];
+      const task: Task = { intent: 'choose_item', slots: { list_id: cmd.list.id, n: String(cmd.n), title: it.title.slice(0, 80) } };
+      return mk({ action: 'execute', intent: 'choose_item', task, say: `Dạ, con mở ${it.title.slice(0, 60)} ạ.`, sayClass: 'other' });
+    }
+    case 'out_of_range':
+      return mk({ action: 'answer', intent: 'choose_item', say: `Dạ, con chỉ thấy ${cmd.list.items.length} mục thôi ạ. ${cap(hon)} chọn lại giúp con nhé.`, sayClass: 'other' });
+    case 'ambiguous': {
+      const names = cmd.options.map((o) => o.label);
+      return mk({
+        action: 'ask', intent: 'invoke_control', expects: 'command', expectsReply: true,
+        say: `Dạ, ${hon} muốn ${names.slice(0, -1).join(', ')} hay ${names[names.length - 1]} ạ?`,
+        sayClass: 'other', chips: names,
+      });
+    }
+    case 'refuse': {
+      const c = cmd.control;
+      if (cmd.why === 'level3') {
+        return mk({ action: 'answer', intent: 'refuse_control', say: `Dạ, nút ${c.label} ${hon} tự bấm giúp con nhé. Con không bấm thay được ạ.`, sayClass: 'important' });
+      }
+      if (cmd.why === 'already') {
+        return mk({ action: 'answer', intent: 'refuse_control', say: `Dạ, ${c.label} đang ${c.value ? 'bật' : 'tắt'} rồi ạ.`, sayClass: 'other' });
+      }
+      return mk({ action: 'answer', intent: 'refuse_control', say: `Dạ, nút ${c.label} bây giờ chưa bấm được ạ.`, sayClass: 'other' });
+    }
+    case 'invoke': {
+      const c = cmd.control;
+      const slots: Record<string, string> = { control_id: c.id, label: c.label.slice(0, 60), say: controlSay(c, cmd.set, hon).slice(0, 200) };
+      if (cmd.set !== undefined) slots.set = cmd.set ? '1' : '0';
+      const task: Task = { intent: 'invoke_control', slots };
+      if (c.level === 2) {
+        return mk({
+          action: 'confirm', intent: 'invoke_control', task, expects: 'yes_no', expectsReply: true,
+          say: `${cap(hon)} muốn ${actPhrase(c, cmd.set)}, đúng không ạ?`, sayClass: 'important', chips: ['Đồng ý', 'Hủy'],
+        });
+      }
+      return mk({ action: 'execute', intent: 'invoke_control', task, say: controlSay(c, cmd.set, hon), sayClass: 'other' });
+    }
+  }
 }
 
 function setRecipient(task: Task, c: Contact) {

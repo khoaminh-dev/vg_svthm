@@ -48,6 +48,7 @@ class VoiceApi {
     String? roomId,
     required List<VoiceContact> contacts,
     required String honorific,
+    Map<String, Object?>? uiContext,
   }) async {
     final token = accessToken();
     if (_baseUrl.isEmpty)
@@ -76,6 +77,7 @@ class VoiceApi {
                 'room_id': roomId,
                 'honorific': honorific,
                 'contacts': [for (final c in contacts) c.toJson()],
+                if (uiContext != null) 'context': uiContext,
               },
             }),
           )

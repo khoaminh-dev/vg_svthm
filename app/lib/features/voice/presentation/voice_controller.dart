@@ -8,6 +8,7 @@ import '../data/speech_player.dart';
 import '../data/thinking_sound.dart';
 import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
+import '../core/vy_context.dart';
 import '../data/voice_recorder.dart';
 import '../domain/voice_models.dart';
 import '../live/live_state.dart';
@@ -263,6 +264,7 @@ class VoiceController extends Notifier<VoiceState> {
         roomId: _actions.currentRoomId(),
         contacts: contacts,
         honorific: _honorific,
+        uiContext: ref.read(vyUiContextProvider)(),
       );
       if (myRun != _run) return;
       await _apply(res, contacts, myRun, rttMs: sw.elapsedMilliseconds);

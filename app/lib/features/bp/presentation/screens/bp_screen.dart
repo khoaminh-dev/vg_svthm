@@ -15,6 +15,7 @@ import '../../../auth/domain/auth_user.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../health/presentation/providers/health_providers.dart';
 import '../../../health/presentation/widgets/risk_view.dart';
+import '../../../voice/core/control_registry.dart';
 import '../../../meds/presentation/meds_view.dart';
 import '../../domain/bp_models.dart';
 import '../providers/bp_providers.dart';
@@ -67,7 +68,28 @@ class BpScreen extends ConsumerWidget {
     final elder =
         ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
 
-    return Scaffold(
+    return VyControlScope(
+      controls: [
+        // Chỉ ở mục Huyết áp (tab 0). Mục Thuốc và Đánh giá tự khai báo điều khiển của mình.
+        if (tab == 0) ...[
+          VyControl(
+            id: 'bp.measure',
+            label: 'Đo huyết áp bây giờ',
+            aliases: const ['đo huyết áp', 'đo bây giờ', 'chụp huyết áp', 'đo lại'],
+            onInvoke: () {
+              Analytics.track('bp_tap_measure');
+              context.push(Routes.measure);
+            },
+          ),
+          VyControl(
+            id: 'bp.risk',
+            label: 'Xem nguy cơ sức khoẻ',
+            aliases: const ['nguy cơ', 'xem nguy cơ', 'nguy cơ sức khoẻ'],
+            onInvoke: () => ref.read(healthTabProvider.notifier).set(1),
+          ),
+        ],
+      ],
+      child: Scaffold(
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -394,6 +416,7 @@ class BpScreen extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

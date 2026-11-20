@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/analytics/analytics.dart';
+import '../../../core/diagnostics/app_trace.dart';
 import '../data/speech_player.dart';
 import '../data/voice_actions.dart';
 import '../data/vy_sounds.dart';
 import '../live/live_lab_controller.dart';
 import '../presentation/voice_controller.dart';
+import 'vy_context.dart';
 import 'vy_greeting.dart';
 import 'vy_settings.dart';
 import 'vy_view.dart';
@@ -115,6 +118,8 @@ class VyCore extends Notifier<VyView> {
     HapticFeedback.lightImpact();
     if (_settings.sounds) unawaited(VySounds.on());
     Analytics.track('vy_open');
+    // Chỉ bản build thử (VG_TRACE): ghi ngữ cảnh màn hình để đối chiếu với bộ kiểm thử của máy chủ.
+    if (kTrace) AppTrace.line('UI_CONTEXT ${jsonEncode(ref.read(vyUiContextProvider)())}');
     _sync();
 
     final recent = _lastClosedAt != null && _now().difference(_lastClosedAt!) < recentWindow;

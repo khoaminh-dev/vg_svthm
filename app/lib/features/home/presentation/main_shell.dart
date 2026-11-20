@@ -10,6 +10,7 @@ import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../family/presentation/family_providers.dart';
 import '../../meds/presentation/meds_providers.dart';
+import '../../voice/core/control_registry.dart';
 import '../../voice/core/vy_core.dart';
 
 /// Khung bốn tab chính: Trang chủ · Tin nhắn · (Vy) · Sức khoẻ · Hồ sơ.
@@ -140,7 +141,16 @@ class _BackHomeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return VyControlScope(
+      controls: [
+        VyControl(
+          id: 'nav.home',
+          label: 'Về trang chủ',
+          aliases: const ['trang chủ', 'màn hình chính'],
+          onInvoke: onHome,
+        ),
+      ],
+      child: Material(
       color: Colors.white,
       elevation: 8,
       child: SafeArea(
@@ -166,6 +176,7 @@ class _BackHomeBar extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

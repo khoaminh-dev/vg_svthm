@@ -12,6 +12,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../voice/core/control_registry.dart';
 import '../data/meds_repository.dart';
 import '../domain/meds_models.dart';
 import 'meds_providers.dart';
@@ -69,7 +70,30 @@ class _MedsViewState extends ConsumerState<MedsView> {
     final now = DateTime.now();
     final today = startOfDay(now);
 
-    return RefreshIndicator(
+    return VyControlScope(
+      controls: [
+        if (me != null) ...[
+          VyControl(
+            id: 'meds.manage',
+            label: 'Xem và sửa lịch thuốc',
+            aliases: const ['lịch thuốc', 'xem lịch thuốc', 'sửa lịch thuốc'],
+            onInvoke: () => context.push(Routes.medsPlanListFor(me)),
+          ),
+          VyControl(
+            id: 'meds.add',
+            label: 'Thêm lịch thuốc',
+            aliases: const ['thêm đơn thuốc', 'thêm đơn'],
+            onInvoke: () => context.push(Routes.medsPlanFor(me)),
+          ),
+          VyControl(
+            id: 'meds.scan',
+            label: 'Chụp đơn thuốc',
+            aliases: const ['chụp đơn thuốc mới', 'quét đơn thuốc'],
+            onInvoke: () => context.push(Routes.medsScanFor(me)),
+          ),
+        ],
+      ],
+      child: RefreshIndicator(
       onRefresh: () async {
         ref
           ..invalidate(myDosesProvider)
@@ -107,6 +131,7 @@ class _MedsViewState extends ConsumerState<MedsView> {
             ),
         ],
       ),
+    ),
     );
   }
 
@@ -131,6 +156,7 @@ class _MedsViewState extends ConsumerState<MedsView> {
         if (p.active) p,
     ];
     final prn = [for (final p in activePlans) ...p.prn];
+    final primaryId = _primaryDoseId(todays, now);
     final nextRecheck = [
       for (final p in activePlans)
         if (p.recheckDate != null) p.recheckDate!,
@@ -196,7 +222,13 @@ class _MedsViewState extends ConsumerState<MedsView> {
           ),
         ),
       for (final d in todays)
-        _DoseCard(dose: d, now: now, onAct: _act, repo: repo),
+        _DoseCard(
+          dose: d,
+          now: now,
+          onAct: _act,
+          repo: repo,
+          primary: d.id == primaryId,
+        ),
       if (prn.isNotEmpty) ...[
         const SizedBox(height: AppSpacing.md),
         _Card(
@@ -303,6 +335,27 @@ class _MedsViewState extends ConsumerState<MedsView> {
     ];
   }
 
+  /// Cữ mà "tôi uống rồi" nói chung nhắm tới: cữ đang đến giờ (sớm nhất), không có thì cữ sắp tới trong 90 phút.
+  static String? _primaryDoseId(List<Dose> todays, DateTime now) {
+    Dose? due, soon;
+    for (final d in todays) {
+      final st = d.stateAt(now);
+      if (st == DoseState.due && (due == null || d.dueAt.isBefore(due.dueAt))) due = d;
+      if (st == DoseState.upcoming &&
+          d.dueAt.difference(now) <= const Duration(minutes: 90) &&
+          (soon == null || d.dueAt.isBefore(soon.dueAt))) {
+        soon = d;
+      }
+    }
+    if (due != null || soon != null) return (due ?? soon)!.id;
+    // Chỉ còn đúng một cữ chờ uống thì "tôi uống rồi" là cữ đó, dù còn xa giờ.
+    final pending = [
+      for (final d in todays)
+        if (d.stateAt(now) == DoseState.upcoming || d.stateAt(now) == DoseState.due) d,
+    ];
+    return pending.length == 1 ? pending.first.id : null;
+  }
+
   static String _recheckText(DateTime d, DateTime today) {
     final days = DateTime(d.year, d.month, d.day).difference(today).inDays;
     final date =
@@ -353,8 +406,11 @@ class _DoseCard extends StatelessWidget {
     required this.now,
     required this.onAct,
     required this.repo,
+    this.primary = false,
   });
 
+  /// Cữ chính: nhận cách gọi chung ("tôi uống rồi", "bỏ qua", "hoàn tác"). Cữ khác chỉ gọi được bằng tên cữ.
+  final bool primary;
   final Dose dose;
   final DateTime now;
   final Future<void> Function(Future<void> Function() job, {String? ok}) onAct;
@@ -399,7 +455,63 @@ class _DoseCard extends StatelessWidget {
     final bagItems = dose.items.where((i) => !i.fromJar).toList();
     final jar = dose.items.where((i) => i.fromJar).toList();
 
-    return Container(
+    void take() {
+      Analytics.track('dose_taken');
+      onAct(() => repo.setDose(dose.id, 'taken'), ok: 'Đã ghi nhận bác uống thuốc');
+    }
+
+    void snooze() =>
+        onAct(() => repo.snooze(dose.id, 15), ok: 'Con sẽ nhắc lại sau 15 phút');
+    void skip() => onAct(() => repo.setDose(dose.id, 'skipped'));
+    void undo() => onAct(() => repo.setDose(dose.id, 'pending'));
+
+    // Tên cữ để phân biệt khi có nhiều cữ cùng lúc ("Đã uống Túi Sáng").
+    final name = dose.bag ? 'Túi ${dose.label}' : dose.label;
+
+    return VyControlScope(
+      controls: [
+        if (canAct) ...[
+          VyControl(
+            id: 'meds.taken.${dose.id}',
+            label: 'Đã uống $name',
+            aliases: [
+              if (primary) ...const [
+                'đã uống', 'tôi uống rồi', 'bác uống rồi', 'uống rồi', 'đã uống rồi', 'uống thuốc rồi',
+              ],
+            ],
+            level: VyLevel.readBack,
+            say: 'Dạ, con ghi {hon} đã uống $name rồi ạ.',
+            onInvoke: take,
+          ),
+          if (state == DoseState.due)
+            VyControl(
+              id: 'meds.snooze.${dose.id}',
+              label: 'Nhắc lại sau 15 phút',
+              aliases: [if (primary) ...const ['nhắc lại', 'nhắc tôi sau']],
+              level: VyLevel.readBack,
+              say: 'Dạ, con sẽ nhắc {hon} lại sau 15 phút ạ.',
+              onInvoke: snooze,
+            ),
+          VyControl(
+            id: 'meds.skip.${dose.id}',
+            label: 'Bỏ qua cữ $name',
+            aliases: [if (primary) ...const ['bỏ qua', 'bỏ qua cữ này']],
+            level: VyLevel.confirm,
+            say: 'Dạ, con ghi {hon} bỏ qua cữ $name ạ.',
+            onInvoke: skip,
+          ),
+        ],
+        if (canUndo)
+          VyControl(
+            id: 'meds.undo.${dose.id}',
+            label: 'Hoàn tác $name',
+            aliases: [if (primary || !canAct) ...const ['hoàn tác']],
+            level: VyLevel.confirm,
+            say: 'Dạ, con hoàn tác cữ $name rồi ạ.',
+            onInvoke: undo,
+          ),
+      ],
+      child: Container(
       key: Key('dose-${dose.id}'),
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(
@@ -477,13 +589,7 @@ class _DoseCard extends StatelessWidget {
               height: 64,
               child: FilledButton.icon(
                 key: Key('dose-taken-${dose.id}'),
-                onPressed: () {
-                  Analytics.track('dose_taken');
-                  onAct(
-                    () => repo.setDose(dose.id, 'taken'),
-                    ok: 'Đã ghi nhận bác uống thuốc',
-                  );
-                },
+                onPressed: take,
                 icon: const Icon(Icons.check_rounded, size: 26),
                 label: const Text('Đã uống', style: TextStyle(fontSize: 20)),
               ),
@@ -495,18 +601,14 @@ class _DoseCard extends StatelessWidget {
                   Expanded(
                     child: TextButton(
                       key: Key('dose-snooze-${dose.id}'),
-                      onPressed: () => onAct(
-                        () => repo.snooze(dose.id, 15),
-                        ok: 'Con sẽ nhắc lại sau 15 phút',
-                      ),
+                      onPressed: snooze,
                       child: const Text('Nhắc lại sau 15 phút'),
                     ),
                   ),
                 Expanded(
                   child: TextButton(
                     key: Key('dose-skip-${dose.id}'),
-                    onPressed: () =>
-                        onAct(() => repo.setDose(dose.id, 'skipped')),
+                    onPressed: skip,
                     child: const Text('Bỏ qua cữ này'),
                   ),
                 ),
@@ -528,12 +630,13 @@ class _DoseCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: TextButton(
                 key: Key('dose-undo-${dose.id}'),
-                onPressed: () => onAct(() => repo.setDose(dose.id, 'pending')),
+                onPressed: undo,
                 child: const Text('Hoàn tác'),
               ),
             ),
         ],
       ),
+    ),
     );
   }
 

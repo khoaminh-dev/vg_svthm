@@ -10,6 +10,7 @@ import '../data/speech_player.dart';
 import '../data/voice_actions.dart';
 import '../data/voice_api.dart';
 import '../domain/voice_models.dart';
+import '../core/vy_context.dart';
 import '../presentation/voice_controller.dart';
 import 'live_hybrid.dart';
 import 'live_state.dart';
@@ -600,6 +601,7 @@ class LiveLabController extends Notifier<LiveLabState> {
         roomId: _actions.currentRoomId(),
         contacts: _contacts,
         honorific: _honorific,
+        uiContext: ref.read(vyUiContextProvider)(),
       );
     } on VoiceApiException catch (e) {
       _log('NÃO LỖI ${e.code}: ${e.message}');

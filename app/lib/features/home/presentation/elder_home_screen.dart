@@ -22,6 +22,7 @@ import '../../meds/presentation/meds_providers.dart';
 import '../../safety/presentation/safety_providers.dart';
 import '../../safety/presentation/sos_screen.dart';
 import '../../safety/presentation/sos_widgets.dart';
+import '../../voice/core/control_registry.dart';
 import '../../voice/core/vy_core.dart';
 
 /// Một ô lối tắt trên trang chủ của người cao tuổi.
@@ -33,6 +34,13 @@ class ElderTile {
   final String label;
   final String feature;
 }
+
+/// Cách gọi khác cho từng ô lối tắt, để Vy hiểu người dùng nói "giải trí", "chụp huyết áp"...
+const _tileAliases = <String, List<String>>{
+  'measure': ['chụp huyết áp', 'đo huyết áp bây giờ'],
+  'meds': ['lịch uống thuốc'],
+  'relax': ['giải trí'],
+};
 
 const elderTiles = [
   ElderTile('measure', Icons.monitor_heart_outlined, 'Đo huyết áp', 'measure'),
@@ -104,7 +112,25 @@ class ElderHomeScreen extends ConsumerWidget {
     final now = DateTime.now();
     final due = dose != null && dose.stateAt(now) == DoseState.due;
 
-    return ElderScaleReset(
+    return VyControlScope(
+      controls: [
+        // Các ô lối tắt: mở màn, mức 0. SOS là mức 3: Vy chỉ nhắc, người dùng tự giữ nút.
+        for (final t in elderTiles)
+          VyControl(
+            id: 'home.${t.key}',
+            label: t.label,
+            aliases: _tileAliases[t.key] ?? const [],
+            kind: t.key == 'measure' ? VyKind.button : VyKind.tab,
+            onInvoke: () => _open(context, ref, t),
+          ),
+        const VyControl(
+          id: 'home.sos',
+          label: 'SOS',
+          aliases: ['báo động', 'gọi sos', 'nút sos'],
+          level: VyLevel.selfOnly,
+        ),
+      ],
+      child: ElderScaleReset(
       child: Scaffold(
       key: const Key('elder-home'),
       backgroundColor: AppColors.background,
@@ -213,6 +239,7 @@ class ElderHomeScreen extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     ),
     );
   }

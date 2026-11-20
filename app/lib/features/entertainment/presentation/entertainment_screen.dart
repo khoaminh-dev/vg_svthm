@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/elder_text_scale.dart';
+import '../../voice/core/control_registry.dart';
 import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +40,13 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
       'bài tập dưỡng sinh người lớn tuổi',
     ),
   ];
+
+  /// Cách gọi khác của từng mục (người dùng hay nói "thiền", "hài", "thời sự").
+  static const _categoryAliases = <String, List<String>>{
+    'Tin tức': ['thời sự'],
+    'Thiền thư giãn': ['thiền'],
+    'Hài kịch': ['hài'],
+  };
 
   @override
   void dispose() {
@@ -106,7 +114,44 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
     final theme = Theme.of(context);
 
     final elder = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
-    return Scaffold(
+    final videos = results.value ?? const <VideoItem>[];
+    void openVideo(List<VideoItem> list, int i) {
+      Analytics.track('video_open', {'from': 'voice_or_list'});
+      ref.read(videoQueueProvider.notifier).set(list);
+      context.push(Routes.player, extra: list[i]);
+    }
+
+    return VyControlScope(
+      controls: [
+        if (query.isEmpty)
+          for (final c in _categories)
+            VyControl(
+              id: 'ent.cat.${c.$3.hashCode}',
+              label: c.$1,
+              aliases: _categoryAliases[c.$1] ?? const [],
+              onInvoke: () => _search(c.$3),
+            )
+        else
+          VyControl(
+            id: 'ent.categories',
+            label: 'Chọn mục khác',
+            aliases: const ['mục khác', 'thể loại', 'các mục'],
+            onInvoke: _backToCategories,
+          ),
+      ],
+      // Danh sách video có số: "cái thứ hai", "số 3", "bài cuối".
+      lists: [
+        if (query.isNotEmpty && videos.isNotEmpty)
+          VyList(
+            id: 'ent.videos',
+            title: 'Kết quả video',
+            items: [
+              for (var i = 0; i < videos.length && i < 10; i++)
+                VyListItem(title: videos[i].title, onChoose: () => openVideo(videos, i)),
+            ],
+          ),
+      ],
+      child: Scaffold(
       bottomNavigationBar: elder ? ElderBackBar(onPressed: () => context.pop()) : null,
       body: SafeArea(
         bottom: false,
@@ -241,6 +286,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

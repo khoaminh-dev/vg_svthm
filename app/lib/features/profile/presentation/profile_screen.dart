@@ -18,6 +18,7 @@ import '../../family/presentation/family_providers.dart';
 import '../../bp/data/bp_reminder_service.dart';
 import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../push/push_service.dart';
+import '../../voice/core/control_registry.dart';
 import '../../voice/core/vy_settings.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
@@ -27,7 +28,24 @@ class ProfileScreen extends ConsumerWidget {
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => VyControlScope(
+        dialogId: 'dlg.logout',
+        dialogTitle: 'Đăng xuất khỏi Viegrand?',
+        controls: [
+          VyControl(
+            id: 'dlg.logout.ok',
+            label: 'Đăng xuất',
+            aliases: const ['đồng ý', 'có', 'chắc chắn'],
+            level: VyLevel.selfOnly, // Vy không bao giờ đăng xuất thay người dùng
+          ),
+          VyControl(
+            id: 'dlg.logout.stay',
+            label: 'Ở lại',
+            aliases: const ['không', 'thôi', 'huỷ', 'hủy', 'không đăng xuất'],
+            onInvoke: () => Navigator.pop(ctx, false),
+          ),
+        ],
+        child: AlertDialog(
         title: const Text('Đăng xuất khỏi Viegrand?'),
         content: const Text('Bạn cần đăng nhập lại để dùng tiếp.'),
         actionsAlignment: MainAxisAlignment.spaceBetween,
@@ -46,6 +64,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
+      ),
     );
     if (ok != true) return;
     Analytics.track('tap_sign_out');
@@ -58,6 +77,90 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final isElder = user?.role == AppRole.elder;
+    final vySet = ref.watch(vySettingsProvider).value ?? const VySettings();
+    final speakOn = ref.watch(speakAdviceProvider).value ?? true;
+    final bpRemind = (ref.watch(bpReminderSettingsProvider).value ?? const BpReminderSettings())
+        .effectiveEnabled(elder: isElder);
+    final pushPrefs = ref.watch(pushPrefsProvider).value ?? const PushPrefs();
+    final controls = <VyControl>[
+      VyControl(
+        id: 'prof.captions',
+        label: 'Hiện chữ khi Vy nói',
+        aliases: const ['chữ phụ đề', 'phụ đề', 'chữ khi vy nói'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.captions,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setCaptions(v),
+      ),
+      VyControl(
+        id: 'prof.sounds',
+        label: 'Tiếng khi bật và tắt Vy',
+        aliases: const ['tiếng ting', 'âm thanh vy'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.sounds,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setSounds(v),
+      ),
+      VyControl(
+        id: 'prof.speak',
+        label: 'Đọc lời khuyên sau khi đo',
+        aliases: const ['đọc lời khuyên', 'lời khuyên'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: speakOn,
+        onSet: (v) => ref.read(speakAdviceProvider.notifier).set(v),
+      ),
+      VyControl(
+        id: 'prof.bpremind',
+        label: 'Nhắc đo huyết áp',
+        aliases: const ['nhắc nhở đo huyết áp'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: bpRemind,
+        onSet: (v) => ref.read(bpReminderSettingsProvider.notifier).setEnabled(v),
+      ),
+      VyControl(
+        id: 'prof.push',
+        label: 'Thông báo tin nhắn',
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: pushPrefs.messages,
+        onSet: (v) => ref.read(pushPrefsProvider.notifier).save(pushPrefs.copyWith(messages: v)),
+      ),
+      if (user != null) ...[
+        VyControl(
+          id: 'prof.invite',
+          label: 'Mời người thân',
+          aliases: const ['mã mời'],
+          onInvoke: () => context.push(Routes.familyInvite),
+        ),
+        VyControl(
+          id: 'prof.emergency',
+          label: 'Thẻ y tế khẩn cấp',
+          aliases: const ['thẻ y tế'],
+          onInvoke: () => context.push(Routes.emergencyCardFor(user.id)),
+        ),
+        VyControl(
+          id: 'prof.health',
+          label: 'Hồ sơ sức khoẻ',
+          onInvoke: () => context.push(Routes.healthProfile),
+        ),
+      ],
+      // Việc không hoàn tác được hoặc đổi quyền: mức 3, Vy chỉ nhắc, người dùng tự bấm.
+      const VyControl(
+        id: 'prof.role',
+        label: 'Đổi vai trò',
+        level: VyLevel.selfOnly,
+      ),
+      VyControl(
+        id: 'prof.logout',
+        label: 'Đăng xuất',
+        aliases: const ['thoát tài khoản'],
+        level: VyLevel.selfOnly,
+        onInvoke: () => _confirmSignOut(context, ref),
+      ),
+    ];
 
     Widget row(IconData icon, String label, String value) => ListTile(
       minTileHeight: 64,
@@ -90,7 +193,9 @@ class ProfileScreen extends ConsumerWidget {
       },
     );
 
-    return Scaffold(
+    return VyControlScope(
+      controls: controls,
+      child: Scaffold(
       body: SafeArea(
         bottom: false,
         child: Center(
@@ -232,6 +337,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

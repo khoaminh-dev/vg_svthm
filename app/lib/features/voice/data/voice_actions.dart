@@ -11,6 +11,7 @@ import '../../chat/domain/room.dart';
 import '../../chat/presentation/providers/chat_providers.dart';
 import '../../entertainment/data/youtube_service.dart';
 import '../../entertainment/presentation/entertainment_providers.dart';
+import '../core/control_registry.dart';
 import '../domain/voice_models.dart';
 
 /// Bộ thực thi lệnh Vy dùng chung cho Vy thường (`VoiceController`) và Vy Live (`LiveLabController`).
@@ -151,6 +152,28 @@ class VoiceActions {
       case 'go_home':
         router.go(Routes.home);
         return null;
+      case 'invoke_control':
+        // Bấm một điều khiển theo mã (đã được máy chủ kiểm tra có trong ngữ cảnh). App kiểm tra lại mức: mức 3 không bấm.
+        final id = s['control_id'];
+        if (id == null) return null;
+        final set = s['set'];
+        final r = _ref
+            .read(controlRegistryProvider)
+            .invoke(id, set: set == null ? null : set == '1');
+        Analytics.track('voice_invoke_control', {'id': id, 'result': r.name});
+        return switch (r) {
+          VyInvokeResult.done => null,
+          VyInvokeResult.notFound => 'Con chưa thấy nút đó trên màn hình ạ.',
+          VyInvokeResult.disabled => 'Dạ, nút này bây giờ chưa bấm được ạ.',
+          VyInvokeResult.selfOnly => '${honorific[0].toUpperCase()}${honorific.substring(1)} tự bấm nút này giúp con nhé.',
+        };
+      case 'choose_item':
+        final n = int.tryParse(s['n'] ?? '');
+        final listId = s['list_id'];
+        if (n == null || listId == null) return null;
+        final ok = _ref.read(controlRegistryProvider).choose(listId, n);
+        Analytics.track('voice_choose_item', {'ok': ok});
+        return ok ? null : 'Con chưa chọn được mục đó, ${honorific} chọn lại giúp con nhé.';
       case 'go_back':
         if (router.canPop()) {
           router.pop();
