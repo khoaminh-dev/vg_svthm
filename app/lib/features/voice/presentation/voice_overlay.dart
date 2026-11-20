@@ -205,10 +205,21 @@ class VoiceScreen extends ConsumerWidget {
                           Center(
                             child: VyOrb(mode: mode, level: s.level, size: 280),
                           ),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 18),
+                          // Dòng trạng thái luôn hiện (người nghe kém, nơi ồn): đang nghe / nghĩ / nói.
+                          Center(
+                            child: Text(
+                              status,
+                              style: text.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF3C5BD6),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
                           if (s.transcript.isNotEmpty)
                             Text(
-                              s.transcript,
+                              '“${s.transcript}”',
                               style: text.titleMedium?.copyWith(
                                 fontSize: 19,
                                 fontWeight: FontWeight.w400,
@@ -227,16 +238,7 @@ class VoiceScreen extends ConsumerWidget {
                                 color: const Color(0xFF14213D),
                               ),
                             ),
-                          ] else if (s.transcript.isEmpty)
-                            Center(
-                              child: Text(
-                                status,
-                                style: text.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF14213D),
-                                ),
-                              ),
-                            ),
+                          ],
                           if (s.error != null) ...[
                             const SizedBox(height: 12),
                             Text(
@@ -274,7 +276,7 @@ class VoiceScreen extends ConsumerWidget {
                           _ => Icons.mic_none_rounded,
                         },
                         label: switch (s.status) {
-                          VoiceStatus.listening => 'Gửi',
+                          VoiceStatus.listening => 'Bấm để gửi',
                           VoiceStatus.thinking => 'Huỷ',
                           _ => 'Bấm để nói',
                         },
