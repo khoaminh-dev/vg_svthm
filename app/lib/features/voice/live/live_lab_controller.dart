@@ -162,7 +162,8 @@ class LiveLabController extends Notifier<LiveLabState> {
     );
     ref.onDispose(() {
       _endReason = 'provider bị hủy (rời màn/đóng app)';
-      _log('provider bị hủy');
+      // Không ghi `state` hay đụng provider khác khi đang huỷ (Riverpod cấm): chỉ ghi vết.
+      AppTrace.line('LIVE provider bị hủy');
       _lifecycle?.dispose();
       unawaited(_teardown());
     });
@@ -350,7 +351,11 @@ class LiveLabController extends Notifier<LiveLabState> {
       await _player?.dispose();
     } catch (_) {}
     _player = null;
-    ref.read(liveActiveProvider.notifier).set(false);
+    try {
+      ref.read(liveActiveProvider.notifier).set(false);
+    } catch (_) {
+      // Đang huỷ provider: cờ sẽ tự về mặc định.
+    }
   }
 
   void _send(Map<String, Object?> e) {

@@ -10,7 +10,7 @@ import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../family/presentation/family_providers.dart';
 import '../../meds/presentation/meds_providers.dart';
-import '../../voice/presentation/voice_controller.dart';
+import '../../voice/core/vy_core.dart';
 
 /// Khung bốn tab chính: Trang chủ · Tin nhắn · (Vy) · Sức khoẻ · Hồ sơ.
 /// Thứ tự mục trong [items] khớp với [Routes.tabs].
@@ -91,7 +91,7 @@ class MainShell extends ConsumerWidget {
                   },
                   onVy: () {
                     Analytics.track('open_vy_from_nav');
-                    ref.read(voiceControllerProvider.notifier).toggle();
+                    ref.read(vyCoreProvider.notifier).open();
                   },
                 ),
         ),
@@ -122,7 +122,7 @@ class MainShell extends ConsumerWidget {
                   size: 60,
                   onTap: () {
                     Analytics.track('open_vy_from_nav');
-                    ref.read(voiceControllerProvider.notifier).toggle();
+                    ref.read(vyCoreProvider.notifier).open();
                   },
                 ),
         ),

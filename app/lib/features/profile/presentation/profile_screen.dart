@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,7 @@ import '../../family/presentation/family_providers.dart';
 import '../../bp/data/bp_reminder_service.dart';
 import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../push/push_service.dart';
+import '../../voice/core/vy_settings.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
 class ProfileScreen extends ConsumerWidget {
@@ -176,6 +178,8 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         speakTile,
                         const SizedBox(height: AppSpacing.md),
+                        const _VySettingsGroup(),
+                        const SizedBox(height: AppSpacing.md),
                         const _FamilySettings(),
                         const SizedBox(height: AppSpacing.md),
                         const _NotificationSettings(),
@@ -184,6 +188,8 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ] else ...[
                   const _BpReminderSettings(elder: false),
+                  const SizedBox(height: AppSpacing.lg),
+                  const _VySettingsGroup(),
                   const SizedBox(height: AppSpacing.lg),
                   const _FamilySettings(),
                   const SizedBox(height: AppSpacing.lg),
@@ -240,7 +246,11 @@ class _VersionLabelState extends State<_VersionLabel> {
   int _taps = 0;
   DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// Màn thử Vy Live chỉ mở được ở bản gỡ lỗi hoặc build nội bộ (`--dart-define=VG_LAB=true`).
+  static const _labEnabled = bool.fromEnvironment('VG_LAB');
+
   void _tap() {
+    if (!(kDebugMode || _labEnabled)) return;
     final now = DateTime.now();
     _taps = now.difference(_last) > const Duration(seconds: 2) ? 1 : _taps + 1;
     _last = now;
@@ -711,4 +721,48 @@ class _LeadIcon extends StatelessWidget {
     ),
     child: Icon(icon, size: 22, color: AppColors.navyDeep),
   );
+}
+
+
+/// Cài đặt Vy: hiện chữ khi Vy nói (cho người nghe kém hoặc nơi ồn) và tiếng bật/tắt Vy.
+class _VySettingsGroup extends ConsumerWidget {
+  const _VySettingsGroup();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(vySettingsProvider).value ?? const VySettings();
+    final n = ref.read(vySettingsProvider.notifier);
+    const pad = EdgeInsets.symmetric(horizontal: 16);
+    const titleStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 17);
+    return InsetGroup(
+      key: const Key('vy-settings'),
+      dividerIndent: 0,
+      children: [
+        SwitchListTile(
+          key: const Key('vy-captions'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.subtitles_outlined),
+          title: const Text('Hiện chữ khi Vy nói', style: titleStyle),
+          subtitle: const Text('Vy nói gì thì hiện chữ trên màn hình'),
+          value: s.captions,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'captions': v});
+            n.setCaptions(v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-sounds'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.music_note_outlined),
+          title: const Text('Tiếng khi bật và tắt Vy', style: titleStyle),
+          subtitle: const Text('Một tiếng ting ngắn'),
+          value: s.sounds,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'sounds': v});
+            n.setSounds(v);
+          },
+        ),
+      ],
+    );
+  }
 }

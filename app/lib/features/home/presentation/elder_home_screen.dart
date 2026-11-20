@@ -22,7 +22,7 @@ import '../../meds/presentation/meds_providers.dart';
 import '../../safety/presentation/safety_providers.dart';
 import '../../safety/presentation/sos_screen.dart';
 import '../../safety/presentation/sos_widgets.dart';
-import '../../voice/presentation/voice_controller.dart';
+import '../../voice/core/vy_core.dart';
 
 /// Một ô lối tắt trên trang chủ của người cao tuổi.
 class ElderTile {
@@ -242,7 +242,7 @@ class _VyHeroState extends ConsumerState<_VyHero>
 
   void _talk() {
     Analytics.track('tap_feature', {'feature': 'vy', 'shell': 'elder'});
-    ref.read(voiceControllerProvider.notifier).toggle();
+    ref.read(vyCoreProvider.notifier).open();
   }
 
   @override

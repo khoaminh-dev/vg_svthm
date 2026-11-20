@@ -17,7 +17,7 @@ import '../../meds/presentation/meds_providers.dart';
 import '../../safety/presentation/safety_providers.dart';
 import '../../safety/presentation/sos_screen.dart';
 import '../../safety/presentation/sos_widgets.dart';
-import '../../voice/presentation/voice_controller.dart';
+import '../../voice/core/vy_core.dart';
 
 /// Ảnh nền theo thời điểm trong ngày (ảnh CC0, nguồn ghi ở docs/CREDITS.md).
 String homePhotoFor(DateTime now) {
@@ -312,9 +312,7 @@ class HomeScreen extends ConsumerWidget {
                                 Analytics.track('tap_feature', {
                                   'feature': 'vy',
                                 });
-                                ref
-                                    .read(voiceControllerProvider.notifier)
-                                    .toggle();
+                                ref.read(vyCoreProvider.notifier).open();
                               },
                               child: VyOrb(size: orbSize),
                             ),

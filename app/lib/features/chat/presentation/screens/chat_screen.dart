@@ -9,7 +9,7 @@ import '../../../../core/utils/time_format.dart';
 import '../../../../shared/models/profile.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
-import '../../../voice/presentation/voice_controller.dart';
+import '../../../voice/core/vy_core.dart';
 import '../../domain/room.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
@@ -88,7 +88,7 @@ class ChatScreen extends ConsumerWidget {
             icon: const Icon(Icons.mic_none_rounded),
             onPressed: () {
               Analytics.track('open_vy_from_chat');
-              ref.read(voiceControllerProvider.notifier).toggle();
+              ref.read(vyCoreProvider.notifier).open();
             },
           ),
           if (room != null && !room.isDirect)
