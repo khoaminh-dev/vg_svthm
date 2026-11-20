@@ -70,6 +70,20 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
       onSubmitted: _search,
       style: const TextStyle(fontSize: 20),
       decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color(0xFFEDEFF4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
+          borderSide: BorderSide.none,
+        ),
         hintText: 'Hoặc gõ tên bài, tên video',
         prefixIcon: const Icon(Icons.search_rounded),
         suffixIcon: IconButton(
@@ -137,7 +151,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                       physics: const NeverScrollableScrollPhysics(),
                       mainAxisSpacing: AppSpacing.sm,
                       crossAxisSpacing: AppSpacing.sm,
-                      childAspectRatio: 1.25,
+                      childAspectRatio: 1.08,
                       children: [
                         for (final c in _categories)
                           _CategoryTile(
@@ -255,18 +269,29 @@ class _CategoryTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
+            boxShadow: const [
+              BoxShadow(color: Color(0x141E325A), blurRadius: 16, offset: Offset(0, 4)),
+            ],
           ),
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 44, color: theme.colorScheme.primary),
-              const SizedBox(height: 10),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEAF0FF),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 32, color: const Color(0xFF0B2447)),
+              ),
+              const SizedBox(height: 12),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -297,6 +322,9 @@ class VideoCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(22),
+            boxShadow: const [
+              BoxShadow(color: Color(0x141E325A), blurRadius: 16, offset: Offset(0, 4)),
+            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(

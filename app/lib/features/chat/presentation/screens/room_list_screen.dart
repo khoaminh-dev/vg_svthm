@@ -267,7 +267,7 @@ class _RoomTile extends StatelessWidget {
         room.displayName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontWeight: FontWeight.w600, fontSize: big ? 22 : 18),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: big ? 20 : 17),
       ),
       subtitle: Text(
         preview ??
@@ -277,7 +277,7 @@ class _RoomTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: big ? 18 : 16,
+          fontSize: big ? 16 : 15,
           color: preview == null ? scheme.outline : scheme.onSurfaceVariant,
         ),
       ),
@@ -285,7 +285,7 @@ class _RoomTile extends StatelessWidget {
           ? null
           : Text(
               TimeFormat.listTime(at, DateTime.now()),
-              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
             ),
       onTap: onTap,
     );
