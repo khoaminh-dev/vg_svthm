@@ -5,7 +5,7 @@ import { AllKeysFailed, UpstreamError, parseRetryAfter } from '../router.js';
 import { redact } from '../secretbox.js';
 import { getPolicy } from './gate.js';
 import { timedFetch, withKeys } from './keys.js';
-import { buildLiveSession, liveAllowed, pickMode, safetyId, validSdp } from './live.js';
+import { ACK_DELAY_FALLBACK_MS, ACK_DELAY_MS, buildLiveSession, liveAllowed, pickMode, safetyId, validSdp } from './live.js';
 
 // Xử lý `mode: "live_start"` của /api/voice/turn (Đợt A): đổi SDP offer của app lấy SDP answer của OpenAI.
 // Khoá OpenAI lấy từ kho khoá (admin thêm, mã hoá trong DB; hoặc biến môi trường), xoay vòng và tự nghỉ khi lỗi.
@@ -48,15 +48,22 @@ export async function startLive(res: VercelResponse, uid: string, body: Record<s
   const t0 = Date.now();
   try {
     const { value, failovers } = await withKeys<LiveReply>('openai', async (key) => {
-      const r = await timedFetch('https://api.openai.com/v1/live/sessions', {
+      const call = (ackMs: number) => timedFetch('https://api.openai.com/v1/live/sessions', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
           'OpenAI-Safety-Identifier': safetyId(uid),
         },
-        body: JSON.stringify({ session: buildLiveSession(mode, hon), transport: { type: 'webrtc', sdp: body.sdp } }),
+        body: JSON.stringify({ session: buildLiveSession(mode, hon, process.env, ackMs), transport: { type: 'webrtc', sdp: body.sdp } }),
       }, 12_000);
+      let r = await call(ACK_DELAY_MS);
+      // OpenAI từ chối cấu hình (400/422), có thể vì lời đệm quá lớn: thử lại một lần với giá trị cũ đã chạy được.
+      if ((r.status === 400 || r.status === 422) && mode === 'C') {
+        const why = redact((await r.text().catch(() => '')).slice(0, 300));
+        console.error('live_start ack_delay rejected, retry with fallback', r.status, why);
+        r = await call(ACK_DELAY_FALLBACK_MS);
+      }
       if (!r.ok) {
         const text = redact((await r.text().catch(() => '')).slice(0, 300));
         throw new UpstreamError(r.status, parseRetryAfter(r.headers.get('retry-after')), text);
