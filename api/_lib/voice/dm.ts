@@ -347,7 +347,7 @@ const REQUIRED: Record<string, string[]> = {
 const NEEDS_CONFIRM = new Set(['send_message']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
 /** Ý định do bộ ghép với màn hình tạo ra (không nằm trong INTENT_LIST để mô hình không tự chọn). Có thể quay lại trong `state.task` khi chờ xác nhận. */
-export const UI_INTENTS = ['invoke_control', 'choose_item'];
+export const UI_INTENTS = ['invoke_control', 'choose_item', 'point_control'];
 
 function mk(p: Partial<Decision> & Pick<Decision, 'action' | 'say'>): Decision {
   return {
@@ -544,7 +544,9 @@ export function uiDecision(text: string, ctx: UiContext, hon: string): Decision 
     case 'refuse': {
       const c = cmd.control;
       if (cmd.why === 'level3') {
-        return mk({ action: 'answer', intent: 'refuse_control', say: `Dạ, nút ${c.label} ${hon} tự bấm giúp con nhé. Con không bấm thay được ạ.`, sayClass: 'important' });
+        // Mức 3: Vy KHÔNG bấm. App chỉ làm một việc là con trỏ chỉ vào nút (khung sáng); bản app cũ chỉ đọc câu nói.
+        const task: Task = { intent: 'point_control', slots: { target_id: c.id, label: c.label.slice(0, 60) } };
+        return mk({ action: 'execute', intent: 'point_control', task, say: `Dạ, nút ${c.label} ${hon} tự bấm giúp con nhé. Con không bấm thay được ạ.`, sayClass: 'important' });
       }
       if (cmd.why === 'already') {
         return mk({ action: 'answer', intent: 'refuse_control', say: `Dạ, ${c.label} đang ${c.value ? 'bật' : 'tắt'} rồi ạ.`, sayClass: 'other' });
