@@ -144,7 +144,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 19,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
@@ -220,7 +220,7 @@ class EmergencyCardView extends ConsumerWidget {
           Text(
             'Thẻ y tế khẩn cấp',
             style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),

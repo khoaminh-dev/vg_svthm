@@ -363,7 +363,7 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
               Expanded(
                 child: Text(
                   'Túi ${s.label}',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               Text(
@@ -423,7 +423,7 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
                 ),
                 if (subtitle != null && subtitle.isNotEmpty)
                   Text(subtitle, style: theme.textTheme.bodyMedium),
-                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: c, fontWeight: FontWeight.w700)),
+                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: c, fontWeight: FontWeight.w600)),
               ],
             ),
           ),

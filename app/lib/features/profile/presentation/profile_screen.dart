@@ -177,7 +177,7 @@ class ProfileScreen extends ConsumerWidget {
                       tilePadding: const EdgeInsets.symmetric(horizontal: 20),
                       title: const Text(
                         'Cài đặt khác',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                       ),
                       children: [
                         speakTile,
@@ -211,7 +211,7 @@ class ProfileScreen extends ConsumerWidget {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: AppColors.levelDanger,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             fontSize: 18,
                           ),
                         ),
@@ -304,7 +304,7 @@ class _ElderProfileShortcuts extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
                       Text(sub, style: const TextStyle(fontSize: 16, color: AppColors.textMuted)),
                     ],
                   ),
@@ -381,7 +381,7 @@ class _BpReminderSettings extends ConsumerWidget {
     final s = ref.watch(bpReminderSettingsProvider).value ?? const BpReminderSettings();
     final n = ref.read(bpReminderSettingsProvider.notifier);
     final on = s.effectiveEnabled(elder: elder);
-    final titleStyle = TextStyle(fontWeight: FontWeight.w700, fontSize: elder ? 20 : 17);
+    final titleStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: elder ? 20 : 17);
     final subStyle = TextStyle(fontSize: elder ? 17 : 14);
     const pad = EdgeInsets.symmetric(horizontal: 16);
     return InsetGroup(
@@ -413,7 +413,7 @@ class _BpReminderSettings extends ConsumerWidget {
             subtitle: Text('Chạm để đổi giờ', style: subStyle),
             trailing: Text(
               s.morning,
-              style: TextStyle(fontSize: elder ? 28 : 20, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: elder ? 28 : 20, fontWeight: FontWeight.w700),
             ),
             onTap: () async {
               final v = await _pick(context, 'Nhắc đo buổi sáng lúc', s.morning);
@@ -439,7 +439,7 @@ class _BpReminderSettings extends ConsumerWidget {
                     children: [
                       Text(
                         s.evening!,
-                        style: TextStyle(fontSize: elder ? 28 : 20, fontWeight: FontWeight.w800),
+                        style: TextStyle(fontSize: elder ? 28 : 20, fontWeight: FontWeight.w700),
                       ),
                       IconButton(
                         key: const Key('bp-reminder-evening-remove'),

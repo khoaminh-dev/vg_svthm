@@ -348,7 +348,7 @@ class _RoundAction extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -445,7 +445,7 @@ class _LiveBar extends ConsumerWidget {
               children: [
                 Icon(Icons.graphic_eq_rounded, color: scheme.primary),
                 const SizedBox(width: 8),
-                Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700))),
+                Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
                 TextButton(
                   onPressed: s.phase == LivePhase.closing ? null : c.end,
                   child: const Text('Kết thúc'),

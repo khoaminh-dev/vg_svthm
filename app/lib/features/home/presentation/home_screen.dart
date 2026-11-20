@@ -108,7 +108,7 @@ class HomeScreen extends ConsumerWidget {
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 30,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w600,
                                         shadows: shadow,
                                       ),
                                     ),
@@ -170,7 +170,7 @@ class HomeScreen extends ConsumerWidget {
                                       color: Colors.white,
                                       fontSize: 76,
                                       height: 1,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w700,
                                       shadows: shadow,
                                     ),
                                   ),
@@ -440,7 +440,7 @@ class _GlassPill extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 19,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),

@@ -220,7 +220,7 @@ class _MedsViewState extends ConsumerState<MedsView> {
                             Text(
                               p.name,
                               style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             if (p.instruction != null)
@@ -246,7 +246,7 @@ class _MedsViewState extends ConsumerState<MedsView> {
           child: Text(
             _recheckText(nextRecheck.first, today),
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -335,7 +335,7 @@ class _Card extends StatelessWidget {
           Text(
             title!,
             style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
         ],
@@ -422,7 +422,7 @@ class _DoseCard extends StatelessWidget {
               Text(
                 dose.hm,
                 style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 12),
@@ -430,7 +430,7 @@ class _DoseCard extends StatelessWidget {
                 child: Text(
                   dose.bag ? 'Túi ${dose.label}' : dose.label,
                   style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -443,7 +443,7 @@ class _DoseCard extends StatelessWidget {
             key: Key('dose-status-${dose.id}'),
             style: theme.textTheme.titleSmall?.copyWith(
               color: color,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           if (bagItems.isNotEmpty) ...[

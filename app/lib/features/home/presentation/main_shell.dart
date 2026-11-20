@@ -156,7 +156,7 @@ class _BackHomeBar extends StatelessWidget {
                     key: const Key('elder-back-home'),
                     onPressed: onHome,
                     icon: const Icon(Icons.home_rounded, size: 28),
-                    label: const Text('Về trang chủ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                    label: const Text('Về trang chủ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ),

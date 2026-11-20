@@ -104,7 +104,7 @@ class FamilyPersonScreen extends ConsumerWidget {
                               '${latest.systolic}/${latest.diastolic} mmHg',
                               key: const Key('person-latest'),
                               style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 color: latest.category.color,
                               ),
                             ),
@@ -375,7 +375,7 @@ class _MedsCard extends ConsumerWidget {
                   Text(
                     d.hm,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -437,7 +437,7 @@ class _MedsCard extends ConsumerWidget {
       text,
       style: theme.textTheme.titleSmall?.copyWith(
         color: color,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
       ),
     );
   }

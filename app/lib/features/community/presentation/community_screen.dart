@@ -119,7 +119,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                       'Cộng đồng',
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontSize: 30,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.6,
                       ),
                     ),
@@ -278,7 +278,7 @@ class _PersonRowState extends ConsumerState<_PersonRow> {
           p.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
         ),
         subtitle: Text(
           '@${p.username}',

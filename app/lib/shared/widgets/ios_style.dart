@@ -24,7 +24,7 @@ class LargeTitle extends StatelessWidget {
             title,
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
               fontSize: 34,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               letterSpacing: -0.8,
             ),
           ),
@@ -66,9 +66,15 @@ class SoftIconButton extends StatelessWidget {
           height: AppSpacing.tapTarget,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: filled
-                ? scheme.primary
-                : scheme.onSurface.withValues(alpha: 0.06),
+            // Kiểu iOS: nút tròn trắng nổi nhẹ; nút chính thì đặc navy sâu.
+            color: filled ? const Color(0xFF0B2447) : Colors.white,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A1E325A),
+                blurRadius: 10,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Icon(icon, color: filled ? Colors.white : scheme.onSurface),
         ),

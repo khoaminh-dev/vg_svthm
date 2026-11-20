@@ -133,7 +133,7 @@ class MedPlanListScreen extends ConsumerWidget {
                                   child: Text(
                                     p.title,
                                     style: theme.textTheme.titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                        ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
                                 ),
                                 Chip(

@@ -95,7 +95,7 @@ class RoleChoiceList extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(c.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                            Text(c.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                             const SizedBox(height: 2),
                             Text(c.text, style: theme.textTheme.bodyMedium),
                           ],
@@ -223,7 +223,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
           children: [
             if (!widget.change) ...[
               const SizedBox(height: 24),
-              Text('Bạn là ai?', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+              Text('Bạn là ai?', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
             ],
             Text(

@@ -128,7 +128,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: 24),
-            Text('Bạn là ai?', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            Text('Bạn là ai?', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
             RoleChoiceList(
               selected: _roleKey,

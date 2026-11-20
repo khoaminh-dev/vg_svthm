@@ -235,7 +235,7 @@ class _RiskViewState extends ConsumerState<RiskView> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     color: lv.color,
                   ),
                 ),
@@ -263,7 +263,7 @@ class _RiskViewState extends ConsumerState<RiskView> {
                       Text(
                         BpCategory.of(r.systolic, r.diastolic).label,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           color: BpCategory.of(r.systolic, r.diastolic).color,
                         ),
                       ),
@@ -306,7 +306,7 @@ class _RiskViewState extends ConsumerState<RiskView> {
                       'Gọi 115',
                       style: TextStyle(
                         fontSize: 19,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -458,7 +458,7 @@ class _LevelBar extends StatelessWidget {
                   _short[l.index],
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: l == level ? FontWeight.w800 : FontWeight.w500,
+                    fontWeight: l == level ? FontWeight.w700 : FontWeight.w500,
                     color: l == level ? l.color : AppColors.textMuted,
                   ),
                 ),
@@ -494,7 +494,7 @@ class _Section extends StatelessWidget {
           Text(
             title,
             style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 12),
@@ -654,7 +654,7 @@ class _ResearchCard extends ConsumerWidget {
           Text(
             'Giúp Viegrand cải thiện?',
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
@@ -794,7 +794,7 @@ class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
           Text(
             'Kết quả này có đúng với bác không?',
             style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 12),

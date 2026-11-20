@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_spacing.dart';
@@ -50,22 +52,27 @@ class PillNavBar extends StatelessWidget {
           AppSpacing.sm,
         ),
         child: Material(
-          color: Colors.white.withValues(alpha: 0.96),
-          elevation: 10,
-          shadowColor: Colors.black.withValues(alpha: 0.18),
+          color: Colors.white.withValues(alpha: 0.86),
+          elevation: 4,
+          shadowColor: const Color(0x261E325A),
           shape: const StadiumBorder(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-            child: Row(
-              children: [
-                for (var i = 0; i < half; i++) tile(i),
-                if (center != null) ...[
-                  const SizedBox(width: 4),
-                  center!,
-                  const SizedBox(width: 4),
+          clipBehavior: Clip.antiAlias,
+          // Kính mờ kiểu iOS: nội dung phía sau mờ đi khi trượt qua thanh.
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              child: Row(
+                children: [
+                  for (var i = 0; i < half; i++) tile(i),
+                  if (center != null) ...[
+                    const SizedBox(width: 4),
+                    center!,
+                    const SizedBox(width: 4),
+                  ],
+                  for (var i = half; i < items.length; i++) tile(i),
                 ],
-                for (var i = half; i < items.length; i++) tile(i),
-              ],
+              ),
             ),
           ),
         ),
@@ -88,7 +95,7 @@ class _NavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final color = selected ? scheme.primary : scheme.onSurfaceVariant;
+    final color = selected ? const Color(0xFF0B2447) : const Color(0xFF8A94A6);
     return Semantics(
       button: true,
       selected: selected,
@@ -115,7 +122,7 @@ class _NavTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   color: color,
                 ),
               ),

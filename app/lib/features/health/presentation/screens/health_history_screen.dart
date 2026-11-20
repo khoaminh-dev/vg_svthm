@@ -167,7 +167,7 @@ class _QaCard extends StatelessWidget {
                 child: Text(
                   qa.question,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

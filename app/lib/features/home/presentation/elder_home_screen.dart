@@ -133,7 +133,7 @@ class ElderHomeScreen extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -270,7 +270,7 @@ class _VyHeroState extends ConsumerState<_VyHero>
                         'Chạm vào Vy rồi nói',
                         textAlign: TextAlign.center,
                         style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.navyDeep,
                         ),
                       ),
@@ -348,7 +348,7 @@ class _TileButton extends StatelessWidget {
                     maxLines: 1,
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.navyDeep,
                     ),
                   ),
@@ -411,14 +411,14 @@ class _DueCardState extends ConsumerState<_DueCard> {
                   'Đến giờ uống thuốc',
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: Colors.white.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   '${d.hm} · ${d.bag ? 'Túi ${d.label}' : d.label}',
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: Colors.white,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -438,7 +438,7 @@ class _DueCardState extends ConsumerState<_DueCard> {
               icon: const Icon(Icons.check_rounded, size: 28),
               label: const Text(
                 'Đã uống',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -485,7 +485,7 @@ class _MiniDose extends ConsumerWidget {
             Text(
               'Hôm nay không còn cữ thuốc nào',
               style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -578,7 +578,7 @@ class _InfoBox extends StatelessWidget {
             value,
             maxLines: 1,
             style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               height: 1.05,
             ),
           ),
@@ -589,7 +589,7 @@ class _InfoBox extends StatelessWidget {
             style: TextStyle(
               color: subColor ?? AppColors.textMuted,
               fontSize: 16,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

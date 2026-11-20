@@ -107,7 +107,7 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
                         key: const Key('invite-code'),
                         style: const TextStyle(
                           fontSize: 48,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 4,
                           color: AppColors.navy,
                         ),
@@ -237,7 +237,7 @@ class _WatcherTile extends ConsumerWidget {
       collapsedShape: const Border(),
       title: Text(
         link.name,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
       ),
       subtitle: Text(
         '${link.relation.label}${paused ? ' · đang tạm dừng' : ''}',

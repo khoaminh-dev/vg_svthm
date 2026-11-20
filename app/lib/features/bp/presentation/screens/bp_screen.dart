@@ -232,7 +232,7 @@ class BpScreen extends ConsumerWidget {
                                               style: TextStyle(
                                                 fontSize: 64,
                                                 height: 1,
-                                                fontWeight: FontWeight.w800,
+                                                fontWeight: FontWeight.w700,
                                                 letterSpacing: -1.5,
                                                 color: latest.category.color,
                                               ),
@@ -364,7 +364,7 @@ class BpScreen extends ConsumerWidget {
                                       title: Text(
                                         '${r.systolic}/${r.diastolic}${r.pulse != null ? ' · mạch ${r.pulse}' : ''}',
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w600,
                                           fontSize: 18,
                                         ),
                                       ),
@@ -428,7 +428,7 @@ class _ElderBpView extends ConsumerWidget {
             icon: const Icon(Icons.photo_camera_rounded, size: 32),
             label: const Text(
               'Đo huyết áp bây giờ',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -471,7 +471,7 @@ class _ElderBpView extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 88,
                       height: 1.05,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: latest.category.color,
                     ),
                   ),
@@ -497,7 +497,7 @@ class _ElderBpView extends ConsumerWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 26,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: latest.category.color,
                     ),
                   ),
@@ -566,7 +566,7 @@ class _ElderBpView extends ConsumerWidget {
                       '${r.systolic}/${r.diastolic}',
                       style: const TextStyle(
                         fontSize: 28,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -591,7 +591,7 @@ class _ElderBpView extends ConsumerWidget {
             icon: const Icon(Icons.shield_outlined, size: 28),
             label: const Text(
               'Xem nguy cơ sức khoẻ',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
           ),
         ),

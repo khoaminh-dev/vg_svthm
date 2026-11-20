@@ -65,7 +65,7 @@ class AlertsScreen extends ConsumerWidget {
                           Text(
                             'Chưa theo dõi ai',
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -94,7 +94,7 @@ class AlertsScreen extends ConsumerWidget {
                           Text(
                             'Mọi thứ đều ổn',
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -188,7 +188,7 @@ class _AlertTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(item.title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(item.detail, style: theme.textTheme.bodyMedium),
                     ],

@@ -24,7 +24,9 @@ class CameraEntryCard extends ConsumerWidget {
         AppSpacing.sm,
       ),
       child: Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        elevation: 1.5,
+        shadowColor: AppColors.cardShadow,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         child: InkWell(
           key: const Key('family-camera'),
@@ -38,7 +40,6 @@ class CameraEntryCard extends ConsumerWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
@@ -58,7 +59,7 @@ class CameraEntryCard extends ConsumerWidget {
                     children: [
                       Text(
                         'Camera',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                       ),
                       Text(
                         'Xem trực tiếp trong nhà',

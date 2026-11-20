@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_theme.dart';
 
 /// Ô việc lớn dạng hàng: icon, tiêu đề, một dòng mô tả. Cao ≥ 72dp để dễ chạm.
 class BigTile extends StatelessWidget {
@@ -34,9 +35,10 @@ class BigTile extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: scheme.surfaceContainerLowest,
+        elevation: 1.5,
+        shadowColor: AppColors.cardShadow,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.8)),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

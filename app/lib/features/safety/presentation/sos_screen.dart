@@ -284,7 +284,7 @@ class _SosScreenState extends ConsumerState<SosScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: c)),
+                Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: c)),
                 const SizedBox(height: 4),
                 Text(text, style: theme.textTheme.bodyLarge),
               ],

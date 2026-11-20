@@ -180,7 +180,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -271,7 +271,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 32,
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w700,
                                           height: 1.2,
                                         ),
                                       ),
@@ -499,7 +499,7 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
               Text(
                 '${r.systolic}/${r.diastolic}',
                 style: text.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: r.category.color,
                   height: 1,
                 ),
@@ -537,7 +537,7 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                       r.category.label,
                       key: const Key('bp-category'),
                       style: text.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: r.category.color,
                       ),
                     ),
@@ -610,7 +610,7 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                   Text(
                     'Nguy cơ sức khoẻ',
                     style: text.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -667,7 +667,7 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                           minimumSize: const Size.fromHeight(64),
                           textStyle: const TextStyle(
                             fontSize: 20,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         )
                       : null,
@@ -683,7 +683,7 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                           minimumSize: const Size.fromHeight(64),
                           textStyle: const TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         )
                       : null,

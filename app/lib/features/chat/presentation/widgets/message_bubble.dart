@@ -58,7 +58,7 @@ class MessageBubble extends StatelessWidget {
                 senderName,
                 style: text.labelMedium?.copyWith(
                   color: scheme.primary,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),

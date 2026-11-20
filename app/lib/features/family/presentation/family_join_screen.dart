@@ -104,7 +104,7 @@ class _FamilyJoinScreenState extends ConsumerState<FamilyJoinScreen> {
               ],
               style: const TextStyle(
                 fontSize: 36,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 6,
               ),
               decoration: const InputDecoration(

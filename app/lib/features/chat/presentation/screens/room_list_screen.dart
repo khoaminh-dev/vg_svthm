@@ -267,7 +267,7 @@ class _RoomTile extends StatelessWidget {
         room.displayName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: big ? 22 : 18),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: big ? 22 : 18),
       ),
       subtitle: Text(
         preview ??
@@ -418,7 +418,7 @@ class _ElderMessageActions extends StatelessWidget {
                     'Nhắn cho ${nameOf(l)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -430,7 +430,7 @@ class _ElderMessageActions extends StatelessWidget {
               key: const Key('msg-other'),
               onPressed: onOther,
               icon: const Icon(Icons.person_add_alt_1_outlined, size: 26),
-              label: const Text('Nhắn cho người khác', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+              label: const Text('Nhắn cho người khác', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
             ),
           ),
         ],

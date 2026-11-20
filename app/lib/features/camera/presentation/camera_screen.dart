@@ -331,7 +331,7 @@ class _CameraScreenState extends State<CameraScreen>
                       'Camera',
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontSize: 30,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.6,
                       ),
                     ),
@@ -559,7 +559,7 @@ class _CameraScreenState extends State<CameraScreen>
                       key: const Key('camera-status-text'),
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -625,7 +625,7 @@ class _CameraScreenState extends State<CameraScreen>
           children: [
             const Text(
               'Nhật ký trực tiếp',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -755,7 +755,7 @@ class _LiveBadgeState extends State<_LiveBadge>
           style: TextStyle(
             color: Colors.white,
             fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -832,7 +832,7 @@ class _UrgentBanner extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),

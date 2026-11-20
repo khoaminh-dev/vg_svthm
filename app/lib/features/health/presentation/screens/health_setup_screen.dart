@@ -274,7 +274,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
                                     : 'Tiếp tục',
                                 style: const TextStyle(
                                   fontSize: 19,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                       ),
@@ -302,7 +302,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
         Text(
           title,
           style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 4),
@@ -567,7 +567,7 @@ class _QuestionRow extends StatelessWidget {
                 Text(
                   question.label,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (question.hint != null)
@@ -646,7 +646,7 @@ class _SexTile extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: selected ? Colors.white : AppColors.navyDeep,
               ),
             ),
@@ -701,7 +701,7 @@ class _Choice extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: text,
             ),
           ),

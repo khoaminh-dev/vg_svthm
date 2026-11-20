@@ -62,7 +62,7 @@ class ElderBackBar extends StatelessWidget {
             key: const Key('elder-back'),
             onPressed: onPressed,
             icon: const Icon(Icons.arrow_back_rounded, size: 30),
-            label: Text(label, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+            label: Text(label, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
           ),
         ),
       ),

@@ -186,7 +186,7 @@ class PersonCard extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       status.when(
@@ -212,9 +212,9 @@ class PersonCard extends ConsumerWidget {
                   Text(
                     '${latest.systolic}/${latest.diastolic}',
                     key: Key('person-bp-${link.otherId}'),
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: latest.category.color,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -1,
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -239,7 +239,7 @@ class PersonCard extends ConsumerWidget {
               Text(
                 s.reasons.first,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: lightColor(s.light),
+                  color: AppColors.textMuted,
                 ),
               ),
             ],
@@ -351,7 +351,7 @@ class _MedsLine extends ConsumerWidget {
       text = 'Thuốc hôm nay: uống $taken/$total cữ';
       if (missed.isNotEmpty) {
         text += ' · chưa uống ${missed.join(', ')}';
-        color = AppColors.levelWatch;
+        color = const Color(0xFFB4561F);
       }
     }
     return Padding(
@@ -359,7 +359,7 @@ class _MedsLine extends ConsumerWidget {
       child: Text(
         text,
         key: Key('person-meds-${link.otherId}'),
-        style: theme.textTheme.bodyMedium?.copyWith(color: color, fontWeight: color == null ? null : FontWeight.w600),
+        style: theme.textTheme.bodyMedium?.copyWith(color: color, fontWeight: color == null ? null : FontWeight.w500),
       ),
     );
   }
@@ -401,7 +401,7 @@ class _SosBanners extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               '$name đang cần giúp. Bấm để xem và gọi',
-                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
                             ),
                           ),
                           const Icon(Icons.chevron_right_rounded, color: Colors.white),

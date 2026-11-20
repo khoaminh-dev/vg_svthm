@@ -32,7 +32,7 @@ class OcrRecordTile extends StatelessWidget {
             record.displayTitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text('${record.values.length} số liệu · $date'),
           trailing: const Icon(Icons.chevron_right_rounded),

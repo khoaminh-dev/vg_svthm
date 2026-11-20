@@ -38,8 +38,8 @@ class StatusChip extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
                 color: fg,
               ),
             ),

@@ -266,7 +266,7 @@ class _CategoryTile extends StatelessWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

@@ -148,7 +148,7 @@ class RiskDonut extends StatelessWidget {
                     key: const Key('donut-percent'),
                     style: TextStyle(
                       fontSize: size * 0.24,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       color: color,
                     ),
                   ),
@@ -161,7 +161,7 @@ class RiskDonut extends StatelessWidget {
             name,
             textAlign: TextAlign.center,
             style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           Text(

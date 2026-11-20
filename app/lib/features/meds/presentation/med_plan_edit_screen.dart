@@ -596,7 +596,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
                 child: Text(
                   'Túi ${s.label}',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

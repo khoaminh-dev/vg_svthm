@@ -95,7 +95,7 @@ class _UpdateCardState extends ConsumerState<UpdateCard> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),

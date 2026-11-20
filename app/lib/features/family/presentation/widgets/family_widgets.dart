@@ -36,7 +36,7 @@ class FamCard extends StatelessWidget {
             Text(
               title!,
               style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 12),
@@ -61,14 +61,18 @@ class StatusDot extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(color: c, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(
           status.headline,
-          style: TextStyle(color: c, fontWeight: FontWeight.w800, fontSize: 15),
+          style: const TextStyle(
+            color: Color(0xFF3F4A5E),
+            fontWeight: FontWeight.w500,
+            fontSize: 15,
+          ),
         ),
       ],
     );
