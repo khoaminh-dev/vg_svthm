@@ -110,7 +110,7 @@ class VoiceApi {
   }
 
   /// Thử nghiệm Vy Live: gửi SDP offer, nhận SDP answer của OpenAI qua máy chủ (khoá OpenAI không xuống app).
-  Future<({String sessionId, String sdp, String mode, int serverMs})> liveStart({
+  Future<({String sessionId, String sdp, String mode, int serverMs, int ackMs})> liveStart({
     required String sdp,
     required String liveMode,
     required String honorific,
@@ -139,8 +139,11 @@ class VoiceApi {
     }
     if (res.statusCode != 201) {
       var code = '';
+      var upstream = '';
       try {
-        code = ((jsonDecode(utf8.decode(res.bodyBytes)) as Map)['error'] as String?) ?? '';
+        final m = jsonDecode(utf8.decode(res.bodyBytes)) as Map;
+        code = (m['error'] as String?) ?? '';
+        if (m['status'] != null) upstream = ' từ OpenAI ${m['status']}';
       } catch (_) {}
       throw VoiceApiException(
         'live_${code.isEmpty ? res.statusCode : code}',
@@ -151,7 +154,7 @@ class VoiceApi {
           'live_keys_failed' => 'Mọi key OpenAI đều đang lỗi hoặc hết hạn mức',
           'live_rate' => 'Mở Live quá nhiều lần, chờ vài phút',
           'live_busy' => 'OpenAI đang bận, thử lại sau',
-          _ => 'Máy chủ từ chối (${res.statusCode}${code.isEmpty ? '' : ' $code'})',
+          _ => 'Máy chủ từ chối (${res.statusCode}${code.isEmpty ? '' : ' $code'}$upstream)',
         },
       );
     }
@@ -162,6 +165,7 @@ class VoiceApi {
         sdp: j['sdp'] as String,
         mode: (j['mode'] as String?) ?? liveMode,
         serverMs: (j['server_ms'] as num?)?.toInt() ?? 0,
+        ackMs: (j['ack_ms'] as num?)?.toInt() ?? 0,
       );
     } catch (_) {
       throw const VoiceApiException('server', 'Máy chủ trả dữ liệu không hợp lệ');

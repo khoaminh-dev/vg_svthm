@@ -269,6 +269,7 @@ class LiveLabController extends Notifier<LiveLabState> {
       _liveSessionId = r.sessionId;
       _metric('server_roundtrip_ms', '${_sw.elapsedMilliseconds - tOffer}');
       _metric('server_ms', '${r.serverMs}');
+      _metric('ack_delay_ms', '${r.ackMs}');
       _log('phiên ${r.sessionId} (chế độ ${r.mode})');
       // Trong lúc chờ máy chủ, kết nối có thể đã bị đóng (rời màn, bấm Kết thúc, app xuống nền...):
       // đừng gắn câu trả lời vào kết nối đã chết, báo rõ lý do.
@@ -418,6 +419,15 @@ class LiveLabController extends Notifier<LiveLabState> {
         if (_lastUserAt >= 0) _metric('user_stop_to_delegation_ms', '${now - _lastUserAt}');
         if (state.mode == 'C') {
           final id = ((e['delegation'] as Map?)?['id'] ?? e['delegation_id']) as String?;
+          // Báo ngay là đang xử lý để Live không tự chen câu đệm ("để con hỏi lại một chút ạ") lên trước câu trả lời thật.
+          if (id != null) {
+            _send({
+              'type': 'session.thinking.append',
+              'event_id': _id(),
+              'delegation_id': id,
+              'content': 'Đang xử lý, chưa có lời nào cần nói. Hãy giữ im lặng.',
+            });
+          }
           unawaited(_hybridTurn(id));
         }
       case 'response.event':
@@ -714,7 +724,17 @@ class LiveLabController extends Notifier<LiveLabState> {
     _log('CHẠY ${task.intent} ${jsonEncode(task.slots)}');
     final out = await _actions.execute(task, _contacts, _honorific);
     _log('KẾT QUẢ ${task.intent}: ${out == null ? '(không có lời, dùng câu của não)' : _clip(out, 160)}');
-    return out ?? say;
+    return out ?? _sayFor(task.intent, say);
+  }
+
+  /// Câu não trả cho mọi lệnh chạy xong đều là "con mở rồi ạ" (kể cả "quay lại"): nói đúng việc đã làm.
+  String _sayFor(String intent, String fallback) {
+    return switch (intent) {
+      'go_back' => 'Dạ, con quay lại rồi ạ.',
+      'go_home' => 'Dạ, con về trang chủ rồi ạ.',
+      'show_bp' => 'Dạ, con mở màn hình huyết áp rồi ạ.',
+      _ => fallback,
+    };
   }
 
   /// Nói câu trả lời. Câu khẩn cấp/quan trọng đọc bằng giọng máy (nguyên văn); còn lại qua Live.

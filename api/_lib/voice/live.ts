@@ -72,6 +72,8 @@ export const LIVE_TOOLS: FnDef[] = [
 
 /** Giá trị cũ đã chạy được (lần thử 19/11), dùng dự phòng nếu OpenAI từ chối giá trị mới. */
 export const ACK_DELAY_FALLBACK_MS = 800;
+/** Thử từ lớn đến nhỏ: 3000 ms bị OpenAI từ chối (20/11), chưa rõ trần là bao nhiêu nên dò dần, lấy giá trị lớn nhất được nhận. */
+export const ACK_DELAY_LADDER = [ACK_DELAY_MS, 2000, 1500, 1200, ACK_DELAY_FALLBACK_MS];
 
 export function buildLiveSession(
   mode: LiveMode,
