@@ -194,8 +194,15 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
                         SizedBox(
                           width: AppSpacing.tapTarget,
                           child: (_page > 0 || widget.editing)
-                              ? IconButton(
+                              ? IconButton.filled(
                                   tooltip: 'Quay lại',
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: AppColors.navyDeep,
+                                    fixedSize: const Size(44, 44),
+                                    elevation: 2,
+                                    shadowColor: AppColors.cardShadow,
+                                  ),
                                   icon: const Icon(Icons.arrow_back_rounded),
                                   onPressed: _back,
                                 )
@@ -216,7 +223,8 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
                                 child: LinearProgressIndicator(
                                   value: (_page + 1) / (_lastPage + 1),
                                   minHeight: 6,
-                                  backgroundColor: AppColors.border,
+                                  color: AppColors.navyDeep,
+                                  backgroundColor: const Color(0xFFDDE2EC),
                                 ),
                               ),
                             ],
@@ -627,26 +635,25 @@ class _SexTile extends StatelessWidget {
       child: Container(
         height: 92,
         decoration: BoxDecoration(
-          color: selected ? AppColors.navy : Colors.white,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          border: Border.all(
-            color: selected ? AppColors.navy : AppColors.border,
-            width: 1.5,
-          ),
+          color: selected ? AppColors.navyDeep : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(color: AppColors.cardShadow, blurRadius: 14, offset: Offset(0, 4)),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 36,
-              color: selected ? Colors.white : AppColors.navy,
+              size: 34,
+              color: selected ? Colors.white : AppColors.navyDeep,
             ),
             Text(
               label,
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
                 color: selected ? Colors.white : AppColors.navyDeep,
               ),
             ),
@@ -675,11 +682,10 @@ class _Choice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fill = selected
-        ? (strong ? AppColors.navy : const Color(0xFFE6F1FB))
-        : AppColors.background;
-    final border = selected ? AppColors.navy : AppColors.border;
+        ? (strong ? AppColors.navyDeep : const Color(0xFFE4E8F1))
+        : Colors.white;
     final text = selected
-        ? (strong ? Colors.white : AppColors.navy)
+        ? (strong ? Colors.white : AppColors.navyDeep)
         : AppColors.textMuted;
     return Semantics(
       button: true,
@@ -694,14 +700,18 @@ class _Choice extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: fill,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: border, width: 1.5),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: selected
+                ? null
+                : const [
+                    BoxShadow(color: AppColors.cardShadow, blurRadius: 8, offset: Offset(0, 2)),
+                  ],
           ),
           child: Text(
             label,
             style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               color: text,
             ),
           ),

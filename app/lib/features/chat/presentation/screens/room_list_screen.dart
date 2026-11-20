@@ -14,7 +14,6 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../community/presentation/community_providers.dart';
 import '../../../family/domain/family_models.dart';
 import '../../../family/presentation/family_providers.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../domain/room.dart';
 import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';

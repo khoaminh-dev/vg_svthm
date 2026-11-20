@@ -74,7 +74,7 @@ class ProfileScreen extends ConsumerWidget {
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16,
       ),
-      secondary: _LeadIcon(Icons.volume_up_outlined),
+      secondary: const _LeadIcon(Icons.volume_up_outlined),
       title: const Text(
         'Đọc lời khuyên sau khi đo',
         style: TextStyle(
@@ -171,16 +171,20 @@ class ProfileScreen extends ConsumerWidget {
                     child: ExpansionTile(
                       key: const Key('profile-more'),
                       tilePadding: const EdgeInsets.symmetric(horizontal: 20),
+                      collapsedBackgroundColor: Colors.white,
+                      backgroundColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                      collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                       title: const Text(
                         'Cài đặt khác',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.navyDeep),
                       ),
                       children: [
-                        speakTile,
+                        InsetGroup(dividerIndent: 0, children: [speakTile]),
                         const SizedBox(height: AppSpacing.md),
                         const _VySettingsGroup(),
                         const SizedBox(height: AppSpacing.md),
-                        const _FamilySettings(),
+                        const _FamilySettings(hideShortcuts: true),
                         const SizedBox(height: AppSpacing.md),
                         const _NotificationSettings(),
                       ],
@@ -392,7 +396,6 @@ class _BpReminderSettings extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final s = ref.watch(bpReminderSettingsProvider).value ?? const BpReminderSettings();
     final n = ref.read(bpReminderSettingsProvider.notifier);
     final on = s.effectiveEnabled(elder: elder);
@@ -406,7 +409,7 @@ class _BpReminderSettings extends ConsumerWidget {
         SwitchListTile(
           key: const Key('bp-reminder-toggle'),
           contentPadding: pad,
-          secondary: Icon(Icons.alarm_on_rounded, color: scheme.primary, size: elder ? 36 : 24),
+          secondary: _LeadIcon(Icons.alarm_on_rounded, size: elder ? 48 : 38),
           title: Text('Nhắc đo huyết áp', style: titleStyle),
           subtitle: Text(
             on ? 'Mỗi ngày nhắc một lần, hôm nào đo rồi thì thôi' : 'Đang tắt',
@@ -423,7 +426,7 @@ class _BpReminderSettings extends ConsumerWidget {
             key: const Key('bp-reminder-morning'),
             contentPadding: pad,
             minTileHeight: elder ? 72 : 60,
-            leading: Icon(Icons.wb_sunny_outlined, color: scheme.primary, size: elder ? 36 : 24),
+            leading: _LeadIcon(Icons.wb_sunny_outlined, size: elder ? 48 : 38),
             title: Text('Buổi sáng', style: titleStyle),
             subtitle: Text('Chạm để đổi giờ', style: subStyle),
             trailing: Text(
@@ -441,7 +444,7 @@ class _BpReminderSettings extends ConsumerWidget {
             key: const Key('bp-reminder-evening'),
             contentPadding: pad,
             minTileHeight: elder ? 72 : 60,
-            leading: Icon(Icons.nights_stay_outlined, color: scheme.primary, size: elder ? 36 : 24),
+            leading: _LeadIcon(Icons.nights_stay_outlined, size: elder ? 48 : 38),
             title: Text('Buổi tối', style: titleStyle),
             subtitle: Text(
               s.evening == null ? 'Chưa đặt. Chạm để thêm một giờ buổi tối' : 'Chạm để đổi giờ',
@@ -613,11 +616,13 @@ class _NotificationSettings extends ConsumerWidget {
 
 /// Nhóm "Gia đình": mời người thân theo dõi mình, theo dõi người thân, và công tắc chế độ theo dõi.
 class _FamilySettings extends ConsumerWidget {
-  const _FamilySettings();
+  const _FamilySettings({this.hideShortcuts = false});
+
+  /// Người cao tuổi đã có ô lớn "Mời người thân" và "Thẻ y tế khẩn cấp" ở đầu trang: không lặp lại.
+  final bool hideShortcuts;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final watchers = ref.watch(watchersProvider);
     final watched = ref.watch(watchedLinksProvider);
     final isFamily = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.family;
@@ -626,7 +631,7 @@ class _FamilySettings extends ConsumerWidget {
       key: const Key('family-settings'),
       dividerIndent: 0,
       children: [
-        if (!isFamily)
+        if (!isFamily && !hideShortcuts)
         ListTile(
           key: const Key('profile-invite'),
           minTileHeight: 64,
@@ -660,7 +665,7 @@ class _FamilySettings extends ConsumerWidget {
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: () => context.push(Routes.chooseRoleChange),
         ),
-        if (!isFamily)
+        if (!isFamily && !hideShortcuts)
         ListTile(
           key: const Key('profile-emergency-card'),
           minTileHeight: 64,
@@ -676,7 +681,7 @@ class _FamilySettings extends ConsumerWidget {
         ListTile(
           key: const Key('profile-join'),
           minTileHeight: 64,
-          leading: Icon(Icons.person_add_alt_1_outlined, color: scheme.primary),
+          leading: _LeadIcon(Icons.person_add_alt_1_outlined),
           title: Text(isFamily ? 'Thêm người thân để theo dõi' : 'Theo dõi người thân', style: titleStyle),
           subtitle: Text(
             watched.isEmpty
@@ -707,19 +712,20 @@ class _FamilySettings extends ConsumerWidget {
 
 /// Biểu tượng ở đầu dòng cài đặt: ô bo góc tô nhạt (như màn Cài đặt của iOS).
 class _LeadIcon extends StatelessWidget {
-  const _LeadIcon(this.icon);
+  const _LeadIcon(this.icon, {this.size = 38});
 
   final IconData icon;
+  final double size;
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 38,
-    height: 38,
+    width: size,
+    height: size,
     decoration: BoxDecoration(
       color: const Color(0xFFEAF0FF),
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(size * 0.29),
     ),
-    child: Icon(icon, size: 22, color: AppColors.navyDeep),
+    child: Icon(icon, size: size * 0.58, color: AppColors.navyDeep),
   );
 }
 

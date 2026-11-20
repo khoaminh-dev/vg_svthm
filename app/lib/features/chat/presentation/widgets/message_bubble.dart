@@ -23,7 +23,6 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final fg = isMine ? Colors.white : const Color(0xFF14213D);
     final path = message.imagePath;
