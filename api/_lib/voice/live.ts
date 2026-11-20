@@ -27,8 +27,11 @@ export function pickMode(v: unknown, fallback: string | undefined = process.env.
   return m === 'C' ? 'C' : 'R';
 }
 
+export const ACK_DELAY_MS = 3000;
+
 /** Chế độ C: ứng dụng (Vy cũ) lo hành động, GPT-Live chỉ là giọng. Cần đọc nguyên văn và chuyển mọi câu trả lời kế tiếp. */
 const clientExtra = (hon: string) => `
+- Bạn CHỈ tự trả lời chào hỏi, cảm ơn, tạm biệt. MỌI câu khác của ${hon} (mở, bật, phát, nghe nhạc, dừng, tiếp, quay lại, xem, đọc, nhắn, gửi, hỏi về sức khoẻ, hay bất cứ điều gì bạn chưa chắc) đều phải giao ngay cho phần xử lý phía sau. Không hỏi lại ${hon} (ví dụ hỏi thể loại nhạc), không nói "con sẽ mở/làm", không nói "để con nhờ phần xử lý", không đoán.
 - Khi phần xử lý phía sau gửi lời cần nói, hãy đọc lại NGUYÊN VĂN lời đó, không thêm, không bớt, không diễn đạt lại.
 - Nếu phần xử lý vừa hỏi ${hon} một câu (nhắn cho ai, nhắn gì, có gửi không, chọn ai...), thì MỌI câu ${hon} nói kế tiếp, kể cả "ừ", "không", "gửi", "sửa", một cái tên hay nội dung tin nhắn, đều phải giao cho phần xử lý. Không tự trả lời, không tự xác nhận.
 - Nếu phần xử lý báo không cần nói gì thì hãy giữ im lặng, đừng tự nói thêm.`;
@@ -71,7 +74,9 @@ export function buildLiveSession(mode: LiveMode, honorific: string, env: NodeJS.
   const hon = honorificOf(honorific);
   const session: Record<string, unknown> = { model: 'gpt-live-1', instructions: frontInstructions(hon, mode) };
   if (mode === 'C') {
-    session.delegation = { type: 'client', acknowledgement_delay_ms: 800 };
+    // Lời "đệm" tự động của Live (kiểu "Dạ, con hiểu rồi...") chỉ nên chen vào khi phần xử lý thật sự chậm. Đo thực tế:
+    // từ lúc ủy quyền đến lúc có câu trả lời mất ~1,0–1,4 giây, nên 800 ms làm Live nói chen/nói đè lên câu trả lời.
+    session.delegation = { type: 'client', acknowledgement_delay_ms: ACK_DELAY_MS };
   } else {
     let extra: Record<string, unknown> = {};
     try {

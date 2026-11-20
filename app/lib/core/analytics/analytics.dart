@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../diagnostics/app_trace.dart';
+
 /// Ghi lại thao tác của người dùng vào bảng `events` (web admin thống kê).
 ///
 /// Sự kiện được gom lại và gửi theo lô (một request cho nhiều sự kiện) để giảm tải lên Supabase khi
@@ -96,6 +98,7 @@ class AnalyticsObserver extends NavigatorObserver {
   void _view(Route<dynamic>? route) {
     if (route is! PageRoute) return;
     final name = route.settings.name;
+    AppTrace.line('MÀN HÌNH → $name');
     if (name == null || name.isEmpty || name == Analytics.currentScreen) return;
     Analytics.currentScreen = name;
     Analytics.track('screen_view');
