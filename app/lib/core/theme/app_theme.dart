@@ -85,9 +85,10 @@ abstract final class AppTheme {
           )
         : base;
 
-    final border = OutlineInputBorder(
+    // Ô nhập kiểu iOS: nền xám nhạt, không viền, nhãn nổi trong ô (UnderlineInputBorder để nhãn không bị nấc viền).
+    final border = UnderlineInputBorder(
       borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-      borderSide: BorderSide(color: scheme.outlineVariant),
+      borderSide: BorderSide.none,
     );
     final textTheme = ThemeData(brightness: brightness).textTheme.apply(
       bodyColor: scheme.onSurface,
@@ -167,12 +168,11 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerLowest,
+        fillColor: const Color(0xFFEDEFF4),
+        focusColor: const Color(0xFFE1E6F0),
         border: border,
         enabledBorder: border,
-        focusedBorder: border.copyWith(
-          borderSide: BorderSide(color: scheme.primary, width: 2),
-        ),
+        focusedBorder: border,
         errorBorder: border.copyWith(
           borderSide: BorderSide(color: scheme.error),
         ),

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
 
 /// Trạng thái của quả cầu Vy.
 enum OrbMode { idle, listening, thinking, speaking }

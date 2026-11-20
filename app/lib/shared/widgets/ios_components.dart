@@ -293,3 +293,30 @@ class SegmentedTabs extends StatelessWidget {
     );
   }
 }
+
+
+/// Nút quay lại tròn trắng có bóng nhẹ, đặt ở `AppBar.leading` (vừa chiều rộng mặc định 56).
+class SoftBackLeading extends StatelessWidget {
+  const SoftBackLeading({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 10),
+    child: Center(
+      child: IconButton.filled(
+        tooltip: 'Quay lại',
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.navyDeep,
+          fixedSize: const Size(44, 44),
+          elevation: 2,
+          shadowColor: AppColors.cardShadow,
+        ),
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: onPressed,
+      ),
+    ),
+  );
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -94,11 +95,7 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Thẻ y tế khẩn cấp'),
-        leading: IconButton(
-          tooltip: 'Quay lại',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
-        ),
+        leading: SoftBackLeading(onPressed: () => context.pop()),
       ),
       body: SafeArea(
         child: !existing.hasValue && !existing.hasError
@@ -148,8 +145,11 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text('Người liên hệ khẩn cấp', style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 8),
                   for (var i = 0; i < 3; i++)
-                    Row(
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
                       children: [
                         Expanded(
                           flex: 4,
@@ -172,6 +172,7 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
                           ),
                         ),
                       ],
+                    ),
                     ),
                   const SizedBox(height: AppSpacing.sm),
                   TextField(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -224,11 +225,7 @@ class FamilyPersonScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(name),
-        leading: IconButton(
-          tooltip: 'Quay lại',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
-        ),
+        leading: SoftBackLeading(onPressed: () => context.pop()),
       ),
       body: SafeArea(
         child: RefreshIndicator(onRefresh: refresh, child: body),

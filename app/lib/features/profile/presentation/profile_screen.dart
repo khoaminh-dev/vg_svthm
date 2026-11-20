@@ -59,7 +59,7 @@ class ProfileScreen extends ConsumerWidget {
 
     Widget row(IconData icon, String label, String value) => ListTile(
       minTileHeight: 64,
-      leading: Icon(icon, color: scheme.primary),
+      leading: _LeadIcon(icon),
       title: Text(
         label,
         style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
@@ -72,10 +72,7 @@ class ProfileScreen extends ConsumerWidget {
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 16,
       ),
-      secondary: Icon(
-        Icons.volume_up_outlined,
-        color: scheme.primary,
-      ),
+      secondary: _LeadIcon(Icons.volume_up_outlined),
       title: const Text(
         'Đọc lời khuyên sau khi đo',
         style: TextStyle(
@@ -145,10 +142,7 @@ class ProfileScreen extends ConsumerWidget {
                       child: ListTile(
                         key: const Key('profile-health'),
                         minTileHeight: 64,
-                        leading: Icon(
-                          Icons.assignment_ind_outlined,
-                          color: scheme.primary,
-                        ),
+                        leading: _LeadIcon(Icons.assignment_ind_outlined),
                         title: const Text(
                           'Hồ sơ sức khoẻ',
                           style: TextStyle(
@@ -289,27 +283,38 @@ class _ElderProfileShortcuts extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Material(
         color: Colors.white,
+        elevation: 1.5,
+        shadowColor: AppColors.cardShadow,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           key: Key(key),
           borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Icon(icon, size: 40, color: AppColors.navy),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEAF0FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 30, color: AppColors.navyDeep),
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                      Text(title, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w600, color: AppColors.navyDeep)),
+                      const SizedBox(height: 2),
                       Text(sub, style: const TextStyle(fontSize: 16, color: AppColors.textMuted)),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, size: 32),
+                const Icon(Icons.chevron_right_rounded, size: 28, color: Color(0xFFB8BEC9)),
               ],
             ),
           ),
@@ -471,7 +476,6 @@ class _NotificationSettings extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final prefs = ref.watch(pushPrefsProvider).value ?? const PushPrefs();
     final notifier = ref.read(pushPrefsProvider.notifier);
     const pad = EdgeInsets.symmetric(horizontal: 16);
@@ -483,7 +487,7 @@ class _NotificationSettings extends ConsumerWidget {
         SwitchListTile(
           key: const Key('push-messages'),
           contentPadding: pad,
-          secondary: Icon(Icons.notifications_outlined, color: scheme.primary),
+          secondary: _LeadIcon(Icons.notifications_outlined),
           title: const Text('Thông báo tin nhắn', style: titleStyle),
           subtitle: Text(ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.family ? 'Báo khi có người nhắn cho bạn' : 'Báo khi có người nhắn cho bác'),
           value: prefs.messages,
@@ -495,7 +499,7 @@ class _NotificationSettings extends ConsumerWidget {
         SwitchListTile(
           key: const Key('push-show-text'),
           contentPadding: pad,
-          secondary: Icon(Icons.visibility_outlined, color: scheme.primary),
+          secondary: _LeadIcon(Icons.visibility_outlined),
           title: const Text('Hiện nội dung tin nhắn', style: titleStyle),
           subtitle: const Text('Tắt thì chỉ hiện tên người nhắn'),
           value: prefs.showText,
@@ -512,7 +516,7 @@ class _NotificationSettings extends ConsumerWidget {
         SwitchListTile(
           key: const Key('push-updates'),
           contentPadding: pad,
-          secondary: Icon(Icons.system_update_outlined, color: scheme.primary),
+          secondary: _LeadIcon(Icons.system_update_outlined),
           title: const Text('Thông báo bản cập nhật', style: titleStyle),
           subtitle: const Text('Báo khi Viegrand có bản mới'),
           value: prefs.updates,
@@ -525,7 +529,7 @@ class _NotificationSettings extends ConsumerWidget {
           SwitchListTile(
             key: const Key('push-dose-alerts'),
             contentPadding: pad,
-            secondary: Icon(Icons.medication_outlined, color: scheme.primary),
+            secondary: _LeadIcon(Icons.medication_outlined),
             title: const Text('Báo khi người thân quên thuốc', style: titleStyle),
             subtitle: const Text('Cũng báo khi sắp hết thuốc, sắp tái khám'),
             value: prefs.doseAlerts,
@@ -537,7 +541,7 @@ class _NotificationSettings extends ConsumerWidget {
           SwitchListTile(
             key: const Key('push-digest'),
             contentPadding: pad,
-            secondary: Icon(Icons.summarize_outlined, color: scheme.primary),
+            secondary: _LeadIcon(Icons.summarize_outlined),
             title: const Text('Tóm tắt cuối ngày', style: titleStyle),
             subtitle: const Text('Khoảng 20:00: huyết áp và số cữ thuốc đã uống'),
             value: prefs.digest,
@@ -550,7 +554,7 @@ class _NotificationSettings extends ConsumerWidget {
             key: const Key('push-quiet'),
             contentPadding: pad,
             minTileHeight: 64,
-            leading: Icon(Icons.bedtime_outlined, color: scheme.primary),
+            leading: _LeadIcon(Icons.bedtime_outlined),
             title: const Text('Giờ yên tĩnh', style: titleStyle),
             subtitle: Text(
               prefs.hasQuiet
@@ -616,7 +620,7 @@ class _FamilySettings extends ConsumerWidget {
         ListTile(
           key: const Key('profile-invite'),
           minTileHeight: 64,
-          leading: Icon(Icons.family_restroom_outlined, color: scheme.primary),
+          leading: _LeadIcon(Icons.family_restroom_outlined),
           title: const Text('Mời người thân theo dõi bác', style: titleStyle),
           subtitle: Text(
             watchers.isEmpty
@@ -630,7 +634,7 @@ class _FamilySettings extends ConsumerWidget {
           ListTile(
             key: const Key('profile-my-health'),
             minTileHeight: 64,
-            leading: Icon(Icons.favorite_border_rounded, color: scheme.primary),
+            leading: _LeadIcon(Icons.favorite_border_rounded),
             title: const Text('Sức khoẻ của tôi', style: titleStyle),
             subtitle: const Text('Huyết áp và lịch thuốc của chính bạn'),
             trailing: const Icon(Icons.chevron_right_rounded),
@@ -640,7 +644,7 @@ class _FamilySettings extends ConsumerWidget {
         ListTile(
           key: const Key('profile-role'),
           minTileHeight: 64,
-          leading: Icon(Icons.swap_horiz_rounded, color: scheme.primary),
+          leading: _LeadIcon(Icons.swap_horiz_rounded),
           title: const Text('Vai trò', style: titleStyle),
           subtitle: Text(ref.watch(currentUserProvider)?.role?.label ?? 'Chưa chọn'),
           trailing: const Icon(Icons.chevron_right_rounded),
@@ -650,7 +654,7 @@ class _FamilySettings extends ConsumerWidget {
         ListTile(
           key: const Key('profile-emergency-card'),
           minTileHeight: 64,
-          leading: Icon(Icons.medical_information_outlined, color: scheme.primary),
+          leading: _LeadIcon(Icons.medical_information_outlined),
           title: const Text('Thẻ y tế khẩn cấp', style: titleStyle),
           subtitle: const Text('Nhóm máu, dị ứng, người liên hệ. Hiện khi bấm SOS'),
           trailing: const Icon(Icons.chevron_right_rounded),
@@ -676,7 +680,7 @@ class _FamilySettings extends ConsumerWidget {
           SwitchListTile(
             key: const Key('profile-watch-mode'),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            secondary: Icon(Icons.visibility_outlined, color: scheme.primary),
+            secondary: _LeadIcon(Icons.visibility_outlined),
             title: const Text('Chế độ theo dõi người thân', style: titleStyle),
             subtitle: const Text('Trang chủ hiện tình hình của cha mẹ'),
             value: ref.watch(watchModeProvider),
@@ -688,4 +692,23 @@ class _FamilySettings extends ConsumerWidget {
       ],
     );
   }
+}
+
+
+/// Biểu tượng ở đầu dòng cài đặt: ô bo góc tô nhạt (như màn Cài đặt của iOS).
+class _LeadIcon extends StatelessWidget {
+  const _LeadIcon(this.icon);
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 38,
+    height: 38,
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF0FF),
+      borderRadius: BorderRadius.circular(11),
+    ),
+    child: Icon(icon, size: 22, color: AppColors.navyDeep),
+  );
 }

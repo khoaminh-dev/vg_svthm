@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -63,10 +64,23 @@ class MedPlanListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lịch thuốc'),
-        leading: IconButton(
-          tooltip: 'Quay lại',
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+        leadingWidth: 72,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Center(
+            child: IconButton.filled(
+              tooltip: 'Quay lại',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.navyDeep,
+                fixedSize: const Size(48, 48),
+                elevation: 2,
+                shadowColor: AppColors.cardShadow,
+              ),
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => context.pop(),
+            ),
+          ),
         ),
         actions: [
           IconButton(
@@ -80,6 +94,7 @@ class MedPlanListScreen extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('plan-new'),
         onPressed: () async {
@@ -122,7 +137,14 @@ class MedPlanListScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.cardShadow,
+                              blurRadius: 16,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,15 +158,11 @@ class MedPlanListScreen extends ConsumerWidget {
                                         ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
                                 ),
-                                Chip(
-                                  label: Text(
-                                    p.active ? 'Đang dùng' : 'Đã kết thúc',
-                                  ),
-                                  backgroundColor:
-                                      (p.active
-                                              ? AppColors.levelGood
-                                              : AppColors.textMuted)
-                                          .withValues(alpha: 0.14),
+                                StatusBadge(
+                                  label: p.active ? 'Đang dùng' : 'Đã kết thúc',
+                                  color: p.active
+                                      ? AppColors.levelGood
+                                      : AppColors.textMuted,
                                 ),
                               ],
                             ),

@@ -94,7 +94,6 @@ class _NavTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final color = selected ? const Color(0xFF0B2447) : const Color(0xFF8A94A6);
     return Semantics(
       button: true,
