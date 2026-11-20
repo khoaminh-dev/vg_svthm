@@ -208,6 +208,22 @@ class VyCore extends Notifier<VyView> {
     }
   }
 
+  /// Người dùng gõ chữ cho Vy (người nghe kém, nơi ồn, hoặc muốn thử): đi cùng đường với lời nói đã được chép chữ.
+  Future<void> sendText(String text) async {
+    final t = text.trim();
+    if (!_open || t.isEmpty) return;
+    _noteActivity();
+    Analytics.track('vy_text', {'len': t.length});
+    switch (_engine) {
+      case VyEngine.live:
+        await ref.read(liveLabProvider.notifier).tapChip(t);
+      case VyEngine.classic:
+        if (_classicStarted) await ref.read(voiceControllerProvider.notifier).tapChip(t);
+      case VyEngine.none:
+        break;
+    }
+  }
+
   /// Đã đọc thẻ giải thích lần đầu.
   Future<void> dismissIntro() async {
     await ref.read(vySettingsProvider.notifier).markIntroSeen();

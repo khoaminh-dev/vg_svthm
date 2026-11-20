@@ -20,6 +20,7 @@ class VyPanelHost extends ConsumerWidget {
     final view = ref.watch(vyCoreProvider);
     final core = ref.read(vyCoreProvider.notifier);
     final call = ref.read(phoneLauncherProvider);
+    final keyboard = MediaQuery.of(context).viewInsets.bottom;
     return Stack(
       children: [
         // Thẻ do người dùng tự mở rộng: chạm ra ngoài (vào màn thật) thì thu về thanh nhỏ, không chặn thao tác.
@@ -33,7 +34,8 @@ class VyPanelHost extends ConsumerWidget {
         Positioned(
           left: 12,
           right: 12,
-          bottom: 0,
+          // Bàn phím mở (đang gõ chữ cho Vy) thì nâng panel lên trên bàn phím.
+          bottom: keyboard,
           child: SafeArea(
             minimum: const EdgeInsets.only(bottom: 12),
             child: AnimatedSwitcher(
@@ -57,6 +59,7 @@ class VyPanelHost extends ConsumerWidget {
                       onClose: () => core.close(),
                       onPrimary: core.primary,
                       onChip: core.tapChip,
+                      onText: core.sendText,
                       onCollapse: core.collapse,
                       onExpand: core.expand,
                       onDismissIntro: core.dismissIntro,
@@ -80,6 +83,7 @@ class VyPanel extends StatelessWidget {
     required this.onClose,
     required this.onPrimary,
     required this.onChip,
+    this.onText,
     required this.onCollapse,
     required this.onExpand,
     required this.onDismissIntro,
@@ -90,6 +94,7 @@ class VyPanel extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onPrimary;
   final ValueChanged<String> onChip;
+  final ValueChanged<String>? onText;
   final VoidCallback onCollapse;
   final VoidCallback onExpand;
   final VoidCallback onDismissIntro;
@@ -216,6 +221,17 @@ class VyPanel extends StatelessWidget {
               ),
             ),
           ),
+          if (!expanded && onText != null && view.phase != VyPhase.opening) ...[
+            const SizedBox(width: 8),
+            _RoundButton(
+              key: const Key('vy-keyboard'),
+              icon: Icons.keyboard_alt_outlined,
+              label: 'Gõ chữ cho Vy',
+              color: const Color(0xFFF1F4FA),
+              iconColor: _navy,
+              onTap: onExpand,
+            ),
+          ],
           if (view.hasMic && view.phase != VyPhase.opening) ...[
             const SizedBox(width: 8),
             _RoundButton(
@@ -305,8 +321,71 @@ class VyPanel extends StatelessWidget {
                 ? _ConfirmButtons(chips: view.chips, onTap: onChip)
                 : _ChipWrap(chips: view.chips, onTap: onChip),
           ],
+          if (onText != null && view.phase != VyPhase.opening && view.phase != VyPhase.emergency) ...[
+            const SizedBox(height: 16),
+            _TextBox(onSend: onText!),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Ô gõ chữ cho Vy: cho người nghe kém hoặc nơi ồn, và để thử từng câu mà không cần nói.
+class _TextBox extends StatefulWidget {
+  const _TextBox({required this.onSend});
+
+  final ValueChanged<String> onSend;
+
+  @override
+  State<_TextBox> createState() => _TextBoxState();
+}
+
+class _TextBoxState extends State<_TextBox> {
+  final _c = TextEditingController();
+
+  void _send() {
+    final t = _c.text.trim();
+    if (t.isEmpty) return;
+    widget.onSend(t);
+    _c.clear();
+    FocusScope.of(context).unfocus();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            key: const Key('vy-text'),
+            controller: _c,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => _send(),
+            maxLength: 300,
+            buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+            decoration: const InputDecoration(
+              hintText: 'Gõ chữ cho Vy',
+              contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _RoundButton(
+          key: const Key('vy-text-send'),
+          icon: Icons.arrow_upward_rounded,
+          label: 'Gửi chữ cho Vy',
+          color: _navy,
+          iconColor: Colors.white,
+          onTap: _send,
+        ),
+      ],
     );
   }
 }

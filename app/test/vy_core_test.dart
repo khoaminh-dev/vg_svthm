@@ -398,6 +398,50 @@ void main() {
     });
   });
 
+  test('gõ chữ cho Vy: đi tới động cơ đang chạy, câu rỗng hoặc khi đã đóng thì bỏ qua', () {
+    fakeAsync((a) {
+      final r = Rig();
+      tick(a);
+      unawaited(r.core.sendText('mở thuốc')); // chưa mở
+      tick(a, 10);
+      expect(r.live.taps, isEmpty);
+      unawaited(r.core.open());
+      tick(a, 100);
+      unawaited(r.core.sendText('  '));
+      unawaited(r.core.sendText('tôi uống rồi'));
+      tick(a, 10);
+      expect(r.live.taps, ['tôi uống rồi']);
+      unawaited(r.core.close());
+      tick(a);
+      unawaited(r.core.sendText('xin chào'));
+      tick(a, 10);
+      expect(r.live.taps, ['tôi uống rồi']);
+
+      // Vy thường
+      r.live.failWith = 'live_not_allowed 403';
+      unawaited(r.core.open());
+      tick(a, 300);
+      unawaited(r.core.sendText('mở nhạc xưa'));
+      tick(a, 10);
+      expect(r.voice.taps, ['mở nhạc xưa']);
+    });
+  });
+
+  test('gõ chữ làm người dùng "đang hoạt động": đếm lại 30 giây im lặng', () {
+    fakeAsync((a) {
+      final r = Rig();
+      tick(a);
+      unawaited(r.core.open());
+      tick(a, 100);
+      a.elapse(const Duration(seconds: 25));
+      unawaited(r.core.sendText('mở thuốc'));
+      a.flushMicrotasks();
+      a.elapse(const Duration(seconds: 25));
+      a.flushMicrotasks();
+      expect(r.view.idlePrompt, isFalse);
+    });
+  });
+
   test('mở hai lần liền: lần hai bị bỏ qua', () {
     fakeAsync((a) {
       final r = Rig();

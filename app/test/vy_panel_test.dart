@@ -15,6 +15,7 @@ class Taps {
   int expand = 0;
   int intro = 0;
   int call = 0;
+  final texts = <String>[];
 }
 
 Future<Taps> show(WidgetTester t, VyView v) async {
@@ -34,6 +35,7 @@ Future<Taps> show(WidgetTester t, VyView v) async {
             onExpand: () => taps.expand++,
             onDismissIntro: () => taps.intro++,
             onCall115: () => taps.call++,
+            onText: taps.texts.add,
           ),
         ),
       ),
@@ -177,6 +179,37 @@ void main() {
     final taps = await show(t, const VyView(phase: VyPhase.ready, engine: VyEngine.live));
     await t.tap(find.byType(GestureDetector).first);
     expect(taps.expand, 1);
+  });
+
+  testWidgets('ô gõ chữ: hiện trong thẻ lớn, gửi bằng nút và bằng bàn phím, rồi xoá ô', (t) async {
+    final taps = await show(
+      t,
+      const VyView(phase: VyPhase.ready, engine: VyEngine.live, userExpanded: true),
+    );
+    expect(find.byKey(const Key('vy-text')), findsOneWidget);
+    await t.enterText(find.byKey(const Key('vy-text')), 'tôi uống rồi');
+    await t.tap(find.byKey(const Key('vy-text-send')));
+    await t.pump();
+    expect(taps.texts, ['tôi uống rồi']);
+    expect(find.text('tôi uống rồi'), findsNothing); // ô đã xoá
+    await t.enterText(find.byKey(const Key('vy-text')), '  ');
+    await t.tap(find.byKey(const Key('vy-text-send')));
+    expect(taps.texts.length, 1); // câu rỗng không gửi
+    await t.enterText(find.byKey(const Key('vy-text')), 'mở thuốc');
+    await t.testTextInput.receiveAction(TextInputAction.send);
+    await t.pump();
+    expect(taps.texts, ['tôi uống rồi', 'mở thuốc']);
+  });
+
+  testWidgets('thanh nhỏ có nút bàn phím để mở ô gõ chữ; đang nối hoặc khẩn cấp thì không có ô gõ', (t) async {
+    final taps = await show(t, const VyView(phase: VyPhase.ready, engine: VyEngine.live));
+    expect(find.byKey(const Key('vy-text')), findsNothing);
+    await t.tap(find.byKey(const Key('vy-keyboard')));
+    expect(taps.expand, 1);
+    await show(t, const VyView(phase: VyPhase.opening, engine: VyEngine.live, userExpanded: true));
+    expect(find.byKey(const Key('vy-text')), findsNothing);
+    await show(t, const VyView(phase: VyPhase.emergency, engine: VyEngine.live, vyText: 'Gọi 115'));
+    expect(find.byKey(const Key('vy-text')), findsNothing);
   });
 
   group('trạng thái hiển thị', () {
