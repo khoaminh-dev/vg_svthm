@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import ./_tests/register_ts.mjs --test _tests/dm.test.ts _tests/ui_cmd.test.ts _tests/ui_contract.test.ts _tests/read_meds.test.ts _tests/stt_guard.test.ts _tests/health.test.ts _tests/health_say.test.ts _tests/med_parse.test.ts _tests/groq_body.test.ts _tests/live.test.ts _tests/secretbox.test.ts _tests/admin_fresh.test.ts"
+    "test": "node --import ./_tests/register_ts.mjs --test _tests/dm.test.ts _tests/ui_cmd.test.ts _tests/ui_contract.test.ts _tests/read_meds.test.ts _tests/phase5.test.ts _tests/stt_guard.test.ts _tests/health.test.ts _tests/health_say.test.ts _tests/med_parse.test.ts _tests/groq_body.test.ts _tests/live.test.ts _tests/secretbox.test.ts _tests/admin_fresh.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
