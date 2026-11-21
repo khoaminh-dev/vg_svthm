@@ -40,6 +40,12 @@ class ElderScaleReset extends StatelessWidget {
   );
 }
 
+/// Thanh "Quay lại" to ở đáy cho người cao tuổi trên màn mở chồng; người khác không có (null).
+Widget? elderBackBar(BuildContext context, WidgetRef ref) =>
+    ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder
+        ? ElderBackBar(onPressed: () => Navigator.of(context).maybePop())
+        : null;
+
 /// Thanh dưới có một nút "Quay lại" thật to, cho các màn người cao tuổi mở chồng lên (Cộng đồng, Giải trí).
 class ElderBackBar extends StatelessWidget {
   const ElderBackBar({super.key, required this.onPressed, this.label = 'Quay lại'});

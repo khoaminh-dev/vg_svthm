@@ -328,7 +328,10 @@ void main() {
       Future<void> open(FakeHealthRepository repo) async {
         await t.pumpWidget(
           ProviderScope(
-            overrides: [healthRepositoryProvider.overrideWithValue(repo)],
+            overrides: [
+              healthRepositoryProvider.overrideWithValue(repo),
+              currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', role: AppRole.elder)),
+            ],
             child: MaterialApp(
               theme: AppTheme.light,
               home: const HealthHistoryScreen(),

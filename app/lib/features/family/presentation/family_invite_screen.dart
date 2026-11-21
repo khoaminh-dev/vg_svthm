@@ -13,6 +13,7 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
+import '../../../shared/widgets/elder_text_scale.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
@@ -79,6 +80,7 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
     final theme = Theme.of(context);
     final watchers = ref.watch(watchersProvider);
     return Scaffold(
+      bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Người thân theo dõi'),
         leading: SoftBackLeading(onPressed: () => context.pop()),

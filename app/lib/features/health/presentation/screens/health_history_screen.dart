@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/elder_text_scale.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/health_models.dart';
@@ -56,6 +57,7 @@ class HealthHistoryScreen extends ConsumerWidget {
     final history = ref.watch(healthHistoryProvider);
     final items = history.value;
     return Scaffold(
+      bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Lịch sử hỏi Vy'),
         leading: SoftBackLeading(onPressed: () => context.pop()),

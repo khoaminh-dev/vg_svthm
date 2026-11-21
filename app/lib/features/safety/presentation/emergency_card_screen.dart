@@ -8,6 +8,7 @@ import '../../../core/errors/app_failure.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
+import '../../../shared/widgets/elder_text_scale.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../profile/data/phone_repository.dart';
 import '../domain/safety_models.dart';
@@ -109,6 +110,7 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
     final existing = ref.watch(emergencyCardProvider(widget.ownerId));
     if (existing.hasValue) _fill(existing.value);
     return Scaffold(
+      bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Thẻ y tế khẩn cấp'),
         leading: SoftBackLeading(onPressed: () => context.pop()),

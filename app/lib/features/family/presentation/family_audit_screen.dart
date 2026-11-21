@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/widgets/elder_text_scale.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../domain/family_models.dart';
@@ -27,6 +28,7 @@ class FamilyAuditScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final entries = ref.watch(familyAuditProvider);
     return Scaffold(
+      bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Nhật ký gia đình'),
         leading: SoftBackLeading(onPressed: () => context.pop()),
