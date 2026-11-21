@@ -11,9 +11,6 @@ abstract final class Routes {
   static const measure = '/measure';
   static const entertainment = '/entertainment';
   static const player = '/entertainment/play';
-  static const ocr = '/ocr';
-  static const ocrEdit = '/ocr/edit';
-  static const ocrDetail = '/ocr/detail';
   static const bp = '/bp';
   static const home = '/';
   static const profile = '/profile';

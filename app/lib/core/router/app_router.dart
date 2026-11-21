@@ -9,10 +9,6 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/chat/domain/room.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/chat/presentation/screens/room_list_screen.dart';
-import '../../features/ocr/domain/ocr_models.dart';
-import '../../features/ocr/presentation/screens/ocr_detail_screen.dart';
-import '../../features/ocr/presentation/screens/ocr_editor_screen.dart';
-import '../../features/ocr/presentation/screens/ocr_screen.dart';
 import 'routes.dart';
 import '../analytics/analytics.dart';
 import '../../features/bp/presentation/screens/bp_screen.dart';
@@ -212,19 +208,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => state.extra is VideoItem
             ? PlayerScreen(video: state.extra! as VideoItem)
             : const EntertainmentScreen(),
-      ),
-      GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
-      GoRoute(
-        path: Routes.ocrEdit,
-        builder: (_, state) => state.extra is OcrDraft
-            ? OcrEditorScreen(draft: state.extra! as OcrDraft)
-            : const OcrScreen(),
-      ),
-      GoRoute(
-        path: Routes.ocrDetail,
-        builder: (_, state) => state.extra is OcrRecord
-            ? OcrDetailScreen(record: state.extra! as OcrRecord)
-            : const OcrScreen(),
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
