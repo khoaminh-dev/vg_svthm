@@ -19,6 +19,7 @@ import '../../bp/data/bp_reminder_service.dart';
 import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../push/push_service.dart';
 import '../../voice/core/control_registry.dart';
+import '../data/phone_repository.dart';
 import '../../voice/core/vy_settings.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
@@ -312,6 +313,8 @@ class ProfileScreen extends ConsumerWidget {
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.navyDeep),
                       ),
                       children: [
+                        const _PhoneSettings(),
+                        const SizedBox(height: AppSpacing.md),
                         InsetGroup(dividerIndent: 0, children: [speakTile]),
                         const SizedBox(height: AppSpacing.md),
                         const _VySettingsGroup(),
@@ -324,6 +327,8 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ] else ...[
                   const _BpReminderSettings(elder: false),
+                  const SizedBox(height: AppSpacing.lg),
+                  const _PhoneSettings(),
                   const SizedBox(height: AppSpacing.lg),
                   const _VySettingsGroup(),
                   const SizedBox(height: AppSpacing.lg),
@@ -936,6 +941,111 @@ class _VySettingsGroup extends ConsumerWidget {
             Analytics.track('vy_setting', {'sounds': v});
             n.setSounds(v);
           },
+        ),
+      ],
+    );
+  }
+}
+
+
+/// Số điện thoại của tôi: để người thân đã liên kết nhờ Vy gọi cho mình, và Vy gọi được người thân cho mình ("gọi con trai").
+/// Lưu ở bảng riêng `profile_phones`: chỉ mình và người thân ĐANG liên kết thấy, người lạ không thấy.
+class _PhoneSettings extends ConsumerWidget {
+  const _PhoneSettings();
+
+  Future<void> _edit(BuildContext context, WidgetRef ref, String? current) async {
+    final c = TextEditingController(text: current ?? '');
+    String? error;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => VyControlScope(
+        dialogId: 'dlg.phone',
+        dialogTitle: 'Số điện thoại của tôi',
+        controls: [
+          VyControl(id: 'dlg.phone.cancel', label: 'Huỷ', aliases: const ['hủy', 'không', 'thôi'], onInvoke: () => Navigator.pop(ctx, false)),
+        ],
+        child: StatefulBuilder(
+          builder: (ctx, setS) => AlertDialog(
+            title: const Text('Số điện thoại của tôi'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  key: const Key('phone-field'),
+                  controller: c,
+                  keyboardType: TextInputType.phone,
+                  autofocus: true,
+                  decoration: InputDecoration(hintText: '0901 234 567', errorText: error),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Chỉ người thân đã liên kết với bạn mới thấy số này. Người lạ không thấy.',
+                  style: TextStyle(fontSize: 15, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+            actionsAlignment: MainAxisAlignment.spaceBetween,
+            actions: [
+              if ((current ?? '').isNotEmpty)
+                TextButton(
+                  key: const Key('phone-clear'),
+                  onPressed: () async {
+                    try {
+                      await ref.read(phoneRepositoryProvider).saveMine(null);
+                      if (ctx.mounted) Navigator.pop(ctx, true);
+                    } catch (e) {
+                      setS(() => error = 'Chưa xoá được, thử lại nhé');
+                    }
+                  },
+                  child: const Text('Xoá số'),
+                ),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
+              FilledButton(
+                key: const Key('phone-save'),
+                style: FilledButton.styleFrom(minimumSize: const Size(110, AppSpacing.tapTarget)),
+                onPressed: () async {
+                  if (normalizePhone(c.text) == null) {
+                    setS(() => error = 'Nhập 8 đến 15 chữ số');
+                    return;
+                  }
+                  try {
+                    await ref.read(phoneRepositoryProvider).saveMine(c.text);
+                    Analytics.track('phone_saved');
+                    if (ctx.mounted) Navigator.pop(ctx, true);
+                  } catch (e) {
+                    setS(() => error = 'Chưa lưu được, thử lại nhé');
+                  }
+                },
+                child: const Text('Lưu'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    c.dispose();
+    if (saved == true) ref.invalidate(myPhoneProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final phone = ref.watch(myPhoneProvider).value;
+    return InsetGroup(
+      key: const Key('phone-settings'),
+      dividerIndent: 0,
+      children: [
+        ListTile(
+          key: const Key('phone-row'),
+          minTileHeight: 64,
+          leading: const _LeadIcon(Icons.phone_outlined, size: 44),
+          title: const Text('Số điện thoại của tôi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+          subtitle: Text(
+            (phone ?? '').isEmpty ? 'Chưa có. Thêm để người thân gọi được' : phone!,
+            style: const TextStyle(fontSize: 17),
+          ),
+          trailing: const Icon(Icons.edit_outlined, size: 22),
+          onTap: () => _edit(context, ref, phone),
         ),
       ],
     );

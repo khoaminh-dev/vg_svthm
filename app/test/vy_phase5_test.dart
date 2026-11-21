@@ -11,6 +11,7 @@ import 'package:vg_svthm/features/family/domain/family_models.dart';
 import 'package:vg_svthm/features/family/presentation/family_providers.dart';
 import 'package:vg_svthm/features/bp/domain/bp_repository.dart';
 import 'package:vg_svthm/features/bp/presentation/providers/bp_providers.dart';
+import 'package:vg_svthm/features/profile/data/phone_repository.dart';
 import 'package:vg_svthm/features/safety/domain/safety_models.dart';
 import 'package:vg_svthm/features/safety/presentation/safety_providers.dart';
 import 'package:vg_svthm/features/safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
@@ -34,6 +35,17 @@ class FakeBpRepo implements BpRepository {
 
   @override
   Future<List<BpReading>> list({int limit = 200, String? ownerId}) async => added;
+}
+
+class FakePhones implements PhoneRepository {
+  FakePhones(this.byId);
+  final Map<String, String> byId;
+  @override
+  Future<String?> mine() async => null;
+  @override
+  Future<void> saveMine(String? phone) async {}
+  @override
+  Future<Map<String, String>> ofUsers(Iterable<String> ids) async => {for (final i in ids) if (byId.containsKey(i)) i: byId[i]!};
 }
 
 VoiceTask task(String intent, [Map<String, String> slots = const {}]) => VoiceTask(intent: intent, slots: slots);
@@ -257,7 +269,8 @@ void main() {
       createdAt: DateTime(2026),
     );
 
-    ProviderContainer make(List<CardContact> contacts, List<FamilyLink> links) => ProviderContainer(overrides: [
+    ProviderContainer make(List<CardContact> contacts, List<FamilyLink> links, [Map<String, String> phones = const {}]) => ProviderContainer(overrides: [
+      phoneRepositoryProvider.overrideWithValue(FakePhones(phones)),
       currentUserProvider.overrideWithValue(const AuthUser(id: 'me', role: AppRole.elder)),
       emergencyCardProvider('me').overrideWith((ref) async => EmergencyCard(contacts: contacts)),
       familyLinksProvider.overrideWith((ref) async => links),
@@ -285,6 +298,21 @@ void main() {
       final card = c.read(vyCardProvider)! as NoticeCard;
       expect(card.title, 'Chưa có số của Minh');
       expect(card.actions.single.label, 'Mở thẻ y tế');
+    });
+
+    test('thẻ y tế chưa có số nhưng người thân đã điền số ở Hồ sơ: gọi số đó', () async {
+      final c = make(const [], [link('Minh', 'con')], {'id-Minh': '0933444555'});
+      addTearDown(c.dispose);
+      await c.read(voiceActionsProvider).callContact('con trai', 'bác');
+      final card = c.read(vyCardProvider)! as CallCard;
+      expect([card.name, card.number], ['Minh', '0933444555']);
+    });
+
+    test('số trong thẻ y tế được ưu tiên hơn số ở Hồ sơ; cùng một số không bị tính hai lần', () async {
+      final c = make([minh], [link('Minh', 'con')], {'id-Minh': '0901 234 567'});
+      addTearDown(c.dispose);
+      await c.read(voiceActionsProvider).callContact('con trai', 'bác');
+      expect((c.read(vyCardProvider)! as CallCard).number, '0901234567');
     });
 
     test('hai người con đều có số: hỏi rõ tên; chỉ liên kết đang hoạt động và do mình làm chủ mới tính', () async {

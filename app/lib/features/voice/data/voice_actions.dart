@@ -27,7 +27,8 @@ import 'direct_caller.dart';
 import '../core/vy_cursor.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../family/presentation/family_providers.dart';
-import '../../safety/domain/safety_models.dart' show CardContact, EmergencyCard;
+import '../../profile/data/phone_repository.dart';
+import '../../safety/domain/safety_models.dart' show CardContact, EmergencyCard, dialable;
 import '../../safety/presentation/safety_providers.dart';
 import '../core/control_registry.dart';
 import '../domain/voice_models.dart';
@@ -418,13 +419,17 @@ class VoiceActions {
         ...?card?.contacts.where((c) => c.phone.trim().isNotEmpty),
       ];
       // Người thân đã liên kết với mình (con, cháu, vợ/chồng): để "gọi con trai" ghép được với số trong thẻ.
-      var linked = <({String name, String relation})>[];
+      var linked = <({String name, String relation, String? phone})>[];
       try {
-        final links = await _ref.read(familyLinksProvider.future);
+        final links = (await _ref.read(familyLinksProvider.future)).where((l) => l.iAmOwner && l.active).toList();
+        // Số điện thoại người thân tự điền ở Hồ sơ của họ (máy chủ chỉ trả số của người đang liên kết với mình).
+        Map<String, String> phones = const {};
+        try {
+          phones = await _ref.read(phoneRepositoryProvider).ofUsers([for (final l in links) l.otherId]);
+        } catch (_) {}
         linked = [
           for (final l in links)
-            if (l.iAmOwner && l.active)
-              (name: (l.otherName ?? l.otherUsername ?? '').trim(), relation: l.relation.code),
+            (name: (l.otherName ?? l.otherUsername ?? '').trim(), relation: l.relation.code, phone: phones[l.otherId]),
         ];
       } catch (_) {}
       final r = resolveCallee(q, people, linked);
@@ -441,7 +446,7 @@ class VoiceActions {
             _ref.read(vyCardProvider.notifier).show(
               NoticeCard(
                 title: 'Chưa có số của $person',
-                body: 'Thêm số điện thoại của $person ở Thẻ y tế khẩn cấp để Vy gọi giúp.',
+                body: 'Nhờ $person điền số ở Hồ sơ của họ, hoặc thêm số của $person ở Thẻ y tế khẩn cấp để Vy gọi giúp.',
                 actions: [
                   VyCardAction(label: 'Mở thẻ y tế', primary: true, run: () => router.push(Routes.emergencyCardFor(me))),
                 ],
@@ -511,7 +516,7 @@ class VoiceActions {
 
   /// Tìm người cần gọi: trước hết trong người liên hệ của thẻ y tế (theo tên); nếu không có thì theo QUAN HỆ/tên của người thân
   /// đã liên kết ("con trai" → người liên kết có quan hệ "con") rồi ghép tên đó với số trong thẻ.
-  static Callee resolveCallee(String q, List<CardContact> people, List<({String name, String relation})> linked) {
+  static Callee resolveCallee(String q, List<CardContact> people, List<({String name, String relation, String? phone})> linked) {
     final direct = matchContacts(q, people);
     if (direct.length == 1) return CalleeFound(direct.first);
     if (direct.length > 1) return CalleeMany(direct);
@@ -525,18 +530,26 @@ class VoiceActions {
       for (final l in linked)
         if (l.name.isNotEmpty &&
             (wantRel.contains(l.relation) || viNorm(l.name) == q || (q.length >= 3 && viNorm(l.name).contains(q))))
-          l.name,
+          l,
     ];
     if (persons.isEmpty) return const CalleeNone();
     final hits = <CardContact>[];
-    for (final n in persons) {
-      for (final c in matchContacts(viNorm(n), people)) {
-        if (!hits.any((h) => h.phone == c.phone)) hits.add(c);
+    void add(CardContact c) {
+      if (!hits.any((h) => dialable(h.phone) == dialable(c.phone))) hits.add(c);
+    }
+
+    for (final l in persons) {
+      // Số trong thẻ y tế (người dùng tự ghi) được ưu tiên; không có thì dùng số người thân tự điền ở Hồ sơ của họ.
+      final fromCard = matchContacts(viNorm(l.name), people);
+      if (fromCard.isNotEmpty) {
+        fromCard.forEach(add);
+      } else if ((l.phone ?? '').isNotEmpty) {
+        add(CardContact(name: l.name, phone: l.phone!));
       }
     }
     if (hits.length == 1) return CalleeFound(hits.first);
     if (hits.length > 1) return CalleeMany(hits);
-    return CalleeNoNumber(persons.first);
+    return CalleeNoNumber(persons.first.name);
   }
 
   /// Người liên hệ khớp với cụm đã bỏ dấu [q]: tên chứa cụm, cụm chứa tên, hoặc mọi từ của cụm có trong tên.
