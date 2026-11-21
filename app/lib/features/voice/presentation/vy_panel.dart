@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/router/app_router.dart';
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../core/vy_context.dart' show topRoutePath;
 import '../../../shared/widgets/vy_orb.dart';
 import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 import '../core/vy_card.dart';
@@ -27,6 +30,38 @@ class VyPanelHost extends ConsumerWidget {
     final keyboard = MediaQuery.of(context).viewInsets.bottom;
     // Ô gõ chữ chỉ hiện khi người dùng bật trong Hồ sơ (mặc định tắt cho gọn).
     final textOn = ref.watch(vySettingsProvider.select((s) => s.value?.textInput ?? false));
+    final router = ref.watch(routerProvider);
+    final switcher = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: SlideTransition(
+          position: Tween(
+            begin: const Offset(0, 0.25),
+            end: Offset.zero,
+          ).animate(anim),
+          child: child,
+        ),
+      ),
+      // Con trỏ đang làm việc thì thanh Vy lùi ra, để không che nút đang chỉ.
+      child: view.isOpen && !ref.watch(vyCursorBusyProvider)
+          ? VyPanel(
+              key: const ValueKey('vy-panel'),
+              view: view,
+              onClose: () => core.close(),
+              onPrimary: core.primary,
+              onChip: core.tapChip,
+              onText: textOn ? core.sendText : null,
+              onCardAction: core.runCardAction,
+              onCollapse: core.collapse,
+              onExpand: core.expand,
+              onDismissIntro: core.dismissIntro,
+              onCall115: () => call('115'),
+            )
+          : const SizedBox.shrink(key: ValueKey('vy-closed')),
+    );
     return Stack(
       children: [
         // Thẻ do người dùng tự mở rộng: chạm ra ngoài (vào màn thật) thì thu về thanh nhỏ, không chặn thao tác.
@@ -37,45 +72,26 @@ class VyPanelHost extends ConsumerWidget {
               onPointerDown: (_) => core.collapse(),
             ),
           ),
-        Positioned(
-          left: 12,
-          right: 12,
-          // Bàn phím mở (đang gõ chữ cho Vy) thì nâng panel lên trên bàn phím.
-          bottom: keyboard,
-          child: SafeArea(
-            minimum: const EdgeInsets.only(bottom: 12),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: SlideTransition(
-                  position: Tween(
-                    begin: const Offset(0, 0.25),
-                    end: Offset.zero,
-                  ).animate(anim),
-                  child: child,
-                ),
+        ListenableBuilder(
+          listenable: Listenable.merge([router.routeInformationProvider, router.routerDelegate]),
+          builder: (context, child) {
+            // Trang chủ có nút SOS và các ô lối tắt ở đáy: panel Vy (kể cả thẻ nhắc) nằm ở ĐẦU màn để không che chúng.
+            final top = topRoutePath(router) == Routes.home && keyboard == 0;
+            return Positioned(
+              left: 12,
+              right: 12,
+              top: top ? 0 : null,
+              // Bàn phím mở (đang gõ chữ cho Vy) thì nâng panel lên trên bàn phím.
+              bottom: top ? null : keyboard,
+              child: SafeArea(
+                top: top,
+                bottom: !top,
+                minimum: EdgeInsets.only(bottom: top ? 0 : 12, top: top ? 8 : 0),
+                child: child!,
               ),
-              // Con trỏ đang làm việc thì thanh Vy lùi ra, để không che nút đang chỉ.
-              child: view.isOpen && !ref.watch(vyCursorBusyProvider)
-                  ? VyPanel(
-                      key: const ValueKey('vy-panel'),
-                      view: view,
-                      onClose: () => core.close(),
-                      onPrimary: core.primary,
-                      onChip: core.tapChip,
-                      onText: textOn ? core.sendText : null,
-                      onCardAction: core.runCardAction,
-                      onCollapse: core.collapse,
-                      onExpand: core.expand,
-                      onDismissIntro: core.dismissIntro,
-                      onCall115: () => call('115'),
-                    )
-                  : const SizedBox.shrink(key: ValueKey('vy-closed')),
-            ),
-          ),
+            );
+          },
+          child: switcher,
         ),
       ],
     );

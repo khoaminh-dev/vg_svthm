@@ -204,17 +204,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.player,
-        builder: (_, state) => PlayerScreen(video: state.extra! as VideoItem),
+        builder: (_, state) => state.extra is VideoItem
+            ? PlayerScreen(video: state.extra! as VideoItem)
+            : const EntertainmentScreen(),
       ),
       GoRoute(path: Routes.ocr, builder: (_, _) => const OcrScreen()),
       GoRoute(
         path: Routes.ocrEdit,
-        builder: (_, state) => OcrEditorScreen(draft: state.extra! as OcrDraft),
+        builder: (_, state) => state.extra is OcrDraft
+            ? OcrEditorScreen(draft: state.extra! as OcrDraft)
+            : const OcrScreen(),
       ),
       GoRoute(
         path: Routes.ocrDetail,
-        builder: (_, state) =>
-            OcrDetailScreen(record: state.extra! as OcrRecord),
+        builder: (_, state) => state.extra is OcrRecord
+            ? OcrDetailScreen(record: state.extra! as OcrRecord)
+            : const OcrScreen(),
       ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),

@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/vy_button.dart';
+import '../core/vy_context.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../core/vy_core.dart';
 import '../core/vy_cursor.dart';
@@ -30,6 +32,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Android mới chỉ chuyển Back cho Flutter khi có người "xin" xử lý; xin để Back ở Trang chủ hỏi lại thay vì thoát ngay.
+    SystemNavigator.setFrameworkHandlesBack(true);
   }
 
   @override
@@ -41,8 +45,26 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
   /// Nút Back của Android: thẻ Vy lớn thu về thanh nhỏ, bấm lần nữa mới đóng Vy.
   @override
   Future<bool> didPopRoute() async {
-    return ref.read(vyCoreProvider.notifier).back();
+    if (ref.read(vyCoreProvider.notifier).back()) return true;
+    // Bộ định tuyến đã được hỏi trước và không còn màn nào để thoát: ta đang ở màn gốc.
+    final user = ref.read(currentUserProvider);
+    if (user == null || user.needsProfile) return false; // đăng nhập/hoàn tất hồ sơ: Back thoát như thường
+    final router = ref.read(routerProvider);
+    final path = topRoutePath(router);
+    if (!Routes.tabs.contains(path) && path != Routes.alerts) return false;
+    if (path != Routes.home) {
+      router.go(Routes.home); // tab khác: Back về Trang chủ trước
+      return true;
+    }
+    final now = DateTime.now();
+    final last = _lastBack;
+    if (last != null && now.difference(last) < const Duration(seconds: 2)) return false; // lần hai: thoát
+    _lastBack = now;
+    if (mounted) showAppSnackBar(context, 'Bấm Back lần nữa để thoát ứng dụng');
+    return true;
   }
+
+  DateTime? _lastBack;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +77,14 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
     ref.listen<bool>(vyCoreProvider.select((v) => v.isOpen), (prev, next) {
       if (next) SystemNavigator.setFrameworkHandlesBack(true);
     });
-    return Stack(
+    return NotificationListener<NavigationNotification>(
+      // Navigator báo "không còn gì để thoát" làm Android tự thoát app khi Back. Chặn lại và luôn xin xử lý Back,
+      // để didPopRoute ở trên hỏi "bấm lần nữa" ở Trang chủ.
+      onNotification: (_) {
+        SystemNavigator.setFrameworkHandlesBack(true);
+        return true;
+      },
+      child: Stack(
       children: [
         widget.child,
         if (enabled && !open)
@@ -85,6 +114,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
         // Con trỏ nổi trên cả panel (không nhận chạm).
         if (enabled) Positioned.fill(child: VyCursorLayer(key: ref.read(vyCursorSurfaceKeyProvider))),
       ],
+    ),
     );
   }
 }

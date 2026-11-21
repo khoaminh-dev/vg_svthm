@@ -502,11 +502,18 @@ class _MiniDose extends ConsumerWidget {
     final theme = Theme.of(context);
     final d = dose;
     if (due) {
-      // Thẻ "Đến giờ uống thuốc" phía trên đã nói đủ.
-      return _InfoBox(
-        title: 'Thuốc',
-        value: 'Đang đến giờ',
-        sub: 'Bấm "Đã uống" ở trên',
+      // Nút "Đã uống" chỉ có ở thẻ phía trên; ô này chỉ dẫn tới lịch thuốc, không lặp nút.
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('elder-dose-next'),
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            ref.read(healthTabProvider.notifier).set(2);
+            context.go(Routes.bp);
+          },
+          child: const _InfoBox(title: 'Thuốc', value: 'Đang đến giờ', sub: 'Chạm để xem lịch thuốc'),
+        ),
       );
     }
     if (d == null) {
