@@ -13,7 +13,7 @@ import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/elder_text_scale.dart';
 import '../../../shared/widgets/ios_components.dart';
 import '../../../shared/widgets/user_avatar.dart';
-import '../../../shared/widgets/vy_orb.dart';
+import '../../voice/presentation/vy_panel.dart' show VyHeroOrb;
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
@@ -296,7 +296,7 @@ class _VyHeroState extends ConsumerState<_VyHero>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      VyOrb(size: orb),
+                      VyHeroOrb(size: orb),
                       Text(
                         'Chạm vào Vy rồi nói',
                         textAlign: TextAlign.center,

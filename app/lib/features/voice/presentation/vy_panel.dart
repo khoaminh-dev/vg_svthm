@@ -134,20 +134,7 @@ class VyPanel extends StatelessWidget {
   /// Bỏ chờ Live, nói ngay bằng Vy thường (hiện khi kết nối quá lâu).
   final VoidCallback? onUseClassic;
 
-  OrbMode get _orb {
-    switch (view.phase) {
-      case VyPhase.opening || VyPhase.thinking || VyPhase.closing:
-        return OrbMode.thinking;
-      case VyPhase.listening:
-        return OrbMode.listening;
-      case VyPhase.ready:
-        return view.engine == VyEngine.live ? OrbMode.listening : OrbMode.idle;
-      case VyPhase.speaking || VyPhase.emergency:
-        return OrbMode.speaking;
-      case VyPhase.confirming || VyPhase.error || VyPhase.closed:
-        return OrbMode.idle;
-    }
-  }
+  OrbMode get _orb => orbModeFor(view);
 
   /// Chữ Vy nói: theo cài đặt "Hiện chữ khi Vy nói". Xác nhận, khẩn cấp và lỗi luôn hiện chữ vì người dùng cần đọc.
   bool get _showVyText =>
@@ -223,7 +210,7 @@ class VyPanel extends StatelessWidget {
           GestureDetector(
             onTap: expanded ? onCollapse : onExpand,
             behavior: HitTestBehavior.opaque,
-            child: VyOrb(mode: _orb, level: view.level, size: 56),
+            child: _PanelOrb(view: view, mode: _orb, size: 56),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -422,7 +409,7 @@ class _ConnectingState extends State<_Connecting> with SingleTickerProviderState
         children: [
           Row(
             children: [
-              const VyOrb(mode: OrbMode.thinking, size: 56),
+              const VyOrb(mode: OrbMode.thinking, size: 56, awake: true),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -778,5 +765,75 @@ class _ChipWrap extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+
+/// Vy-Blob trong panel: luôn thức, màu theo cảm xúc của [VyView.mood], và "nhấn" (vòng sáng + nảy) khi có điều quan trọng
+/// như thẻ mới hiện, gửi xong, lỗi, khẩn cấp.
+class _PanelOrb extends StatefulWidget {
+  const _PanelOrb({required this.view, required this.mode, required this.size, this.awake = true});
+
+  final VyView view;
+  final OrbMode mode;
+  final double size;
+  final bool awake;
+
+  @override
+  State<_PanelOrb> createState() => _PanelOrbState();
+}
+
+class _PanelOrbState extends State<_PanelOrb> {
+  int _emphasis = 0;
+
+  @override
+  void didUpdateWidget(_PanelOrb old) {
+    super.didUpdateWidget(old);
+    final a = old.view;
+    final b = widget.view;
+    final newCard = b.card != null && b.card.runtimeType != a.card.runtimeType;
+    final newMood = b.mood != a.mood && b.mood != BlobMood.calm;
+    if (newCard || newMood) _emphasis++;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return VyOrb(
+      mode: widget.mode,
+      level: widget.view.level,
+      size: widget.size,
+      awake: widget.awake,
+      mood: widget.view.mood,
+      emphasis: _emphasis,
+    );
+  }
+}
+
+/// Trạng thái hình Blob ứng với pha của Vy.
+OrbMode orbModeFor(VyView view) {
+  switch (view.phase) {
+    case VyPhase.opening || VyPhase.thinking || VyPhase.closing:
+      return OrbMode.thinking;
+    case VyPhase.listening:
+      return OrbMode.listening;
+    case VyPhase.ready:
+      return view.engine == VyEngine.live ? OrbMode.listening : OrbMode.idle;
+    case VyPhase.speaking || VyPhase.emergency:
+      return OrbMode.speaking;
+    case VyPhase.confirming || VyPhase.error || VyPhase.closed:
+      return OrbMode.idle;
+  }
+}
+
+/// Quả cầu Vy lớn ở trang chủ: xám khi Vy chưa mở, mở ra thì thức dậy cùng màu, nét mặt và chuyển động như panel.
+class VyHeroOrb extends ConsumerWidget {
+  const VyHeroOrb({super.key, required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final view = ref.watch(vyCoreProvider);
+    return _PanelOrb(view: view, mode: orbModeFor(view), size: size, awake: view.isOpen);
   }
 }

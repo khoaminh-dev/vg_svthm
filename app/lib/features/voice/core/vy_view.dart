@@ -1,3 +1,4 @@
+import '../../../shared/blob/blob_types.dart' show BlobMood;
 import '../domain/voice_models.dart';
 import 'vy_card.dart';
 import '../live/live_lab_controller.dart';
@@ -68,6 +69,19 @@ class VyView {
   final VyCard? card;
 
   bool get isOpen => phase != VyPhase.closed;
+
+  /// Cảm xúc của Vy cho hình Blob: khẩn cấp đỏ, lỗi lo lắng, hỏi lại/tên gần giống tò mò, gửi xong vui, nhắc việc cam.
+  BlobMood get mood {
+    if (phase == VyPhase.emergency || card is SosCard) return BlobMood.emergency;
+    if (error != null || phase == VyPhase.error) return BlobMood.worried;
+    final c = card;
+    if (c is SentCard) return BlobMood.happy;
+    if (c is SendCard) return c.fuzzy ? BlobMood.curious : BlobMood.calm;
+    if (c is BpCard || c is MedCard) return BlobMood.alert;
+    if (c is MsgCard) return BlobMood.excited;
+    if (phase == VyPhase.confirming) return BlobMood.curious;
+    return BlobMood.calm;
+  }
 
   /// Có việc cần thẻ lớn: xác nhận, khẩn cấp, lỗi, gợi ý bấm được, thẻ giải thích.
   bool get needsCard =>

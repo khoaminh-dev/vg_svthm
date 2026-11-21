@@ -9,7 +9,7 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/format.dart';
 import '../../../shared/widgets/user_avatar.dart';
-import '../../../shared/widgets/vy_orb.dart';
+import '../../voice/presentation/vy_panel.dart' show VyHeroOrb;
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
@@ -314,7 +314,7 @@ class HomeScreen extends ConsumerWidget {
                                 });
                                 ref.read(vyCoreProvider.notifier).open();
                               },
-                              child: VyOrb(size: orbSize),
+                              child: VyHeroOrb(size: orbSize),
                             ),
                           ),
                           const Text(
