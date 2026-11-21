@@ -53,7 +53,7 @@ const elderTiles = [
     'messages',
   ),
   ElderTile('community', Icons.groups_2_outlined, 'Cộng đồng', 'community'),
-  ElderTile('relax', Icons.smart_display_outlined, 'Thư giãn', 'fun'),
+  ElderTile('relax', Icons.smart_display_outlined, 'Giải trí', 'fun'),
 ];
 
 /// Những câu gợi ý luân phiên dưới Vy, để người dùng biết mình có thể nói gì.

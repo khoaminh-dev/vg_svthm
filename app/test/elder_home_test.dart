@@ -53,7 +53,7 @@ void main() {
     }
     expect(find.text('Tin nhắn'), findsOneWidget);
     expect(find.text('Cộng đồng'), findsOneWidget);
-    expect(find.text('Thư giãn'), findsOneWidget);
+    expect(find.text('Giải trí'), findsOneWidget);
     expect(elderTiles.length, 6);
     expect(find.byKey(const Key('elder-avatar')), findsOneWidget, reason: 'Hồ sơ mở bằng avatar');
     expect(find.byType(SosHoldButton), findsOneWidget);

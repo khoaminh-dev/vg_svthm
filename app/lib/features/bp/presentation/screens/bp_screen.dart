@@ -100,7 +100,7 @@ class BpScreen extends ConsumerWidget {
                         ? 'Thuốc'
                         : tab == 1
                         ? 'Đánh giá sức khoẻ'
-                        : 'Huyết áp')
+                        : 'Sức khoẻ')
                   : 'Sức khoẻ',
               actions: elder
                   ? const []
