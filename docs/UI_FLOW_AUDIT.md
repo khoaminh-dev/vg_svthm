@@ -105,3 +105,44 @@ Không có chuỗi này trong mã nguồn, manifest hay cấu hình của app (�
 3. B1 (gộp số điện thoại), B2, B4, B5, B7, B8.
 4. B9, B11, B12 cần quyết định sản phẩm.
 5. Rà nốt các màn chưa đọc sâu (camera, OCR, risk_view, lịch sử, nhật ký, live lab) và toàn bộ nhánh người thân.
+
+---
+
+## D. Rà Đợt 4: các màn còn lại và nhánh người thân (21/11/2026)
+
+Cách rà: đọc mã từng màn (nút, đích đến, trạng thái rỗng/lỗi), tìm nơi dẫn tới màn đó. Chưa chạy từng màn trên máy ảo và chưa thử chữ cỡ 1.5–2.0.
+
+### D.1 Bản đồ nút (tóm tắt)
+| Màn | Vào từ | Nút → đích | Trạng thái |
+|---|---|---|---|
+| Camera (`/camera`) | Thẻ "Camera" ở Gia đình (chỉ người thân, cờ `camera`) | Quay lại (pop) · Cài đặt camera (bảng dưới: kiểu khung, ngưỡng) · chip chọn phòng · Nhận diện bật/tắt · Làm mới · Phóng to / Thu nhỏ | Có đủ: đang kết nối, lỗi + Thử lại |
+| OCR (`/ocr`, `/ocr/edit`, `/ocr/detail`) | **Không có nút nào dẫn tới** | Chụp ảnh / Thư viện → sửa → Lưu; chi tiết: Sao chép, Xoá (có hộp xác nhận) | Đầy đủ lỗi; `extra` thiếu đã được sửa ở Đợt 1 |
+| Risk (khối trong tab Sức khoẻ) | Tab Sức khoẻ | Đo huyết áp · Hồ sơ sức khoẻ · Lịch sử hỏi Vy · gọi cấp cứu · Đồng ý / Không, cảm ơn (xin phép) | Lỗi biểu đồ ẩn im lặng |
+| Lịch sử hỏi Vy | Risk → "Lịch sử" | Xoá hết (xác nhận) · Thử lại | Rỗng có gợi ý câu nói |
+| Nhật ký gia đình | Người thân theo dõi → "Nhật ký" | Quay lại | Lỗi: chỉ một nút "Thử lại" trơ trọi |
+| Live lab | Chạm 7 lần dòng phiên bản, chỉ debug/`VG_LAB` | — | Nội bộ, người dùng thường không thấy: bỏ qua |
+| Gia đình (family home) | Tab 1 | Thẻ người → chi tiết · Nhắn tin (hỏi qua tạo phòng) · Thuốc · Nhờ đo · Nhập mã | Rỗng có "Nhập mã người thân" |
+| Chi tiết người thân | Thẻ ở Gia đình | Xem/sửa lịch thuốc · Điền/sửa thẻ y tế | Có "Chưa tải được thẻ" |
+| Cảnh báo | Tab 2 | Chạm cảnh báo → SOS hoặc chi tiết người | Lỗi có Thử lại; rỗng có "Nhập mã của cha mẹ" |
+| Mời / Tham gia | Hồ sơ / Gia đình | Chép mã · Gửi mã · Tạo mã mới · Gỡ (xác nhận) · Theo dõi | Mã 7 ký tự có bộ lọc |
+
+### D.2 Vấn đề tìm được
+| # | Vấn đề | Mức | Đề xuất |
+|---|---|---|---|
+| D1 | **Ba màn OCR mồ côi**: có route, có test nhưng không nút nào mở, nên người dùng không bao giờ thấy | Trung bình | Quyết: gắn vào màn Đo huyết áp ("Chụp ảnh màn hình máy đo") hoặc bỏ khỏi bản phát hành |
+| D2 | **Người thân không gọi được cha mẹ ngay từ thẻ** dù đã có số điện thoại (`profile_phones`) | Cao (giá trị) | Thêm nút "Gọi" ở thẻ Gia đình và trang chi tiết, số lấy bằng `PhoneRepository.ofUsers`; không có số thì ẩn nút hoặc dẫn "Chưa có số" |
+| D3 | Camera hiện chữ nội bộ: "Ngưỡng cảnh báo demo", "Nhận diện: bật/tắt", chữ cỡ 15; chip phòng cuộn ngang (cùng lỗi cắt chữ như chat) | Thấp | Đổi nhãn dễ hiểu; chip dùng Wrap; chữ ≥ 16 |
+| D4 | **Màn đẩy từ trang chủ người cao tuổi không có thanh "Về trang chủ"** (Đo huyết áp, Thẻ y tế, Hồ sơ sức khoẻ, Lịch sử, Thuốc, Phòng chat...): chỉ Cộng đồng và Giải trí có `ElderBackBar` | Trung bình | Bọc các màn này bằng thanh to chung (hoặc làm trong `MainShell`) để cách thoát giống nhau |
+| D5 | Màn Nhật ký lỗi chỉ có nút "Thử lại", không có lời; biểu đồ Risk ẩn lỗi im lặng | Thấp | Thêm dòng "Chưa tải được, bác thử lại nhé" |
+| D6 | Chữ "bác" viết cứng ở nhiều màn trong khi Vy dùng cách xưng hô đã chọn (`loadHonorific`) | Thấp | Dùng chung một hàm xưng hô cho chữ trên màn |
+| D7 | Nút "Nhờ đo" ở thẻ Gia đình chưa rõ nghĩa | Thấp | Đổi thành "Nhắc đo" và ghi rõ trong thông báo kết quả |
+| D8 | Nhắn tin từ thẻ Gia đình tạo phòng ngay không hỏi (khác Cộng đồng đã hỏi) | Thấp | Có thể giữ: người thân đã liên kết, không phải người lạ |
+
+### D.3 Đã kiểm, ổn
+Hộp xác nhận xoá OCR/lịch sử/gỡ người thân có đủ chữ và nút; `extra` thiếu không còn văng lỗi; Live lab bị khoá ngoài bản nội bộ; mã mời có chép/gửi/tạo mới; trạng thái rỗng và lỗi có hướng dẫn ở Cảnh báo, Gia đình, Lịch sử.
+
+### D.4 Thứ tự đề xuất cho Đợt 5
+1. D2 nút Gọi cho người thân (giá trị lớn nhất, đã có dữ liệu).
+2. D4 thanh "Về trang chủ" thống nhất cho người cao tuổi.
+3. D1 quyết OCR.
+4. D3, D5, D6, D7 chữ và nhãn.
