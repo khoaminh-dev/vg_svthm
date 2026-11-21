@@ -12,6 +12,7 @@ class VySettings {
     this.remindDose = true,
     this.remindBp = true,
     this.remindMessages = true,
+    this.textInput = false,
   });
 
   /// Hiện chữ khi Vy nói (cho người nghe kém hoặc nơi ồn). Mặc định bật.
@@ -28,6 +29,9 @@ class VySettings {
   final bool remindBp;
   final bool remindMessages;
 
+  /// Ô gõ chữ cho Vy trên panel (cho người nghe kém, nơi ồn, hoặc để thử). Mặc định TẮT cho gọn với người cao tuổi.
+  final bool textInput;
+
   VySettings copyWith({
     bool? captions,
     bool? sounds,
@@ -35,6 +39,7 @@ class VySettings {
     bool? remindDose,
     bool? remindBp,
     bool? remindMessages,
+    bool? textInput,
   }) => VySettings(
     captions: captions ?? this.captions,
     sounds: sounds ?? this.sounds,
@@ -42,6 +47,7 @@ class VySettings {
     remindDose: remindDose ?? this.remindDose,
     remindBp: remindBp ?? this.remindBp,
     remindMessages: remindMessages ?? this.remindMessages,
+    textInput: textInput ?? this.textInput,
   );
 }
 
@@ -52,6 +58,7 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
   static const _kRDose = 'vy_remind_dose';
   static const _kRBp = 'vy_remind_bp';
   static const _kRMsg = 'vy_remind_msg';
+  static const _kText = 'vy_text_input';
 
   @override
   Future<VySettings> build() async {
@@ -63,6 +70,7 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
       remindDose: p.getBool(_kRDose) ?? true,
       remindBp: p.getBool(_kRBp) ?? true,
       remindMessages: p.getBool(_kRMsg) ?? true,
+      textInput: p.getBool(_kText) ?? false,
     );
     VySounds.enabled = s.sounds;
     return s;
@@ -74,6 +82,12 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
     state = AsyncData(_now.copyWith(captions: v));
     final p = await SharedPreferences.getInstance();
     await p.setBool(_kCaptions, v);
+  }
+
+  Future<void> setTextInput(bool v) async {
+    state = AsyncData(_now.copyWith(textInput: v));
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kText, v);
   }
 
   Future<void> setSounds(bool v) async {

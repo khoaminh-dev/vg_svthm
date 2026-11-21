@@ -8,6 +8,7 @@ import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 import '../core/vy_card.dart';
 import '../core/vy_core.dart';
 import '../core/vy_cursor.dart';
+import '../core/vy_settings.dart';
 import '../core/vy_view.dart';
 import 'vy_cards.dart';
 
@@ -24,6 +25,8 @@ class VyPanelHost extends ConsumerWidget {
     final core = ref.read(vyCoreProvider.notifier);
     final call = ref.read(phoneLauncherProvider);
     final keyboard = MediaQuery.of(context).viewInsets.bottom;
+    // Ô gõ chữ chỉ hiện khi người dùng bật trong Hồ sơ (mặc định tắt cho gọn).
+    final textOn = ref.watch(vySettingsProvider.select((s) => s.value?.textInput ?? false));
     return Stack(
       children: [
         // Thẻ do người dùng tự mở rộng: chạm ra ngoài (vào màn thật) thì thu về thanh nhỏ, không chặn thao tác.
@@ -63,7 +66,7 @@ class VyPanelHost extends ConsumerWidget {
                       onClose: () => core.close(),
                       onPrimary: core.primary,
                       onChip: core.tapChip,
-                      onText: core.sendText,
+                      onText: textOn ? core.sendText : null,
                       onCardAction: core.runCardAction,
                       onCollapse: core.collapse,
                       onExpand: core.expand,
@@ -204,8 +207,8 @@ class VyPanel extends StatelessWidget {
                   Text(
                     view.statusText,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                       color: _blue,
                     ),
                   ),
@@ -253,8 +256,8 @@ class VyPanel extends StatelessWidget {
                 VyPhase.thinking => 'Huỷ',
                 _ => 'Bấm để nói',
               },
-              color: const Color(0xFFF1F4FA),
-              iconColor: _navy,
+              color: _blue,
+              iconColor: Colors.white,
               onTap: onPrimary,
             ),
           ],
@@ -263,8 +266,8 @@ class VyPanel extends StatelessWidget {
             key: const Key('vy-end'),
             icon: Icons.close_rounded,
             label: 'Kết thúc',
-            color: _navy,
-            iconColor: Colors.white,
+            color: const Color(0xFFE6EAF2),
+            iconColor: _navy,
             onTap: onClose,
           ),
         ],
@@ -333,12 +336,53 @@ class VyPanel extends StatelessWidget {
                 ? _ConfirmButtons(chips: view.chips, onTap: onChip)
                 : _ChipWrap(chips: view.chips, onTap: onChip),
           ],
+          if (view.hasMic && (view.phase == VyPhase.ready || view.phase == VyPhase.listening)) ...[
+            const SizedBox(height: 16),
+            _TalkRow(listening: view.phase == VyPhase.listening, onTalk: onPrimary, onClose: onClose),
+          ],
           if (onText != null && view.phase != VyPhase.opening && view.phase != VyPhase.emergency) ...[
             const SizedBox(height: 16),
             _TextBox(onSend: onText!),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Hàng nút CÓ CHỮ ở thẻ lớn, để người cao tuổi khỏi phải đoán biểu tượng: "Bấm để nói" (hoặc "Nói xong, bấm gửi") và "Tắt Vy".
+class _TalkRow extends StatelessWidget {
+  const _TalkRow({required this.listening, required this.onTalk, required this.onClose});
+
+  final bool listening;
+  final VoidCallback onTalk;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: FilledButton.icon(
+            key: const Key('vy-talk-big'),
+            style: FilledButton.styleFrom(backgroundColor: _blue, minimumSize: const Size(0, 60)),
+            onPressed: onTalk,
+            icon: Icon(listening ? Icons.arrow_upward_rounded : Icons.mic_none_rounded, size: 26),
+            label: Text(listening ? 'Xong, bấm gửi' : 'Bấm để nói', style: const TextStyle(fontSize: 19)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 2,
+          child: OutlinedButton(
+            key: const Key('vy-close-big'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 60)),
+            onPressed: onClose,
+            child: const Text('Tắt Vy', style: TextStyle(fontSize: 19)),
+          ),
+        ),
+      ],
     );
   }
 }

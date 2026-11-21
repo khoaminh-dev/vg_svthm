@@ -95,6 +95,15 @@ class ProfileScreen extends ConsumerWidget {
         onSet: (v) => ref.read(vySettingsProvider.notifier).setCaptions(v),
       ),
       VyControl(
+        id: 'prof.textinput',
+        label: 'Ô gõ chữ cho Vy',
+        aliases: const ['gõ chữ cho vy', 'bàn phím cho vy', 'ô gõ chữ'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.textInput,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setTextInput(v),
+      ),
+      VyControl(
         id: 'prof.sounds',
         label: 'Tiếng khi bật và tắt Vy',
         aliases: const ['tiếng ting', 'âm thanh vy'],
@@ -892,6 +901,18 @@ class _VySettingsGroup extends ConsumerWidget {
           onChanged: (v) {
             Analytics.track('vy_setting', {'captions': v});
             n.setCaptions(v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-textinput'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.keyboard_alt_outlined),
+          title: const Text('Ô gõ chữ cho Vy', style: titleStyle),
+          subtitle: const Text('Hiện ô để gõ chữ thay vì nói'),
+          value: s.textInput,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'text_input': v});
+            n.setTextInput(v);
           },
         ),
         SwitchListTile(
