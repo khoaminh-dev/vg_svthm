@@ -32,21 +32,19 @@ void main() {
   testWidgets('đang nối Live: khối kết nối lớn có thanh chuyển động, chưa có nút mic', (t) async {
     await show(t, const VyView(phase: VyPhase.opening, engine: VyEngine.live));
     expect(find.byKey(const Key('vy-connecting')), findsOneWidget);
-    expect(find.text('Vy đang kết nối'), findsOneWidget);
+    expect(find.text('Đang kết nối'), findsOneWidget);
     expect(find.byKey(const Key('vy-connecting-bar')), findsOneWidget);
     expect(find.byKey(const Key('vy-primary')), findsNothing);
     expect(find.byKey(const Key('vy-use-classic')), findsNothing, reason: 'chưa chờ lâu');
     await t.pumpWidget(const SizedBox()); // gỡ để dừng bộ đếm
   });
 
-  testWidgets('chờ lâu: hiện số giây, rồi nút nói ngay bằng Vy thường; bấm được', (t) async {
+  testWidgets('chờ lâu: rồi hiện nút nói ngay bằng Vy thường; bấm được', (t) async {
     var classic = 0;
     await show(t, const VyView(phase: VyPhase.opening, engine: VyEngine.none), onUseClassic: () => classic++);
     for (var i = 0; i < 3; i++) {
       await t.pump(const Duration(seconds: 1));
     }
-    expect(find.byKey(const Key('vy-connecting-sec')), findsOneWidget);
-    expect(find.text('Đã chờ 3 giây'), findsOneWidget);
     expect(find.byKey(const Key('vy-use-classic')), findsNothing);
     for (var i = 0; i < 3; i++) {
       await t.pump(const Duration(seconds: 1));

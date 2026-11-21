@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
@@ -381,8 +382,8 @@ class VyPanel extends StatelessWidget {
   }
 }
 
-/// Khối "Vy đang kết nối": quả cầu lớn đang xoay, chữ to, thanh tiến trình chạy liên tục, đếm số giây đã chờ;
-/// chờ quá lâu thì có nút "Dùng Vy thường" để nói ngay. Chỉ vẽ khi đang nối, nên đồng hồ tự về 0 mỗi lần mở.
+/// Khối "đang kết nối": một hàng ngang gọn, quả cầu xoay + dải chấm sóng chạy liên tục + nút đóng. Ít chữ.
+/// Chờ lâu (6 giây) mới hiện thêm một nút ngắn để nói ngay bằng Vy thường. Chỉ vẽ khi đang nối, nên đồng hồ tự về 0.
 class _Connecting extends StatefulWidget {
   const _Connecting({required this.onClose, this.onUseClassic});
 
@@ -393,21 +394,23 @@ class _Connecting extends StatefulWidget {
   State<_Connecting> createState() => _ConnectingState();
 }
 
-class _ConnectingState extends State<_Connecting> {
+class _ConnectingState extends State<_Connecting> with SingleTickerProviderStateMixin {
+  late final AnimationController _wave = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
   Timer? _timer;
-  int _sec = 0;
+  bool _slow = false;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _sec++);
+    _timer = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _slow = true);
     });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _wave.dispose();
     super.dispose();
   }
 
@@ -415,28 +418,26 @@ class _ConnectingState extends State<_Connecting> {
   Widget build(BuildContext context) {
     return Padding(
       key: const Key('vy-connecting'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const VyOrb(mode: OrbMode.thinking, size: 80),
+              const VyOrb(mode: OrbMode.thinking, size: 56),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Vy đang kết nối', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: _navy)),
-                    const SizedBox(height: 2),
-                    Text(
-                      hon('Bác chờ một chút, chưa nói vội nhé.'),
-                      style: const TextStyle(fontSize: 18, height: 1.3, color: Color(0xFF44516B)),
-                    ),
+                    const Text('Đang kết nối', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _navy)),
+                    const SizedBox(height: 8),
+                    _WaveDots(key: const Key('vy-connecting-bar'), animation: _wave),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               _RoundButton(
                 key: const Key('vy-end'),
                 icon: Icons.close_rounded,
@@ -447,29 +448,56 @@ class _ConnectingState extends State<_Connecting> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: const LinearProgressIndicator(key: Key('vy-connecting-bar'), minHeight: 8, color: _blue, backgroundColor: Color(0xFFDDE5FA)),
-          ),
-          if (_sec >= 3) ...[
-            const SizedBox(height: 8),
-            Text('Đã chờ $_sec giây', key: const Key('vy-connecting-sec'), style: const TextStyle(fontSize: 16, color: _muted)),
-          ],
-          if (_sec >= 6 && widget.onUseClassic != null) ...[
+          if (_slow && widget.onUseClassic != null) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
+              child: OutlinedButton(
                 key: const Key('vy-use-classic'),
-                style: FilledButton.styleFrom(backgroundColor: _blue, minimumSize: const Size(0, 56)),
+                style: OutlinedButton.styleFrom(foregroundColor: _blue, minimumSize: const Size(0, 52), side: const BorderSide(color: _blue, width: 1.5)),
                 onPressed: widget.onUseClassic,
-                child: const Text('Chờ lâu quá? Nói ngay bằng Vy thường', style: TextStyle(fontSize: 18)),
+                child: const Text('Nói bằng Vy thường', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Dải chấm chạy sóng theo chiều ngang: mỗi chấm phồng lên và đậm dần lần lượt từ trái sang phải.
+class _WaveDots extends StatelessWidget {
+  const _WaveDots({super.key, required this.animation});
+
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        const n = 9;
+        return SizedBox(
+          height: 14,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var i = 0; i < n; i++)
+                () {
+                  // Pha lệch theo vị trí; (1 + sin) / 2 đưa về 0..1 rồi làm nhọn bớt để sóng nhìn rõ.
+                  final t = (1 + math.sin((animation.value - i / n) * 2 * math.pi)) / 2;
+                  final k = t * t;
+                  return Container(
+                    width: 6 + 8 * k,
+                    height: 6 + 8 * k,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: Color.lerp(const Color(0xFFC9D6F6), _blue, k)),
+                  );
+                }(),
+            ],
+          ),
+        );
+      },
     );
   }
 }
