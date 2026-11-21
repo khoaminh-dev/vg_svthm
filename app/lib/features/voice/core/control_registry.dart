@@ -144,6 +144,9 @@ class ControlRegistry {
 
   void remove(Object owner) => _entries.remove(owner);
 
+  /// Đang có hộp thoại (có khai báo) hiện trên màn: Vy tự nhắc không được bật lên che nút của hộp thoại.
+  bool get hasDialog => _topDialog != null;
+
   _Entry? get _topDialog {
     _Entry? top;
     for (final e in _entries.values) {

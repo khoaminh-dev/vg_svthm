@@ -9,6 +9,18 @@ import 'package:vg_svthm/features/voice/domain/voice_models.dart';
 
 void main() {
   group('ControlRegistry', () {
+    test('hasDialog: có hộp thoại thì Vy tự nhắc biết để không che nút của nó', () {
+      final r = ControlRegistry();
+      final screen = Object();
+      final dlg = Object();
+      r.set(screen, controls: const [VyControl(id: 'a', label: 'A')]);
+      expect(r.hasDialog, isFalse);
+      r.set(dlg, dialogId: 'd', dialogTitle: 'Hỏi');
+      expect(r.hasDialog, isTrue);
+      r.remove(dlg);
+      expect(r.hasDialog, isFalse);
+    });
+
     test('ảnh chụp gửi lên não: nhãn, mức, giá trị công tắc, danh sách có số', () {
       final r = ControlRegistry();
       final owner = Object();

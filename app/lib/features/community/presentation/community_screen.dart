@@ -17,6 +17,7 @@ import '../../../shared/widgets/app_snackbar.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../chat/presentation/providers/chat_controller.dart';
+import '../../voice/core/control_registry.dart';
 import 'community_providers.dart';
 
 /// Cộng đồng: danh sách mọi người dùng, bấm "Nhắn tin" để kết bạn và trò chuyện.
@@ -259,6 +260,37 @@ class _PersonRowState extends ConsumerState<_PersonRow> {
     if (_busy) return; // chạm hai lần không mở hai phòng
     final username = widget.person.username;
     if (username == null) return;
+    // Mở chat riêng với người lạ là việc có hậu quả (tạo phòng, người kia thấy): luôn hỏi lại, tránh chạm nhầm.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => VyControlScope(
+        dialogId: 'dlg.community.chat',
+        dialogTitle: 'Nhắn tin cho ${widget.person.name}?',
+        controls: [
+          VyControl(id: 'dlg.community.confirm', label: 'Nhắn tin', aliases: const ['đồng ý', 'có', 'mở'], level: VyLevel.readBack, onInvoke: () => Navigator.pop(ctx, true)),
+          VyControl(id: 'dlg.community.cancel', label: 'Thôi', aliases: const ['không', 'hủy', 'huỷ'], onInvoke: () => Navigator.pop(ctx, false)),
+        ],
+        child: AlertDialog(
+        title: Text('Nhắn tin cho ${widget.person.name}?', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        content: Text('Mở cuộc trò chuyện riêng với @$username.', style: const TextStyle(fontSize: 18)),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actions: [
+          TextButton(
+            key: const Key('community-cancel'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Thôi', style: TextStyle(fontSize: 18)),
+          ),
+          FilledButton(
+            key: const Key('community-confirm'),
+            style: FilledButton.styleFrom(minimumSize: const Size(130, 52)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Nhắn tin', style: TextStyle(fontSize: 18)),
+          ),
+        ],
+      ),
+      ),
+    );
+    if (ok != true || !mounted) return;
     setState(() => _busy = true);
     Analytics.track('community_start_chat');
     try {
@@ -290,9 +322,9 @@ class _PersonRowState extends ConsumerState<_PersonRow> {
         leading: UserAvatar(name: p.name, imageUrl: p.avatarUrl, radius: 24),
         title: Text(
           p.name,
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
         ),
         subtitle: Text(
           '@${p.username}',

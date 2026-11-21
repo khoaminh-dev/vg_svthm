@@ -12,6 +12,7 @@ import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../../push/push_service.dart';
+import '../core/control_registry.dart';
 import '../core/vy_card.dart';
 import '../core/vy_context.dart';
 import '../core/vy_core.dart';
@@ -117,6 +118,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
           ref.read(liveActiveProvider) ||
           ref.read(vyCursorProvider).active ||
           ref.read(vyCardProvider) != null ||
+          ref.read(controlRegistryProvider).hasDialog ||
           path.startsWith('/sos') ||
           path == Routes.measure;
 

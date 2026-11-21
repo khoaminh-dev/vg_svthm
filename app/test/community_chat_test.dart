@@ -261,7 +261,17 @@ void main() {
       expect(find.text('Chưa tải được danh sách'), findsNothing);
       expect(find.text('Hùng'), findsOneWidget);
 
+      // Chạm nhầm rồi bấm "Thôi": không mở phòng nào.
       await t.tap(find.byKey(const Key('chat-hung')));
+      await t.pumpAndSettle();
+      expect(find.text('Nhắn tin cho Hùng?'), findsOneWidget);
+      await t.tap(find.byKey(const Key('community-cancel')));
+      await t.pumpAndSettle();
+      expect(chat.opened, 0);
+
+      await t.tap(find.byKey(const Key('chat-hung')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('community-confirm')));
       await t.pump(); // nút đã chuyển sang trạng thái chờ
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       await t.tap(find.byKey(const Key('person-hung')), warnIfMissed: false);
