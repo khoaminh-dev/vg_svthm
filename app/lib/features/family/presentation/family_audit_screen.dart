@@ -37,9 +37,16 @@ class FamilyAuditScreen extends ConsumerWidget {
         child: entries.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, _) => Center(
-            child: FilledButton(
-              onPressed: () => ref.invalidate(familyAuditProvider),
-              child: const Text('Thử lại'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Chưa tải được nhật ký.', style: theme.textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton(
+                  onPressed: () => ref.invalidate(familyAuditProvider),
+                  child: const Text('Thử lại'),
+                ),
+              ],
             ),
           ),
           data: (list) => list.isEmpty

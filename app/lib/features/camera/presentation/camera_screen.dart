@@ -281,9 +281,9 @@ class _CameraScreenState extends State<CameraScreen>
               SwitchListTile(
                 key: const Key('camera-demo-thresholds'),
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Ngưỡng cảnh báo demo'),
+                title: const Text('Thử nhanh cảnh báo'),
                 subtitle: const Text(
-                  'Rút ngắn còn vài giây để thấy cảnh báo ngay trong clip.',
+                  'Rút ngắn thời gian chờ còn vài giây để thấy cảnh báo ngay trong clip.',
                 ),
                 value: _demoThresholds,
                 onChanged: (v) {
@@ -353,21 +353,21 @@ class _CameraScreenState extends State<CameraScreen>
                   AppSpacing.xl,
                 ),
                 children: [
-                  SizedBox(
-                    height: 48,
-                    child: ListView.separated(
-                      key: const Key('camera-rooms'),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _feeds.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) => ChoiceChip(
-                        key: Key('camera-feed-${_feeds[i].id}'),
-                        label: Text(_feeds[i].title),
-                        labelStyle: const TextStyle(fontSize: 15),
-                        selected: i == _index,
-                        onSelected: (_) => i == _index ? null : _open(i),
-                      ),
-                    ),
+                  // Xuống dòng thay vì cuộn ngang: thấy đủ các phòng, không bị cắt ở mép màn hình.
+                  Wrap(
+                    key: const Key('camera-rooms'),
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (var i = 0; i < _feeds.length; i++)
+                        ChoiceChip(
+                          key: Key('camera-feed-${_feeds[i].id}'),
+                          label: Text(_feeds[i].title),
+                          labelStyle: const TextStyle(fontSize: 16),
+                          selected: i == _index,
+                          onSelected: (_) => i == _index ? null : _open(i),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   _videoArea(feed),

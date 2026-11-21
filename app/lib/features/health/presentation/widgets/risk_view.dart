@@ -331,7 +331,13 @@ class _RiskViewState extends ConsumerState<RiskView> {
                   height: 60,
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (_, _) => const SizedBox.shrink(),
+                error: (_, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Chưa tải được biểu đồ xu hướng. Kéo xuống để thử lại.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
                 data: (pts) => RiskTrendChart(points: pts),
               );
             },

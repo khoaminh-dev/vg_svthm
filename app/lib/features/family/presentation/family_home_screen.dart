@@ -317,7 +317,7 @@ class PersonCard extends ConsumerWidget {
                       ),
                       onPressed: () => _nudge(context, ref),
                       icon: const Icon(Icons.favorite_border_rounded, size: 20),
-                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Nhờ đo')),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Nhắc đo')),
                     ),
                   ),
                 ],
