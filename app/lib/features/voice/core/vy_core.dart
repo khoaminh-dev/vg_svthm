@@ -353,6 +353,19 @@ class VyCore extends Notifier<VyView> {
     _sync();
   }
 
+  /// Người dùng chán chờ Live kết nối: bỏ Live (nghỉ 2 phút) và nói chuyện ngay bằng Vy thường.
+  Future<void> useClassic() async {
+    if (!_open || _engine != VyEngine.live || state.phase != VyPhase.opening) return;
+    final run = ++_run; // làm lượt mở Live đang chờ tự thoát
+    _blockLive('manual');
+    Analytics.track('vy_live_skip');
+    await ref.read(liveLabProvider.notifier).end();
+    if (run != _run || !_open) return;
+    _starting = false;
+    _engine = VyEngine.none;
+    await _openClassic(run);
+  }
+
   /// Vừa được bật gói (hoặc quyền Live): bỏ lệnh chặn Live đã đặt trước đó để dùng được ngay.
   void resetLiveBlock() => _liveBlockedUntil = null;
 

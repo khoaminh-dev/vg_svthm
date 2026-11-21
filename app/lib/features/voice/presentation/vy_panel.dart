@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:async';
+
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/honorific.dart';
 import '../core/vy_context.dart' show topRoutePath;
 import '../../../shared/widgets/vy_orb.dart';
 import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
@@ -17,6 +20,7 @@ import 'vy_cards.dart';
 
 const _navy = Color(0xFF14213D);
 const _blue = Color(0xFF3C5BD6);
+const _muted = Color(0xFF7A8699);
 
 /// Gắn [VyPanel] vào trạng thái của [VyCore]. Đặt trong lớp phủ của app.
 class VyPanelHost extends ConsumerWidget {
@@ -59,6 +63,7 @@ class VyPanelHost extends ConsumerWidget {
               onExpand: core.expand,
               onDismissIntro: core.dismissIntro,
               onCall115: () => call('115'),
+              onUseClassic: core.useClassic,
             )
           : const SizedBox.shrink(key: ValueKey('vy-closed')),
     );
@@ -113,6 +118,7 @@ class VyPanel extends StatelessWidget {
     required this.onExpand,
     required this.onDismissIntro,
     this.onCall115,
+    this.onUseClassic,
   });
 
   final VyView view;
@@ -125,6 +131,9 @@ class VyPanel extends StatelessWidget {
   final VoidCallback onExpand;
   final VoidCallback onDismissIntro;
   final VoidCallback? onCall115;
+
+  /// Bỏ chờ Live, nói ngay bằng Vy thường (hiện khi kết nối quá lâu).
+  final VoidCallback? onUseClassic;
 
   OrbMode get _orb {
     switch (view.phase) {
@@ -153,6 +162,8 @@ class VyPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final expanded = view.expanded;
     final height = MediaQuery.of(context).size.height;
+    // Đang nối Live: khối kết nối lớn, có chuyển động và đếm giây (người cao tuổi không nhầm là đang nghe).
+    final connecting = view.phase == VyPhase.opening && view.engine != VyEngine.classic;
     return Semantics(
       container: true,
       liveRegion: true,
@@ -190,8 +201,12 @@ class VyPanel extends StatelessWidget {
                       ),
                     ),
                   ),
-                _header(expanded),
-                if (expanded) Flexible(child: _body(context)),
+                if (connecting)
+                  _Connecting(onClose: onClose, onUseClassic: onUseClassic)
+                else ...[
+                  _header(expanded),
+                  if (expanded) Flexible(child: _body(context)),
+                ],
               ],
             ),
           ),
@@ -359,6 +374,99 @@ class VyPanel extends StatelessWidget {
           if (onText != null && view.phase != VyPhase.opening && view.phase != VyPhase.emergency) ...[
             const SizedBox(height: 16),
             _TextBox(onSend: onText!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Khối "Vy đang kết nối": quả cầu lớn đang xoay, chữ to, thanh tiến trình chạy liên tục, đếm số giây đã chờ;
+/// chờ quá lâu thì có nút "Dùng Vy thường" để nói ngay. Chỉ vẽ khi đang nối, nên đồng hồ tự về 0 mỗi lần mở.
+class _Connecting extends StatefulWidget {
+  const _Connecting({required this.onClose, this.onUseClassic});
+
+  final VoidCallback onClose;
+  final VoidCallback? onUseClassic;
+
+  @override
+  State<_Connecting> createState() => _ConnectingState();
+}
+
+class _ConnectingState extends State<_Connecting> {
+  Timer? _timer;
+  int _sec = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _sec++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('vy-connecting'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const VyOrb(mode: OrbMode.thinking, size: 80),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Vy đang kết nối', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: _navy)),
+                    const SizedBox(height: 2),
+                    Text(
+                      hon('Bác chờ một chút, chưa nói vội nhé.'),
+                      style: const TextStyle(fontSize: 18, height: 1.3, color: Color(0xFF44516B)),
+                    ),
+                  ],
+                ),
+              ),
+              _RoundButton(
+                key: const Key('vy-end'),
+                icon: Icons.close_rounded,
+                label: 'Kết thúc',
+                color: const Color(0xFFE6EAF2),
+                iconColor: _navy,
+                onTap: widget.onClose,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: const LinearProgressIndicator(key: Key('vy-connecting-bar'), minHeight: 8, color: _blue, backgroundColor: Color(0xFFDDE5FA)),
+          ),
+          if (_sec >= 3) ...[
+            const SizedBox(height: 8),
+            Text('Đã chờ $_sec giây', key: const Key('vy-connecting-sec'), style: const TextStyle(fontSize: 16, color: _muted)),
+          ],
+          if (_sec >= 6 && widget.onUseClassic != null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const Key('vy-use-classic'),
+                style: FilledButton.styleFrom(backgroundColor: _blue, minimumSize: const Size(0, 56)),
+                onPressed: widget.onUseClassic,
+                child: const Text('Chờ lâu quá? Nói ngay bằng Vy thường', style: TextStyle(fontSize: 18)),
+              ),
+            ),
           ],
         ],
       ),
