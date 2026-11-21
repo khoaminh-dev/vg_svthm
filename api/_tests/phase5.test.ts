@@ -152,3 +152,17 @@ test('khẩn cấp thật (đau ngực...) vẫn đi đường khẩn cấp, kh�
   assert.equal(d.intent, 'emergency');
   assert.notEqual(d.intent, 'sos_start');
 });
+
+test('nút "Trả lời"/"Dạ" sau khi đọc tin: đi qua luồng gửi tin có xác nhận (không gửi thẳng)', async () => {
+  const contacts = [{ id: 'u2', kind: 'direct' as const, name: 'Giang', username: 'giang' }];
+  const u = { screen: '/', honorific: 'bác', contacts };
+  // "Trả lời": hỏi nội dung
+  const a = await step({ text: 'nhắn cho Giang', state: {}, ui: u }, noNlu);
+  assert.equal(a.action, 'ask');
+  assert.equal(a.pending, 'content');
+  // "Dạ": có đủ người và nội dung → CHỈ xác nhận, chưa thực thi
+  const b = await step({ text: 'nhắn cho Giang là dạ', state: {}, ui: u }, noNlu);
+  assert.equal(b.action, 'confirm');
+  assert.equal(b.task?.slots.content, 'Dạ');
+  assert.deepEqual(b.chips, ['Gửi', 'Sửa', 'Hủy']);
+});

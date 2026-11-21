@@ -7,6 +7,8 @@ import 'package:vg_svthm/core/theme/app_theme.dart';
 import 'package:vg_svthm/features/auth/domain/auth_user.dart';
 import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:vg_svthm/features/bp/domain/bp_models.dart';
+import 'package:vg_svthm/features/family/domain/family_models.dart';
+import 'package:vg_svthm/features/family/presentation/family_providers.dart';
 import 'package:vg_svthm/features/bp/domain/bp_repository.dart';
 import 'package:vg_svthm/features/bp/presentation/providers/bp_providers.dart';
 import 'package:vg_svthm/features/safety/domain/safety_models.dart';
@@ -125,6 +127,10 @@ void main() {
       final card = c.read(vyCardProvider)! as MsgCard;
       expect(card.rows.length, 3);
       expect(card.replacesSpeech, isFalse);
+      // hỏi trả lời, kèm nút "Trả lời <người gửi>" và "Dạ" (đi qua luồng gửi tin có xác nhận)
+      expect(say, contains('muốn trả lời Giang 1 không ạ?'));
+      expect(card.actions.map((a) => a.label), ['Trả lời Giang 1', 'Dạ']);
+      expect(card.actions.every((a) => a.keepOpen), isTrue);
     });
 
     test('không có tin nào: nói rõ, không hiện thẻ', () async {
@@ -236,6 +242,71 @@ void main() {
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 10));
       expect(called, 0);
+    });
+  });
+
+  group('Gọi theo quan hệ của người thân liên kết', () {
+    FamilyLink link(String name, String rel, {bool owner = true, String status = 'active'}) => FamilyLink(
+      linkId: name,
+      role: owner ? 'owner' : 'carer',
+      otherId: 'id-$name',
+      otherName: name,
+      relation: Relation.of(rel),
+      perms: const {},
+      status: status,
+      createdAt: DateTime(2026),
+    );
+
+    ProviderContainer make(List<CardContact> contacts, List<FamilyLink> links) => ProviderContainer(overrides: [
+      currentUserProvider.overrideWithValue(const AuthUser(id: 'me', role: AppRole.elder)),
+      emergencyCardProvider('me').overrideWith((ref) async => EmergencyCard(contacts: contacts)),
+      familyLinksProvider.overrideWith((ref) async => links),
+      phoneLauncherProvider.overrideWithValue((n) async {}),
+      routerProvider.overrideWithValue(GoRouter(routes: [GoRoute(path: '/', builder: (_, _) => const SizedBox())])),
+    ]);
+
+    const minh = CardContact(name: 'Minh', phone: '0901234567');
+
+    test('"con trai" khớp người thân có quan hệ "con" rồi lấy số theo tên trong thẻ', () async {
+      final c = make([minh, const CardContact(name: 'Hoa', phone: '0912345678')], [link('Minh', 'con'), link('Hoa', 'khac')]);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).callContact('con trai', 'bác');
+      expect(say, contains('Minh'));
+      final card = c.read(vyCardProvider)! as CallCard;
+      expect([card.name, card.number], ['Minh', '0901234567']);
+    });
+
+    test('người thân có quan hệ phù hợp nhưng thẻ y tế chưa có số: nói rõ và đưa nút mở thẻ y tế', () async {
+      final c = make(const [], [link('Minh', 'con')]);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).callContact('con trai', 'bác');
+      expect(say, contains('Minh'));
+      expect(say, contains('chưa có số điện thoại'));
+      final card = c.read(vyCardProvider)! as NoticeCard;
+      expect(card.title, 'Chưa có số của Minh');
+      expect(card.actions.single.label, 'Mở thẻ y tế');
+    });
+
+    test('hai người con đều có số: hỏi rõ tên; chỉ liên kết đang hoạt động và do mình làm chủ mới tính', () async {
+      final c = make(
+        [minh, const CardContact(name: 'Lan', phone: '0988111222')],
+        [link('Minh', 'con'), link('Lan', 'con'), link('Bao', 'con', owner: false), link('Tuan', 'con', status: 'revoked')],
+      );
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).callContact('con', 'bác');
+      expect(say, contains('nhiều người'));
+      expect(c.read(vyCardProvider), isNull);
+    });
+
+    test('gọi theo tên trực tiếp vẫn ưu tiên thẻ y tế; không khớp gì thì báo không thấy', () async {
+      final c = make([minh], [link('Minh', 'con')]);
+      addTearDown(c.dispose);
+      await c.read(voiceActionsProvider).callContact('minh', 'bác');
+      expect((c.read(vyCardProvider)! as CallCard).number, '0901234567');
+      c.read(vyCardProvider.notifier).clear();
+      final say = await c.read(voiceActionsProvider).callContact('bà nội', 'bác');
+      expect(say, contains('chưa thấy số'));
+      expect(c.read(vyCardProvider), isNull);
     });
   });
 

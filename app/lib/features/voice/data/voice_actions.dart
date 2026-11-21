@@ -26,6 +26,7 @@ import '../../safety/presentation/sos_screen.dart' show sosFailedId;
 import 'direct_caller.dart';
 import '../core/vy_cursor.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../family/presentation/family_providers.dart';
 import '../../safety/domain/safety_models.dart' show CardContact, EmergencyCard;
 import '../../safety/presentation/safety_providers.dart';
 import '../core/control_registry.dart';
@@ -370,6 +371,11 @@ class VoiceActions {
     final router = _ref.read(routerProvider);
     _ref.read(vyCardProvider.notifier).show(
       MsgCard(
+        actions: [
+          // Trả lời qua đúng luồng gửi tin (hỏi nội dung → xác nhận → gửi), không có đường tắt gửi thẳng.
+          VyCardAction(label: 'Trả lời ${list.first.from}', primary: true, keepOpen: true, run: () => unawaited(_ref.read(vyCoreProvider.notifier).sendText('nhắn cho ${list.first.from}'))),
+          VyCardAction(label: 'Dạ', keepOpen: true, run: () => unawaited(_ref.read(vyCoreProvider.notifier).sendText('nhắn cho ${list.first.from} là dạ'))),
+        ],
         rows: [
           for (final m in list.take(3))
             MsgRow(
@@ -387,7 +393,7 @@ class VoiceActions {
     // Đọc to tối đa 2 tin mới nhất (từng tin ngắn gọn); còn lại xem trong thẻ.
     final spoken = list.take(2).map((m) => '${m.from} nhắn: ${m.text}').join('. ');
     final more = list.length > 2 ? ' Còn ${list.length - 2} tin nữa trong thẻ.' : '';
-    return '$cap có ${list.length} tin nhắn. $spoken.$more';
+    return '$cap có ${list.length} tin nhắn. $spoken.$more $cap muốn trả lời ${list.first.from} không ạ?';
   }
 
   /// Gọi điện: tìm số trong thẻ y tế (người liên hệ) hoặc 115, rồi hiện thẻ đếm ngược 3 giây (2 giây cho 115) có nút Huỷ.
@@ -411,15 +417,41 @@ class VoiceActions {
       final people = <CardContact>[
         ...?card?.contacts.where((c) => c.phone.trim().isNotEmpty),
       ];
-      final hits = matchContacts(q, people);
-      if (hits.isEmpty) {
-        return 'Con chưa thấy số của "${who.trim()}" trong thẻ y tế khẩn cấp. $cap thêm người liên hệ ở Hồ sơ giúp con nhé.';
+      // Người thân đã liên kết với mình (con, cháu, vợ/chồng): để "gọi con trai" ghép được với số trong thẻ.
+      var linked = <({String name, String relation})>[];
+      try {
+        final links = await _ref.read(familyLinksProvider.future);
+        linked = [
+          for (final l in links)
+            if (l.iAmOwner && l.active)
+              (name: (l.otherName ?? l.otherUsername ?? '').trim(), relation: l.relation.code),
+        ];
+      } catch (_) {}
+      final r = resolveCallee(q, people, linked);
+      switch (r) {
+        case CalleeFound(:final contact):
+          name = contact.name.isEmpty ? contact.phone : contact.name;
+          number = contact.phone;
+        case CalleeMany(:final contacts):
+          return 'Con thấy nhiều người giống vậy: ${contacts.take(3).map((c) => c.name).join(', ')}. $cap nói rõ tên giúp con nhé.';
+        case CalleeNoNumber(:final person):
+          final me = uid;
+          if (me != null) {
+            final router = _ref.read(routerProvider);
+            _ref.read(vyCardProvider.notifier).show(
+              NoticeCard(
+                title: 'Chưa có số của $person',
+                body: 'Thêm số điện thoại của $person ở Thẻ y tế khẩn cấp để Vy gọi giúp.',
+                actions: [
+                  VyCardAction(label: 'Mở thẻ y tế', primary: true, run: () => router.push(Routes.emergencyCardFor(me))),
+                ],
+              ),
+            );
+          }
+          return 'Con thấy $person trong người thân của $honorific nhưng chưa có số điện thoại. $cap thêm số ở Thẻ y tế khẩn cấp giúp con nhé.';
+        case CalleeNone():
+          return 'Con chưa thấy số của "${who.trim()}" trong thẻ y tế khẩn cấp. $cap thêm người liên hệ ở Hồ sơ giúp con nhé.';
       }
-      if (hits.length > 1) {
-        return 'Con thấy nhiều người giống vậy: ${hits.take(3).map((c) => c.name).join(', ')}. $cap nói rõ tên giúp con nhé.';
-      }
-      name = hits.first.name.isEmpty ? hits.first.phone : hits.first.name;
-      number = hits.first.phone;
     }
     final call = _ref.read(directCallProvider);
     _ref.read(vyCardProvider.notifier).show(
@@ -475,6 +507,36 @@ class VoiceActions {
     _ref.read(vyCardProvider.notifier).clear();
     unawaited(_ref.read(vyCoreProvider.notifier).close(reason: 'sos'));
     _ref.read(routerProvider).push(Routes.sosFor(id));
+  }
+
+  /// Tìm người cần gọi: trước hết trong người liên hệ của thẻ y tế (theo tên); nếu không có thì theo QUAN HỆ/tên của người thân
+  /// đã liên kết ("con trai" → người liên kết có quan hệ "con") rồi ghép tên đó với số trong thẻ.
+  static Callee resolveCallee(String q, List<CardContact> people, List<({String name, String relation})> linked) {
+    final direct = matchContacts(q, people);
+    if (direct.length == 1) return CalleeFound(direct.first);
+    if (direct.length > 1) return CalleeMany(direct);
+    final qt = q.split(' ').where((w) => w.isNotEmpty).toSet();
+    final wantRel = <String>{
+      if (qt.contains('con')) 'con',
+      if (qt.contains('chau')) 'chau',
+      if (qt.contains('vo') || qt.contains('chong')) 'vo_chong',
+    };
+    final persons = [
+      for (final l in linked)
+        if (l.name.isNotEmpty &&
+            (wantRel.contains(l.relation) || viNorm(l.name) == q || (q.length >= 3 && viNorm(l.name).contains(q))))
+          l.name,
+    ];
+    if (persons.isEmpty) return const CalleeNone();
+    final hits = <CardContact>[];
+    for (final n in persons) {
+      for (final c in matchContacts(viNorm(n), people)) {
+        if (!hits.any((h) => h.phone == c.phone)) hits.add(c);
+      }
+    }
+    if (hits.length == 1) return CalleeFound(hits.first);
+    if (hits.length > 1) return CalleeMany(hits);
+    return CalleeNoNumber(persons.first);
   }
 
   /// Người liên hệ khớp với cụm đã bỏ dấu [q]: tên chứa cụm, cụm chứa tên, hoặc mọi từ của cụm có trong tên.
@@ -655,4 +717,29 @@ String _spokenText(String content, bool hasImage) {
   final t = content.trim();
   if (t.isEmpty) return hasImage ? 'gửi một hình ảnh' : '(tin trống)';
   return t.length > 200 ? '${t.substring(0, 200)}…' : t;
+}
+
+/// Kết quả tìm người cần gọi.
+sealed class Callee {
+  const Callee();
+}
+
+class CalleeFound extends Callee {
+  const CalleeFound(this.contact);
+  final CardContact contact;
+}
+
+class CalleeMany extends Callee {
+  const CalleeMany(this.contacts);
+  final List<CardContact> contacts;
+}
+
+/// Có người thân khớp (theo quan hệ/tên) nhưng chưa có số điện thoại trong thẻ y tế.
+class CalleeNoNumber extends Callee {
+  const CalleeNoNumber(this.person);
+  final String person;
+}
+
+class CalleeNone extends Callee {
+  const CalleeNone();
 }
