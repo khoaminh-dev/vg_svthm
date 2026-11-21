@@ -82,6 +82,7 @@
     <button data-tab="stats" class="on">Thống kê</button>
     <button data-tab="voice">Giọng nói</button>
     <button data-tab="health">Thử nghiệm sức khoẻ</button>
+    <button data-tab="plans">Gói &amp; thanh toán</button>
     <button data-tab="settings">Cài đặt</button>
   </nav>
   <main id="tab-voice" class="hidden">
@@ -112,6 +113,43 @@
     <div class="card" style="margin-top:16px"><h2>Mức nguy cơ theo nhóm tuổi (số người)</h2><div class="scroll"><table id="hAge"></table></div></div>
     <div class="card" style="margin-top:16px"><h2>Phản hồi theo mức nguy cơ</h2><div class="scroll"><table id="hFbLevel"></table></div></div>
     <div class="card" style="margin-top:16px"><h2>Ghi chú "chưa đúng" gần đây</h2><div class="scroll"><table id="hNotes"></table></div></div>
+  </main>
+  <main id="tab-plans" class="hidden">
+    <div class="err" id="planErr"></div>
+    <div class="card"><h2>Đơn chờ xác nhận thanh toán</h2>
+      <div class="mute" style="margin-bottom:8px">Người dùng đặt gói trong app và chuyển khoản ngoài app. Khi bạn đã nhận tiền, bấm "Đã nhận tiền" để bật gói. Gói áp dụng cho cả người thân đang liên kết với người mua.</div>
+      <div class="scroll"><table id="pendTable"></table></div>
+      <div class="mute" id="pMsg2" style="margin-top:8px"></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Cấp gói tay (tặng, đền bù, người thử)</h2>
+      <form class="form" id="grantForm">
+        <div><label>Username người nhận</label><input id="gUser" placeholder="vd: hung" required></div>
+        <div><label>Số ngày</label><input id="gDays" inputmode="numeric" value="30" required></div>
+        <div><label>Ghi chú</label><input id="gNote" maxlength="200"></div>
+        <div><button type="submit">Cấp gói</button></div>
+      </form>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Các gói đang bán</h2>
+      <div class="mute" style="margin-bottom:8px">Gói chỉ hiện cho người dùng khi bật "Đang bán" và có giá lớn hơn 0.</div>
+      <div class="scroll"><table id="planTable"></table></div>
+      <form class="form" id="planForm" style="margin-top:12px">
+        <input type="hidden" id="plId">
+        <div><label>Tên gói</label><input id="plName" maxlength="60" required></div>
+        <div><label>Giá (đồng)</label><input id="plPrice" inputmode="numeric" required></div>
+        <div><label>Số ngày</label><input id="plDays" inputmode="numeric" required></div>
+        <div><label>Thứ tự</label><input id="plSort" inputmode="numeric" value="0"></div>
+        <div><label>Đang bán</label><select id="plActive"><option value="1">Bật</option><option value="0">Tắt</option></select></div>
+        <div><label>Mô tả ngắn</label><input id="plNote" maxlength="200"></div>
+        <div><button type="submit" id="plSave">Thêm gói</button> <button type="button" class="ghost" id="plReset">Xoá form</button></div>
+      </form>
+      <div class="mute" id="plMsg" style="margin-top:8px"></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Hướng dẫn thanh toán hiện trong app</h2>
+      <form id="noteForm"><textarea id="payNote" maxlength="600" rows="3" style="width:100%"></textarea>
+        <div style="margin-top:8px"><button type="submit">Lưu hướng dẫn</button></div></form>
+      <div class="mute" id="noteMsg" style="margin-top:8px"></div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Mọi đơn gần đây (100)</h2><div class="scroll"><table id="subTable"></table></div></div>
   </main>
   <main id="tab-settings" class="hidden">
     <div class="err" id="setErr"></div>
@@ -274,14 +312,14 @@ $('loginForm').addEventListener('submit', async (e) => {
   show(true); load();
 });
 let tab = 'stats';
-function loadTab() { return tab === 'voice' ? loadVoice() : tab === 'health' ? loadHealth() : tab === 'settings' ? loadSettings() : load(); }
+function loadTab() { return tab === 'voice' ? loadVoice() : tab === 'health' ? loadHealth() : tab === 'settings' ? loadSettings() : tab === 'plans' ? loadPlans() : load(); }
 $('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-tab]');
   if (!b) return;
   tab = b.dataset.tab;
   document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
-  for (const t of ['stats', 'voice', 'health', 'settings']) $('tab-' + t).classList.toggle('hidden', t !== tab);
-  $('days').style.display = tab === 'settings' ? 'none' : '';
+  for (const t of ['stats', 'voice', 'health', 'plans', 'settings']) $('tab-' + t).classList.toggle('hidden', t !== tab);
+  $('days').style.display = (tab === 'settings' || tab === 'plans') ? 'none' : '';
   loadTab();
 });
 $('refresh').onclick = loadTab;
@@ -397,7 +435,7 @@ function renderSettings(s) {
     ((s.audit || []).map((a) => `<tr><td>${fmt(a.ts)}</td><td>${esc(a.actor)}</td><td>${esc(AUD[a.action] || a.action)}</td><td>${esc(a.target || '')}</td>` +
       `<td>${Object.keys(a.detail || {}).length ? '<code>' + esc(JSON.stringify(a.detail)) + '</code>' : ''}</td></tr>`).join('') || '<tr><td class="mute" colspan="5">Chưa có</td></tr>');
 }
-const AUD = { login_ok: 'Đăng nhập', login_fail: 'Đăng nhập sai', key_add: 'Thêm key', key_rejected: 'Key bị từ chối', key_delete: 'Xoá key', key_enable: 'Bật key', key_disable: 'Tắt key', key_test: 'Thử key', policy_set: 'Đổi ngưỡng/công tắc', tier_set: 'Đổi hạng', live_add_user: 'Thêm người thử Live', live_remove_user: 'Gỡ người thử Live' };
+const AUD = { login_ok: 'Đăng nhập', login_fail: 'Đăng nhập sai', key_add: 'Thêm key', key_rejected: 'Key bị từ chối', key_delete: 'Xoá key', key_enable: 'Bật key', key_disable: 'Tắt key', key_test: 'Thử key', policy_set: 'Đổi ngưỡng/công tắc', tier_set: 'Đổi hạng', live_add_user: 'Thêm người thử Live', live_remove_user: 'Gỡ người thử Live', sub_confirm: 'Xác nhận thanh toán', sub_cancel: 'Huỷ/thu hồi gói', sub_grant: 'Cấp gói tay', plan_add: 'Thêm gói', plan_edit: 'Sửa gói', pay_note_set: 'Đổi hướng dẫn thanh toán' };
 async function loadSettings() {
   $('setErr').textContent = '';
   const { ok, d } = await api('/api/admin/settings').catch(() => ({ ok: false, d: {} }));
@@ -438,6 +476,73 @@ $('liveForm').addEventListener('submit', async (e) => {
 $('tierForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (await post({ action: 'set_tier', username: $('tUser').value, tier: $('tTier').value }, $('pMsg'))) $('tUser').value = '';
+});
+
+// ---------- Gói & thanh toán ----------
+const SUBST = { pending: ['Chờ xác nhận', 'warn'], active: ['Đang dùng', 'ok'], expired: ['Hết hạn', ''], cancelled: ['Đã huỷ', 'bad'] };
+const vnd = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
+let planData = null;
+function renderPlans(d) {
+  planData = d;
+  const pend = d.subs.filter((s) => s.status === 'pending');
+  $('pendTable').innerHTML = '<tr><th>Mã đơn</th><th>Người mua</th><th>Gói</th><th>Số tiền</th><th>Đặt lúc</th><th></th></tr>' +
+    (pend.map((s) => `<tr><td><code>${esc(s.code)}</code></td><td>${esc(s.who)}</td><td>${esc(s.plan)} (${s.days} ngày)</td><td><b>${vnd(s.price)}</b></td><td>${fmt(s.createdAt)}</td>` +
+      `<td style="white-space:nowrap"><button class="sm" data-pa="confirm_sub" data-id="${s.id}" data-code="${esc(s.code)}">Đã nhận tiền</button> <button class="danger sm" data-pa="cancel_sub" data-id="${s.id}">Huỷ đơn</button></td></tr>`).join('')
+      || '<tr><td class="mute" colspan="6">Không có đơn nào đang chờ</td></tr>');
+  $('planTable').innerHTML = '<tr><th>Thứ tự</th><th>Tên</th><th>Giá</th><th>Ngày</th><th>Trạng thái</th><th></th></tr>' +
+    (d.plans.map((p) => `<tr><td>${p.sort}</td><td>${esc(p.name)}${p.note ? ' <span class="mute">' + esc(p.note) + '</span>' : ''}</td><td>${vnd(p.price_vnd)}</td><td>${p.days}</td>` +
+      `<td>${p.active && p.price_vnd > 0 ? '<span class="pill ok">Đang bán</span>' : '<span class="pill">Ẩn</span>'}</td>` +
+      `<td><button class="ghost sm" data-edit="${p.id}">Sửa</button></td></tr>`).join('') || '<tr><td class="mute" colspan="6">Chưa có gói</td></tr>');
+  $('subTable').innerHTML = '<tr><th>Mã đơn</th><th>Người mua</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Hết hạn</th><th>Ghi chú</th><th></th></tr>' +
+    (d.subs.map((s) => { const [t, c] = SUBST[s.status] || [s.status, '']; return `<tr><td><code>${esc(s.code)}</code></td><td>${esc(s.who)}</td><td>${esc(s.plan)}</td><td>${vnd(s.price)}</td>` +
+      `<td><span class="pill ${c}">${t}</span></td><td>${fmt(s.expiresAt)}</td><td>${esc(s.note)}</td>` +
+      `<td>${s.status === 'active' ? `<button class="danger sm" data-pa="cancel_sub" data-id="${s.id}">Thu hồi</button>` : ''}</td></tr>`; }).join('') || '<tr><td class="mute" colspan="8">Chưa có đơn</td></tr>');
+  if (document.activeElement !== $('payNote')) $('payNote').value = d.payNote || '';
+}
+async function loadPlans() {
+  $('planErr').textContent = '';
+  const { ok, d } = await api('/api/admin/settings?view=plans').catch(() => ({ ok: false, d: {} }));
+  if (!ok) { $('planErr').textContent = 'Lỗi: ' + (d.error || ''); return; }
+  renderPlans(d);
+}
+const PERR = { not_pending: 'Đơn này không còn ở trạng thái chờ', not_open: 'Đơn này đã đóng', user_not_found: 'Không tìm thấy username', bad_value: 'Giá trị không hợp lệ' };
+async function postPlan(body, msgEl) {
+  const { ok, d } = await api('/api/admin/settings', { method: 'POST', body: JSON.stringify(body) }).catch(() => ({ ok: false, d: { error: 'Cần đăng nhập lại' } }));
+  if (!ok) { msgEl.textContent = (PERR[d.error] || d.error || 'Lỗi') + (d.field ? ' (' + d.field + ')' : ''); return false; }
+  renderPlans(d); msgEl.textContent = 'Đã lưu.'; return true;
+}
+function resetPlanForm() { $('planForm').reset(); $('plId').value = ''; $('plSave').textContent = 'Thêm gói'; }
+$('plReset').onclick = resetPlanForm;
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-pa]');
+  if (b) {
+    const confirmSub = b.dataset.pa === 'confirm_sub';
+    const msg = confirmSub ? 'Xác nhận ĐÃ NHẬN TIỀN cho đơn ' + b.dataset.code + '? Gói sẽ bật ngay.' : 'Huỷ/thu hồi đơn này?';
+    if (!confirm(msg)) return;
+    await postPlan({ action: b.dataset.pa, id: b.dataset.id }, $('pMsg2'));
+    return;
+  }
+  const ed = e.target.closest('button[data-edit]');
+  if (ed && planData) {
+    const p = planData.plans.find((x) => x.id === ed.dataset.edit); if (!p) return;
+    $('plId').value = p.id; $('plName').value = p.name; $('plPrice').value = p.price_vnd; $('plDays').value = p.days;
+    $('plSort').value = p.sort; $('plActive').value = p.active ? '1' : '0'; $('plNote').value = p.note || '';
+    $('plSave').textContent = 'Lưu thay đổi'; $('plName').focus();
+  }
+});
+$('planForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = { action: 'save_plan', name: $('plName').value, price_vnd: Number($('plPrice').value), days: Number($('plDays').value), sort: Number($('plSort').value || 0), active: $('plActive').value === '1', note: $('plNote').value };
+  if ($('plId').value) body.id = $('plId').value;
+  if (await postPlan(body, $('plMsg'))) resetPlanForm();
+});
+$('grantForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (await postPlan({ action: 'grant_sub', username: $('gUser').value, days: Number($('gDays').value), note: $('gNote').value }, $('pMsg2'))) { $('gUser').value = ''; $('gNote').value = ''; }
+});
+$('noteForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await postPlan({ action: 'set_pay_note', pay_note: $('payNote').value }, $('noteMsg'));
 });
 
 if (token) { show(true); load(); } else { show(false); }

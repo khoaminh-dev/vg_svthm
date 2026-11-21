@@ -1,9 +1,10 @@
 import type { VercelResponse } from '../vercel-types.js';
-import { dbSelect } from '../db.js';
+import { dbRpc, dbSelect } from '../db.js';
 import { allow } from '../auth.js';
 import { AllKeysFailed, UpstreamError, parseRetryAfter } from '../router.js';
 import { redact } from '../secretbox.js';
 import { getPolicy } from './gate.js';
+import { liveCache } from './live_cache.js';
 import { timedFetch, withKeys } from './keys.js';
 import { ACK_DELAY_LADDER, ACK_DELAY_MS, buildLiveSession, liveAllowed, pickMode, safetyId, validSdp } from './live.js';
 
@@ -12,23 +13,34 @@ import { ACK_DELAY_LADDER, ACK_DELAY_MS, buildLiveSession, liveAllowed, pickMode
 // Không bao giờ trả nội dung lỗi của OpenAI cho app (có thể chứa một phần khoá).
 
 const CACHE_MS = 20_000;
-let usersCache: { at: number; ids: Set<string> } | null = null;
+export { invalidateLiveUsers } from './live_cache.js';
 
-export function invalidateLiveUsers() {
-  usersCache = null;
+/** Có gói Vy Live đang hiệu lực (tự mua, hoặc người chăm sóc đang liên kết mua). Nhớ 20 giây; lỗi DB thì dùng kết quả cũ, không có thì từ chối. */
+async function hasPlan(uid: string): Promise<boolean> {
+  const hit = liveCache.plans.get(uid);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.ok;
+  try {
+    const ok = (await dbRpc<boolean>('has_live_plan', { p_user: uid })) === true;
+    if (liveCache.plans.size > 2000) liveCache.plans.clear();
+    liveCache.plans.set(uid, { at: Date.now(), ok });
+    return ok;
+  } catch {
+    return hit?.ok ?? false;
+  }
 }
 
 async function isLiveUser(uid: string): Promise<boolean> {
   if (liveAllowed(uid)) return true; // dự phòng qua biến môi trường
-  if (!usersCache || Date.now() - usersCache.at > CACHE_MS) {
+  if (await hasPlan(uid)) return true; // gói đã được admin xác nhận thanh toán
+  if (!liveCache.users || Date.now() - liveCache.users.at > CACHE_MS) {
     try {
       const rows = await dbSelect<{ user_id: string }[]>('live_users?select=user_id&limit=500');
-      usersCache = { at: Date.now(), ids: new Set(rows.map((r) => r.user_id)) };
+      liveCache.users = { at: Date.now(), ids: new Set(rows.map((r) => r.user_id)) };
     } catch {
-      return usersCache?.ids.has(uid) ?? false;
+      return liveCache.users?.ids.has(uid) ?? false;
     }
   }
-  return usersCache.ids.has(uid);
+  return liveCache.users.ids.has(uid);
 }
 
 type LiveReply = { session?: { id?: string }; transport?: { sdp?: string } };
