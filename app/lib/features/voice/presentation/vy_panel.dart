@@ -8,7 +8,6 @@ import 'dart:math' as math;
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../shared/honorific.dart';
 import '../core/vy_context.dart' show topRoutePath;
 import '../../../shared/widgets/vy_orb.dart';
 import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
@@ -21,7 +20,6 @@ import 'vy_cards.dart';
 
 const _navy = Color(0xFF14213D);
 const _blue = Color(0xFF3C5BD6);
-const _muted = Color(0xFF7A8699);
 
 /// Gắn [VyPanel] vào trạng thái của [VyCore]. Đặt trong lớp phủ của app.
 class VyPanelHost extends ConsumerWidget {
