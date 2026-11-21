@@ -65,9 +65,9 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Vy thường mở lại (không phải Live): vẫn dùng thanh nhỏ cũ', (t) async {
+  testWidgets('Vy thường đang chuẩn bị (chào xong mới mở mic): cũng hiện khối rõ ràng, không còn thanh nhỏ khó hiểu', (t) async {
     await show(t, const VyView(phase: VyPhase.opening, engine: VyEngine.classic));
-    expect(find.byKey(const Key('vy-connecting')), findsNothing);
-    expect(find.text('Vy đang kết nối…'), findsOneWidget);
+    expect(find.byKey(const Key('vy-connecting')), findsOneWidget);
+    await t.pumpWidget(const SizedBox());
   });
 }

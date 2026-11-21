@@ -163,7 +163,7 @@ class VyPanel extends StatelessWidget {
     final expanded = view.expanded;
     final height = MediaQuery.of(context).size.height;
     // Đang nối Live: khối kết nối lớn, có chuyển động và đếm giây (người cao tuổi không nhầm là đang nghe).
-    final connecting = view.phase == VyPhase.opening && view.engine != VyEngine.classic;
+    final connecting = view.phase == VyPhase.opening;
     return Semantics(
       container: true,
       liveRegion: true,
