@@ -16,6 +16,7 @@ import '../data/med_alarm_service.dart';
 import '../data/med_scan_client.dart';
 import '../data/meds_repository.dart';
 import '../domain/meds_models.dart';
+import '../../../shared/honorific.dart';
 
 final medsRepositoryProvider = Provider<MedsRepository>(
   (ref) => SupabaseMedsRepository(ref.watch(supabaseClientProvider)),
@@ -158,7 +159,7 @@ class _MedsSyncHostState extends ConsumerState<MedsSyncHost>
     ref.listen(myDosesProvider, (_, next) {
       final doses = next.value;
       if (doses != null)
-        unawaited(ref.read(medAlarmServiceProvider).sync(doses));
+        unawaited(ref.read(medAlarmServiceProvider).sync(doses, hon: honorific));
     });
     return BpReminderHost(child: widget.child);
   }

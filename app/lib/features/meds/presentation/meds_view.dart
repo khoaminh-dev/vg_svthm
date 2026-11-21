@@ -16,6 +16,7 @@ import '../../voice/core/control_registry.dart';
 import '../data/meds_repository.dart';
 import '../domain/meds_models.dart';
 import 'meds_providers.dart';
+import '../../../shared/honorific.dart';
 
 /// Mục "Thuốc" trong tab Sức khoẻ: các cữ hôm nay với nút to "Đã uống", thuốc "khi cần", và 7 ngày qua.
 class MedsView extends ConsumerStatefulWidget {
@@ -182,7 +183,7 @@ class _MedsViewState extends ConsumerState<MedsView> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Nhờ con đặt lịch giúp bác, hoặc bác tự thêm theo đơn bác sĩ cho.',
+                hon('Nhờ con đặt lịch giúp bác, hoặc bác tự thêm theo đơn bác sĩ cho.'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: AppColors.textMuted,
@@ -325,7 +326,7 @@ class _MedsViewState extends ConsumerState<MedsView> {
           0,
         ),
         child: Text(
-          'Nhắc nhở theo lịch bác sĩ đã cho. Nếu quên một cữ, bác không uống bù, hãy hỏi bác sĩ. Bản thử nghiệm.',
+          hon('Nhắc nhở theo lịch bác sĩ đã cho. Nếu quên một cữ, bác không uống bù, hãy hỏi bác sĩ. Bản thử nghiệm.'),
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
             color: AppColors.textMuted,
@@ -361,8 +362,8 @@ class _MedsViewState extends ConsumerState<MedsView> {
     final date =
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
     if (days < 0) return 'Đã quá hẹn tái khám ($date)';
-    if (days == 0) return 'Hôm nay bác đi tái khám';
-    if (days == 1) return 'Ngày mai bác đi tái khám ($date)';
+    if (days == 0) return hon('Hôm nay bác đi tái khám');
+    if (days == 1) return hon('Ngày mai bác đi tái khám ($date)');
     return '$date, còn $days ngày';
   }
 }
@@ -457,7 +458,7 @@ class _DoseCard extends StatelessWidget {
 
     void take() {
       Analytics.track('dose_taken');
-      onAct(() => repo.setDose(dose.id, 'taken'), ok: 'Đã ghi nhận bác uống thuốc');
+      onAct(() => repo.setDose(dose.id, 'taken'), ok: hon('Đã ghi nhận bác uống thuốc'));
     }
 
     void snooze() =>
@@ -619,7 +620,7 @@ class _DoseCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Bác không uống bù. Nếu băn khoăn, bác hỏi bác sĩ nhé.',
+                hon('Bác không uống bù. Nếu băn khoăn, bác hỏi bác sĩ nhé.'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppColors.textMuted,
                 ),

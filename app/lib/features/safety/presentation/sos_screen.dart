@@ -17,6 +17,7 @@ import '../../meds/presentation/meds_providers.dart';
 import '../domain/safety_models.dart';
 import 'safety_providers.dart';
 import 'sos_widgets.dart';
+import '../../../shared/honorific.dart';
 
 /// Mã đặc biệt: SOS chưa gửi được (mất mạng...). Màn vẫn cho gọi 115.
 const sosFailedId = 'failed';
@@ -98,14 +99,14 @@ class _SosScreenState extends ConsumerState<SosScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Bác ổn, bấm nhầm?'),
-        content: const Text('Người thân sẽ được báo là bác đã huỷ SOS.'),
+        title: Text(hon('Bác ổn, bấm nhầm?')),
+        content: Text(hon('Người thân sẽ được báo là bác đã huỷ SOS.')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Chưa')),
           FilledButton(
             key: const Key('sos-cancel-ok'),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Đúng, bác ổn'),
+            child: Text(hon('Đúng, bác ổn')),
           ),
         ],
       ),
@@ -167,7 +168,7 @@ class _SosScreenState extends ConsumerState<SosScreen> {
           final card = ref.watch(emergencyCardProvider(e.ownerId)).value;
           final plans = ref.watch(personPlansProvider(e.ownerId)).value ?? const [];
           final meds = activeMedsTexts(plans);
-          final who = mine ? 'bác' : _nameOf(links, e.ownerId);
+          final who = mine ? hon('bác') : _nameOf(links, e.ownerId);
           final watchers = [
             for (final l in links)
               if (mine && l.iAmOwner && l.active && (l.perms['alerts'] ?? false)) l,
@@ -179,14 +180,14 @@ class _SosScreenState extends ConsumerState<SosScreen> {
           final Widget status;
           if (e.cancelled) {
             status = _banner(theme, Icons.check_circle_outline, 'SOS đã huỷ',
-                mine ? 'Bác đã huỷ. Người thân đã được báo.' : '$who đã huỷ SOS (bấm nhầm hoặc đã ổn).',
+                mine ? hon('Bác đã huỷ. Người thân đã được báo.') : '$who đã huỷ SOS (bấm nhầm hoặc đã ổn).',
                 color: AppColors.levelGood, key: const Key('sos-status-cancelled'));
           } else if (e.handled) {
             status = _banner(
               theme,
               Icons.check_circle_outline,
-              mine ? '$handler đã nhận tin của bác' : (e.handledBy == me ? 'Bạn đã nhận SOS này' : '$handler đã nhận SOS này'),
-              mine ? '$handler sẽ liên lạc với bác.' : 'Không cần gọi trùng.',
+              mine ? hon('$handler đã nhận tin của bác') : (e.handledBy == me ? 'Bạn đã nhận SOS này' : '$handler đã nhận SOS này'),
+              mine ? hon('$handler sẽ liên lạc với bác.') : 'Không cần gọi trùng.',
               color: AppColors.levelGood,
               key: const Key('sos-status-handled'),
             );
@@ -197,7 +198,7 @@ class _SosScreenState extends ConsumerState<SosScreen> {
               watchers.isEmpty ? 'Chưa báo được cho ai' : 'Đã báo cho ${watchers.map((l) => _nameOf(links, l.otherId)).join(', ')}',
               watchers.isEmpty
                   ? 'Chưa có người thân liên kết nhận SOS. Hãy gọi cấp cứu 115 hoặc người thân ngay.'
-                  : 'Đang chờ người thân nhận. Nếu nguy hiểm, bác gọi 115 ngay.',
+                  : hon('Đang chờ người thân nhận. Nếu nguy hiểm, bác gọi 115 ngay.'),
               key: const Key('sos-status-open'),
             );
           } else {

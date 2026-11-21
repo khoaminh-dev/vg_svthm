@@ -13,6 +13,7 @@ import '../../auth/presentation/providers/auth_providers.dart';
 import '../../profile/data/phone_repository.dart';
 import '../domain/safety_models.dart';
 import 'safety_providers.dart';
+import '../../../shared/honorific.dart';
 
 /// Điền hoặc sửa thẻ y tế khẩn cấp (chủ, hoặc con có quyền sửa hồ sơ).
 class EmergencyCardScreen extends ConsumerStatefulWidget {
@@ -159,9 +160,9 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
                     key: const Key('card-phone'),
                     controller: _phone,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Số điện thoại của bác',
-                      helperText: 'Tự lấy từ Hồ sơ nếu bác đã nhập ở đó',
+                    decoration: InputDecoration(
+                      labelText: hon('Số điện thoại của bác'),
+                      helperText: hon('Tự lấy từ Hồ sơ nếu bác đã nhập ở đó'),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),

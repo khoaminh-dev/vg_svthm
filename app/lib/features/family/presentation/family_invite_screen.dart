@@ -17,6 +17,7 @@ import '../../../shared/widgets/elder_text_scale.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
+import '../../../shared/honorific.dart';
 
 /// Người được chăm sóc: tạo mã mời, xem ai đang theo dõi mình, đổi quyền, tạm dừng, gỡ.
 class FamilyInviteScreen extends ConsumerStatefulWidget {
@@ -95,7 +96,7 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Tạo một mã rồi đọc cho con, hoặc gửi qua Zalo. Con nhập mã trên máy của con để xem sức khoẻ của bác. Chỉ bác mới tạo được mã.',
+                    hon('Tạo một mã rồi đọc cho con, hoặc gửi qua Zalo. Con nhập mã trên máy của con để xem sức khoẻ của bác. Chỉ bác mới tạo được mã.'),
                     style: theme.textTheme.bodyLarge,
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -176,10 +177,10 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
             FamCard(
               title: watchers.isEmpty
                   ? 'Chưa có ai theo dõi'
-                  : 'Đang theo dõi bác (${watchers.length})',
+                  : hon('Đang theo dõi bác (${watchers.length})'),
               child: watchers.isEmpty
                   ? Text(
-                      'Khi con nhập mã, tên con sẽ hiện ở đây. Bác gỡ được bất cứ lúc nào.',
+                      hon('Khi con nhập mã, tên con sẽ hiện ở đây. Bác gỡ được bất cứ lúc nào.'),
                       style: theme.textTheme.bodyMedium,
                     )
                   : Column(
@@ -286,8 +287,8 @@ class _WatcherTile extends ConsumerWidget {
                     context: context,
                     builder: (c) => AlertDialog(
                       title: Text('Gỡ ${link.name}?'),
-                      content: const Text(
-                        'Người này sẽ không xem được số liệu của bác nữa.',
+                      content: Text(
+                        hon('Người này sẽ không xem được số liệu của bác nữa.'),
                       ),
                       actions: [
                         TextButton(

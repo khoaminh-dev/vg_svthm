@@ -1,16 +1,17 @@
 import 'bp_models.dart';
+import '../../../shared/honorific.dart';
 
 /// Nhận xét ngắn, dễ hiểu cho một lần đo (không thay thế ý kiến bác sĩ).
 String bpAdvice(BpReading r, {BpReading? previous}) {
   final parts = <String>[
     switch (r.category) {
       BpCategory.normal =>
-        'Huyết áp bình thường, bác cứ giữ thói quen tốt nhé.',
+        hon('Huyết áp bình thường, bác cứ giữ thói quen tốt nhé.'),
       BpCategory.elevated =>
-        'Huyết áp hơi cao. Bác nên nghỉ ngơi, ăn nhạt và đo lại sau ít phút.',
-      BpCategory.stage1 => 'Huyết áp đang cao. Bác nên nghỉ ngơi, bớt muối và theo dõi thêm vài ngày.',
-      BpCategory.stage2 => 'Huyết áp cao. Bác nên nghỉ ngơi, đo lại sau 5 phút và báo người thân hoặc bác sĩ.',
-      BpCategory.crisis => 'Huyết áp rất cao. Bác ngồi nghỉ, gọi người thân và đến cơ sở y tế ngay nếu thấy đau đầu, khó thở.',
+        hon('Huyết áp hơi cao. Bác nên nghỉ ngơi, ăn nhạt và đo lại sau ít phút.'),
+      BpCategory.stage1 => hon('Huyết áp đang cao. Bác nên nghỉ ngơi, bớt muối và theo dõi thêm vài ngày.'),
+      BpCategory.stage2 => hon('Huyết áp cao. Bác nên nghỉ ngơi, đo lại sau 5 phút và báo người thân hoặc bác sĩ.'),
+      BpCategory.crisis => hon('Huyết áp rất cao. Bác ngồi nghỉ, gọi người thân và đến cơ sở y tế ngay nếu thấy đau đầu, khó thở.'),
     },
   ];
   final pulse = r.pulse;

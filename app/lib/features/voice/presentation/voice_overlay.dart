@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
+import 'dart:async' show unawaited;
+
+import '../../../shared/honorific.dart';
 import '../../../shared/widgets/app_snackbar.dart';
+import '../data/voice_actions.dart' show voiceActionsProvider;
 import '../../../shared/widgets/vy_button.dart';
 import '../core/vy_context.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -65,11 +69,27 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
   }
 
   DateTime? _lastBack;
+  String? _honFor;
+
+  Future<void> _loadHonorific() async {
+    try {
+      setHonorific(await ref.read(voiceActionsProvider).loadHonorific());
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final enabled = user != null && !user.needsProfile;
+    // Nạp cách xưng hô của người dùng một lần mỗi lần đăng nhập, để chữ trên màn hình xưng hô đúng.
+    if (user?.id != _honFor) {
+      _honFor = user?.id;
+      if (_honFor == null) {
+        setHonorific(null);
+      } else {
+        unawaited(_loadHonorific());
+      }
+    }
     final router = ref.watch(routerProvider);
     final open = ref.watch(vyCoreProvider.select((v) => v.isOpen));
     // Android mới chỉ chuyển phím Back cho Flutter khi có người "xin" xử lý; ở Trang chủ (không có màn nào để

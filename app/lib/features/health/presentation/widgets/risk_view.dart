@@ -14,6 +14,7 @@ import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
 import '../risk_texts.dart';
 import 'risk_charts.dart';
+import '../../../../shared/honorific.dart';
 
 Future<void> callEmergency() => launchUrl(Uri.parse('tel:115'));
 
@@ -152,7 +153,7 @@ class _RiskViewState extends ConsumerState<RiskView> {
                     'Lịch sử hỏi Vy',
                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
                   ),
-                  subtitle: const Text('Những lần bác hỏi Vy về sức khoẻ'),
+                  subtitle: Text(hon('Những lần bác hỏi Vy về sức khoẻ')),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     Analytics.track('health_history_open');
@@ -177,8 +178,8 @@ class _RiskViewState extends ConsumerState<RiskView> {
                         fontSize: 17,
                       ),
                     ),
-                    subtitle: const Text(
-                      'Dùng kết quả và góp ý của bác (không kèm tên)',
+                    subtitle: Text(
+                      hon('Dùng kết quả và góp ý của bác (không kèm tên)'),
                     ),
                     value: consent.value == true,
                     onChanged: (v) {
@@ -369,7 +370,7 @@ class _RiskViewState extends ConsumerState<RiskView> {
         ),
         const SizedBox(height: AppSpacing.md),
         _Section(
-          title: 'Bác nên làm',
+          title: hon('Bác nên làm'),
           child: Row(
             key: const Key('risk-todo'),
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,8 +416,8 @@ class _RiskViewState extends ConsumerState<RiskView> {
             _Fold(
               title: 'Khi nào cần đi khám ngay',
               children: [
-                const Text(
-                  'Nếu bác có một trong các dấu hiệu sau, gọi 115 hoặc đến cơ sở y tế ngay:',
+                Text(
+                  hon('Nếu bác có một trong các dấu hiệu sau, gọi 115 hoặc đến cơ sở y tế ngay:'),
                 ),
                 const SizedBox(height: 6),
                 for (final t in redFlags) _Bullet(t),
@@ -665,7 +666,7 @@ class _ResearchCard extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Công cụ này đang được thử nghiệm. Bác có đồng ý cho Viegrand dùng kết quả đánh giá và góp ý của bác, không kèm tên, để kiểm tra và cải thiện công cụ không? Bác có thể rút lại bất cứ lúc nào.',
+            hon('Công cụ này đang được thử nghiệm. Bác có đồng ý cho Viegrand dùng kết quả đánh giá và góp ý của bác, không kèm tên, để kiểm tra và cải thiện công cụ không? Bác có thể rút lại bất cứ lúc nào.'),
             style: theme.textTheme.bodyLarge,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -798,7 +799,7 @@ class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Kết quả này có đúng với bác không?',
+            hon('Kết quả này có đúng với bác không?'),
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -814,7 +815,7 @@ class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
           if (_failed) ...[
             const SizedBox(height: 8),
             Text(
-              'Chưa gửi được, bác thử lại nhé.',
+              hon('Chưa gửi được, bác thử lại nhé.'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppColors.levelDanger,
               ),
@@ -822,7 +823,7 @@ class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
           ] else if (verdict != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Cảm ơn bác đã góp ý. Bác bấm lại để đổi.',
+              hon('Cảm ơn bác đã góp ý. Bác bấm lại để đổi.'),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: AppColors.textMuted,
               ),
@@ -836,8 +837,8 @@ class _FeedbackCardState extends ConsumerState<_FeedbackCard> {
               maxLength: 300,
               maxLines: 2,
               textInputAction: TextInputAction.done,
-              decoration: const InputDecoration(
-                hintText: 'Bác thấy chưa đúng ở đâu? (không bắt buộc)',
+              decoration: InputDecoration(
+                hintText: hon('Bác thấy chưa đúng ở đâu? (không bắt buộc)'),
               ),
             ),
             Align(

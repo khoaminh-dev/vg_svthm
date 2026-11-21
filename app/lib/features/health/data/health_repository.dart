@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/env.dart';
 import '../../../core/errors/app_failure.dart';
 import '../domain/health_models.dart';
+import '../../../shared/honorific.dart';
 
 abstract interface class HealthRepository {
   /// Hồ sơ sức khoẻ của người dùng hiện tại, hoặc null nếu chưa nhập.
@@ -125,7 +126,7 @@ class SupabaseHealthRepository implements HealthRepository {
           )
           .timeout(const Duration(seconds: 20));
     } catch (_) {
-      throw const AppFailure('Chưa đánh giá được, bác kiểm tra mạng nhé');
+      throw AppFailure(hon('Chưa đánh giá được, bác kiểm tra mạng nhé'));
     }
     if (res.statusCode == 409) return null; // chưa có hồ sơ hoặc chưa có lần đo
     if (res.statusCode != 200)

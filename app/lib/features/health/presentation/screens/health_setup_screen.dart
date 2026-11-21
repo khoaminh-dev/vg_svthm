@@ -13,6 +13,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
+import '../../../../shared/honorific.dart';
 
 /// Hồ sơ sức khoẻ, nhập một lần, hai màn: Về bác, Sức khoẻ của bác. Lần đầu là bắt buộc (không có nút đóng);
 /// sự đồng ý nằm ngay trên nút "Hoàn tất" nên không tốn thêm màn. Khi sửa hồ sơ ([editing]) có nút lùi.
@@ -257,8 +258,10 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
                       ),
                       child: Text(
                         key: const Key('health-consent'),
-                        'Bấm Hoàn tất là bác đồng ý để Viegrand dùng thông tin này đánh giá nguy cơ sau mỗi lần đo. '
-                        'Chỉ bác xem được, sửa hoặc xoá được bất cứ lúc nào. Gợi ý tham khảo, không thay thế bác sĩ.',
+                        hon(
+                          'Bấm Hoàn tất là bác đồng ý để Viegrand dùng thông tin này đánh giá nguy cơ sau mỗi lần đo. '
+                          'Chỉ bác xem được, sửa hoặc xoá được bất cứ lúc nào. Gợi ý tham khảo, không thay thế bác sĩ.',
+                        ),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.textMuted,
                         ),
@@ -350,8 +353,8 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
       children: [
         _title(
           theme,
-          'Vài điều về bác',
-          'Để con đánh giá sức khoẻ cho đúng với bác.',
+          hon('Vài điều về bác'),
+          hon('Để con đánh giá sức khoẻ cho đúng với bác.'),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -385,7 +388,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
         ),
         Center(
           child: Text(
-            'Bác $age tuổi',
+            hon('Bác $age tuổi'),
             style: theme.textTheme.bodyLarge?.copyWith(
               color: AppColors.textMuted,
             ),
@@ -484,7 +487,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
           ),
         ),
         if (_bodyError)
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(
               AppSpacing.lg,
               AppSpacing.sm,
@@ -492,7 +495,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
               0,
             ),
             child: Text(
-              'Chiều cao 100-230 cm, cân nặng 25-250 kg, hoặc bác để trống.',
+              hon('Chiều cao 100-230 cm, cân nặng 25-250 kg, hoặc bác để trống.'),
               key: Key('body-error'),
               style: TextStyle(
                 color: AppColors.levelDanger,
@@ -502,7 +505,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
             ),
           ),
         if (_sexError)
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(
               AppSpacing.lg,
               AppSpacing.sm,
@@ -510,7 +513,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
               0,
             ),
             child: Text(
-              'Bác chọn giới tính giúp con nhé.',
+              hon('Bác chọn giới tính giúp con nhé.'),
               key: Key('sex-error'),
               style: TextStyle(
                 color: AppColors.levelDanger,
@@ -533,8 +536,8 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
       children: [
         _title(
           theme,
-          'Sức khoẻ của bác',
-          'Chạm Có nếu đúng với bác. Còn lại cứ để Không.',
+          hon('Sức khoẻ của bác'),
+          hon('Chạm Có nếu đúng với bác. Còn lại cứ để Không.'),
         ),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),

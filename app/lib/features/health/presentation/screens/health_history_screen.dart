@@ -9,6 +9,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
+import '../../../../shared/honorific.dart';
 
 /// Những lần bác hỏi Vy về sức khoẻ và câu Vy trả lời. Chỉ chính bác xem được; tự xoá sau 90 ngày.
 class HealthHistoryScreen extends ConsumerWidget {
@@ -24,8 +25,8 @@ class HealthHistoryScreen extends ConsumerWidget {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Xoá toàn bộ lịch sử?'),
-        content: const Text(
-          'Các câu bác đã hỏi Vy về sức khoẻ sẽ bị xoá và không khôi phục được.',
+        content: Text(
+          hon('Các câu bác đã hỏi Vy về sức khoẻ sẽ bị xoá và không khôi phục được.'),
         ),
         actions: [
           TextButton(
@@ -47,7 +48,7 @@ class HealthHistoryScreen extends ConsumerWidget {
       ref.invalidate(healthHistoryProvider);
     } catch (_) {
       if (context.mounted)
-        showAppSnackBar(context, 'Chưa xoá được, bác thử lại nhé');
+        showAppSnackBar(context, hon('Chưa xoá được, bác thử lại nhé'));
     }
   }
 
@@ -95,7 +96,7 @@ class HealthHistoryScreen extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.xl),
                     child: Text(
-                      'Bác chưa hỏi Vy về sức khoẻ.\nThử nói: "Huyết áp tôi dạo này thế nào?"',
+                      hon('Bác chưa hỏi Vy về sức khoẻ.\nThử nói: "Huyết áp tôi dạo này thế nào?"'),
                       textAlign: TextAlign.center,
                       style: theme.textTheme.titleMedium,
                     ),
@@ -116,7 +117,7 @@ class HealthHistoryScreen extends ConsumerWidget {
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          'Lịch sử tự xoá sau 90 ngày. Chỉ bác xem được.',
+                          hon('Lịch sử tự xoá sau 90 ngày. Chỉ bác xem được.'),
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: AppColors.textMuted,

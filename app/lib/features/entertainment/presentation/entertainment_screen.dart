@@ -12,6 +12,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../data/youtube_service.dart';
 import 'entertainment_providers.dart';
+import '../../../shared/honorific.dart';
 
 /// Giải trí: tìm và xem video YouTube ngay trong app.
 class EntertainmentScreen extends ConsumerStatefulWidget {
@@ -205,7 +206,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                   ),
                   children: [
                     Text(
-                      'Bác muốn xem gì? Chạm một mục, hoặc nói với Vy: "Mở bài Nối vòng tay lớn".',
+                      hon('Bác muốn xem gì? Chạm một mục, hoặc nói với Vy: "Mở bài Nối vòng tay lớn".'),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -260,8 +261,8 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                         color: theme.colorScheme.outline,
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Chưa tìm được video. Bác kiểm tra mạng rồi thử lại nhé.',
+                      Text(
+                        hon('Chưa tìm được video. Bác kiểm tra mạng rồi thử lại nhé.'),
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 18),
                       ),

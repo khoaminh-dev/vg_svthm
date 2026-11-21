@@ -7,6 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../meds/domain/meds_models.dart';
 import '../domain/safety_models.dart';
+import '../../../shared/honorific.dart';
 
 /// Gọi điện (ghi đè được khi kiểm thử).
 final phoneLauncherProvider = Provider<Future<void> Function(String)>(
@@ -65,7 +66,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Gọi SOS?'),
-        content: const Text('Báo ngay cho người thân của bác.'),
+        content: Text(hon('Báo ngay cho người thân của bác.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

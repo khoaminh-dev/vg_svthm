@@ -22,6 +22,7 @@ import '../../../health/presentation/providers/health_providers.dart';
 import '../../../health/presentation/risk_texts.dart';
 import '../../../health/presentation/widgets/risk_view.dart' show callEmergency;
 import '../providers/measure_controller.dart';
+import '../../../../shared/honorific.dart';
 
 /// Màn đo huyết áp một chạm kiểu Locket: mở lên là thấy camera, bấm chụp là xong.
 /// Số được đọc, phân loại, lưu và nhận xét tự động.
@@ -65,7 +66,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
     } catch (_) {
       if (mounted) {
         setState(
-          () => _cameraError = 'Chưa mở được camera. Bác cho phép dùng camera hoặc chọn ảnh có sẵn.',
+          () => _cameraError = hon('Chưa mở được camera. Bác cho phép dùng camera hoặc chọn ảnh có sẵn.'),
         );
       }
     }
@@ -118,7 +119,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
       await ref.read(measureControllerProvider.notifier).process(file.path);
     } catch (_) {
       if (mounted)
-        setState(() => _cameraError = 'Chụp chưa được, bác thử lại nhé.');
+        setState(() => _cameraError = hon('Chụp chưa được, bác thử lại nhé.'));
     } finally {
       _busy = false;
     }

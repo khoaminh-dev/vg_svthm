@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../domain/meds_models.dart';
 import 'meds_providers.dart';
+import '../../../shared/honorific.dart';
 
 /// Đặt hoặc sửa một đơn thuốc: chọn các cữ (túi Sáng/Trưa/Chiều/Tối), giờ, thuốc trong túi (tuỳ chọn),
 /// thuốc lấy từ hũ, thuốc khi cần, số ngày và ngày tái khám.
@@ -309,7 +310,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
   Future<void> _save() async {
     final title = _title.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = 'Bác đặt một cái tên cho đơn thuốc nhé.');
+      setState(() => _error = hon('Bác đặt một cái tên cho đơn thuốc nhé.'));
       return;
     }
     if (_slots.isEmpty) {

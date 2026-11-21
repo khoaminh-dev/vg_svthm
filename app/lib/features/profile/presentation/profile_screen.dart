@@ -21,6 +21,7 @@ import '../../push/push_service.dart';
 import '../../voice/core/control_registry.dart';
 import '../data/phone_repository.dart';
 import '../../voice/core/vy_settings.dart';
+import '../../../shared/honorific.dart';
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
 class ProfileScreen extends ConsumerWidget {
@@ -222,7 +223,7 @@ class ProfileScreen extends ConsumerWidget {
           fontSize: 17,
         ),
       ),
-      subtitle: Text(user?.role == AppRole.family ? 'Máy tự đọc to cho bạn nghe' : 'Máy tự đọc to cho bác nghe'),
+      subtitle: Text(user?.role == AppRole.family ? 'Máy tự đọc to cho bạn nghe' : hon('Máy tự đọc to cho bác nghe')),
       value: ref.watch(speakAdviceProvider).value ?? true,
       onChanged: (v) {
         Analytics.track('speak_advice_toggle', {'on': v});
@@ -489,7 +490,7 @@ class _ElderProfileShortcuts extends ConsumerWidget {
           'profile-invite',
           Icons.family_restroom_outlined,
           'Mời người thân',
-          watchers.isEmpty ? 'Để con xem được sức khoẻ của bác' : '${watchers.length} người đang theo dõi',
+          watchers.isEmpty ? hon('Để con xem được sức khoẻ của bác') : '${watchers.length} người đang theo dõi',
           () => context.push(Routes.familyInvite),
         ),
         big(
@@ -642,7 +643,7 @@ class _NotificationSettings extends ConsumerWidget {
           contentPadding: pad,
           secondary: _LeadIcon(Icons.notifications_outlined),
           title: const Text('Thông báo tin nhắn', style: titleStyle),
-          subtitle: Text(ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.family ? 'Báo khi có người nhắn cho bạn' : 'Báo khi có người nhắn cho bác'),
+          subtitle: Text(ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.family ? 'Báo khi có người nhắn cho bạn' : hon('Báo khi có người nhắn cho bác')),
           value: prefs.messages,
           onChanged: (v) {
             Analytics.track('push_toggle', {'kind': 'messages', 'on': v});
@@ -776,10 +777,10 @@ class _FamilySettings extends ConsumerWidget {
           key: const Key('profile-invite'),
           minTileHeight: 64,
           leading: _LeadIcon(Icons.family_restroom_outlined),
-          title: const Text('Mời người thân theo dõi bác', style: titleStyle),
+          title: Text(hon('Mời người thân theo dõi bác'), style: titleStyle),
           subtitle: Text(
             watchers.isEmpty
-                ? 'Con xem được sức khoẻ của bác từ xa'
+                ? hon('Con xem được sức khoẻ của bác từ xa')
                 : '${watchers.length} người đang theo dõi',
           ),
           trailing: const Icon(Icons.chevron_right_rounded),
@@ -936,7 +937,7 @@ class _VySettingsGroup extends ConsumerWidget {
           contentPadding: pad,
           secondary: const _LeadIcon(Icons.chat_bubble_outline_rounded),
           title: const Text('Vy tự nhắc tin nhắn mới', style: titleStyle),
-          subtitle: const Text('Hỏi bác có muốn nghe không'),
+          subtitle: Text(hon('Hỏi bác có muốn nghe không')),
           value: s.remindMessages,
           onChanged: (v) {
             Analytics.track('vy_setting', {'remind_msg': v});

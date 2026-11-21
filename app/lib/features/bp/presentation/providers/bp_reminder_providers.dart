@@ -10,6 +10,7 @@ import '../../../push/push_service.dart';
 import '../../data/bp_reminder_plan.dart';
 import '../../data/bp_reminder_service.dart';
 import 'bp_providers.dart';
+import '../../../../shared/honorific.dart';
 
 final bpReminderServiceProvider = Provider<BpReminderService>(
   (ref) => BpReminderService(ref.watch(medAlarmServiceProvider)),
@@ -90,7 +91,7 @@ class _BpReminderHostState extends ConsumerState<BpReminderHost>
           measuredToday: readings.any((r) => sameDay(r.measuredAt, now)),
           quietStart: prefs?.quietStart,
           quietEnd: prefs?.quietEnd,
-          hon: elder ? 'bác' : 'bạn',
+          hon: elder ? honorific : 'bạn',
           now: now,
         );
   }

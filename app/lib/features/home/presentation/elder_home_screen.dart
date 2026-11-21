@@ -24,6 +24,7 @@ import '../../safety/presentation/sos_screen.dart';
 import '../../safety/presentation/sos_widgets.dart';
 import '../../voice/core/control_registry.dart';
 import '../../voice/core/vy_core.dart';
+import '../../../shared/honorific.dart';
 
 /// Một ô lối tắt trên trang chủ của người cao tuổi.
 class ElderTile {
@@ -420,7 +421,7 @@ class _DueCardState extends ConsumerState<_DueCard> {
       Analytics.track('dose_taken', {'shell': 'elder'});
       await ref.read(medsRepositoryProvider).setDose(d.id, 'taken');
       ref.invalidate(myDosesProvider);
-      if (mounted) showAppSnackBar(context, 'Đã ghi nhận bác uống thuốc');
+      if (mounted) showAppSnackBar(context, hon('Đã ghi nhận bác uống thuốc'));
     } catch (e) {
       if (mounted) showAppSnackBar(context, errorMessage(e), error: true);
     } finally {

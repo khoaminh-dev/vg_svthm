@@ -19,6 +19,7 @@ import '../../../shared/widgets/user_avatar.dart';
 import '../../chat/presentation/providers/chat_controller.dart';
 import '../../voice/core/control_registry.dart';
 import 'community_providers.dart';
+import '../../../shared/honorific.dart';
 
 /// Cộng đồng: danh sách mọi người dùng, bấm "Nhắn tin" để kết bạn và trò chuyện.
 /// Chỉ dùng trong đợt thử nghiệm (bật/tắt bằng cờ `community`).
@@ -183,7 +184,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   error: (e, _) => message(
                     Icons.cloud_off_outlined,
                     'Chưa tải được danh sách',
-                    body: 'Bác kiểm tra mạng rồi thử lại nhé.',
+                    body: hon('Bác kiểm tra mạng rồi thử lại nhé.'),
                     action: FilledButton(
                       key: const Key('community-retry'),
                       onPressed: () => ref.invalidate(communityUsersProvider),

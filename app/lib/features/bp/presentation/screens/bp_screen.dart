@@ -20,6 +20,7 @@ import '../../../meds/presentation/meds_view.dart';
 import '../../domain/bp_models.dart';
 import '../providers/bp_providers.dart';
 import '../widgets/bp_chart.dart';
+import '../../../../shared/honorific.dart';
 
 /// Theo dõi huyết áp: lần đo gần nhất, biểu đồ và lịch sử.
 class BpScreen extends ConsumerWidget {
@@ -468,7 +469,7 @@ class _ElderBpView extends ConsumerWidget {
               boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
             ),
             child: Text(
-              'Bác chưa đo lần nào.\nBấm nút “Đo huyết áp bây giờ” ở trên để đo lần đầu.',
+              hon('Bác chưa đo lần nào.\nBấm nút “Đo huyết áp bây giờ” ở trên để đo lần đầu.'),
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge,
             ),

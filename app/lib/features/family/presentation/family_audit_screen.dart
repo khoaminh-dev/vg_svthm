@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/ios_style.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
+import '../../../shared/honorific.dart';
 
 final familyAuditProvider = FutureProvider.autoDispose<List<AuditEntry>>(
   (ref) => ref.watch(familyRepositoryProvider).audit(),
@@ -84,7 +85,7 @@ class FamilyAuditScreen extends ConsumerWidget {
                         0,
                       ),
                       child: Text(
-                        'Chỉ bác xem được nhật ký này.',
+                        hon('Chỉ bác xem được nhật ký này.'),
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: AppColors.textMuted,

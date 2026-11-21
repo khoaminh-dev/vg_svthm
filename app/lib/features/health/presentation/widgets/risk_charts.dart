@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../bp/domain/bp_models.dart';
 import '../../domain/health_models.dart';
+import '../../../../shared/honorific.dart';
 
 /// Màu của từng nấc trên thanh cột: xanh, vàng, cam, cam đậm, đỏ.
 Color barColorFor(BpCategory c) => c.color;
@@ -228,7 +229,7 @@ class RiskTrendChart extends StatelessWidget {
         key: const Key('trend-empty'),
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Text(
-          'Cần ít nhất 2 lần đánh giá để vẽ xu hướng. Bác cứ đo huyết áp đều nhé.',
+          hon('Cần ít nhất 2 lần đánh giá để vẽ xu hướng. Bác cứ đo huyết áp đều nhé.'),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: AppColors.textMuted,
           ),
