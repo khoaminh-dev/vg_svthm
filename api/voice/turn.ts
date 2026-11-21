@@ -3,7 +3,8 @@ import { requireUser, rateLimitParallel } from '../_lib/auth.js';
 import { bodyObject } from '../_lib/http.js';
 import { dbInsert } from '../_lib/db.js';
 import { deepseekChat, elevenScribe, groqJsonChat, groqWhisper, type Msg, type SttResult } from '../_lib/voice/providers.js';
-import { INTENT_LIST, UI_INTENTS, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Ui } from '../_lib/voice/dm.js';
+import { INTENT_LIST, UI_INTENTS, honorificOf, norm, step, type Contact, type DState, type Nlu, type NluResult, type Refine, type Ui } from '../_lib/voice/dm.js';
+import { REFINE_SYSTEM, acceptRefined, ensureEnd, finishMessage } from '../_lib/voice/msg_refine.js';
 import { parseUiContext } from '../_lib/voice/ui_cmd.js';
 import { failCode } from '../_lib/voice/llm_body.js';
 import { getPolicy } from '../_lib/voice/gate.js';
@@ -95,7 +96,7 @@ function parseNlu(text: string): NluResult {
   };
 }
 
-type Meter = { nluProvider?: string; failovers: number; ms: number; tokensIn?: number; tokensOut?: number; nluFail?: string };
+type Meter = { nluProvider?: string; failovers: number; ms: number; tokensIn?: number; tokensOut?: number; nluFail?: string; refineMs?: number; refine?: 'ai' | 'rule' };
 
 function makeNlu(model: string, meter: Meter): Nlu {
   return async (text, ctx) => {
@@ -129,6 +130,32 @@ function makeNlu(model: string, meter: Meter): Nlu {
     }
     meter.ms = Date.now() - t0;
     throw last;
+  };
+}
+
+/** Chuẩn hoá tin nhắn bằng Groq (hạn 1,8 giây). Chỉ nhận kết quả khi qua kiểm tra luật; không thì dùng bản gọt bằng luật. */
+function makeRefine(meter: Meter): Refine {
+  return async ({ content, recipient, verb }) => {
+    const rule = finishMessage(content, recipient, verb === 'hoi' ? 'hoi' : undefined);
+    const t0 = Date.now();
+    try {
+      const messages: Msg[] = [
+        { role: 'system', content: REFINE_SYSTEM },
+        { role: 'user', content: JSON.stringify({ 'nội dung': content, 'người nhận': recipient, 'động từ': verb === 'hoi' ? 'hỏi' : verb === 'bao' ? 'bảo' : verb === 'noi' ? 'nói' : '' }) },
+      ];
+      const r = await groqJsonChat(messages, 250, 1800, process.env.GROQ_REFINE_MODEL);
+      const out = str((JSON.parse(r.text) as Record<string, unknown>).text, 500).trim();
+      meter.refineMs = Date.now() - t0;
+      if (out && acceptRefined(content, out, recipient)) {
+        meter.refine = 'ai';
+        return ensureEnd(out);
+      }
+    } catch {
+      // Groq lỗi/quá hạn: dùng bản luật
+    }
+    meter.refineMs = Date.now() - t0;
+    meter.refine = 'rule';
+    return rule;
   };
 }
 
@@ -215,7 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!norm(text)) outcome = lowQuality ? 'low_confidence' : 'no_speech';
       const model = pol.deepseek_model || 'deepseek-flash';
       const d0 = Date.now();
-      decision = await step({ text, state, ui, lowConfidence: (stt?.confidence ?? 1) < 0.45 }, makeNlu(model, meter));
+      decision = await step({ text, state, ui, lowConfidence: (stt?.confidence ?? 1) < 0.45 }, makeNlu(model, meter), makeRefine(meter));
       stepMs = Date.now() - d0;
       if (decision.intent === 'error') { outcome = 'error'; error = 'nlu'; }
       // Câu hỏi về sức khoẻ: server tự đọc số liệu của người dùng rồi dựng câu từ khuôn, không qua mô hình.
@@ -247,7 +274,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const total = Date.now() - t0;
     // Số đo từng khâu (ms) — chỉ số, không chứa lời người dùng. App chép vào props sự kiện voice_turn.
     const timings = {
-      auth_ms: authMs, rate_ms: rlMs, stt_ms: stt?.ms ?? 0, nlu_ms: meter.ms, dm_ms: Math.max(0, stepMs - meter.ms - healthMs),
+      auth_ms: authMs, rate_ms: rlMs, stt_ms: stt?.ms ?? 0, nlu_ms: meter.ms, dm_ms: Math.max(0, stepMs - meter.ms - healthMs - (meter.refineMs ?? 0)), refine_ms: meter.refineMs ?? 0, refine: meter.refine ?? '',
       health_ms: healthMs, server_ms: Date.now() - tStart, fast: meter.nluProvider ? 0 : 1, nlu_fail: meter.nluFail ?? '',
     };
     void dbInsert('voice_turns', {

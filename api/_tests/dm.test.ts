@@ -183,12 +183,14 @@ test('nhắn tin bằng luật: người nhận + nội dung không gọi LLM', 
   assert.equal(d.pending, 'recipient'); // họ hàng chưa có bí danh → hỏi tên
 });
 
-test('nhắn tin: người nhận lạ hoặc câu dài → vẫn để LLM xử lý', async () => {
+test('nhắn tin: người nhận lạ → vẫn để LLM xử lý; tên trong danh bạ + nội dung không cần "là" → luật nhanh', async () => {
   let called = 0;
   const nlu: Nlu = async () => { called++; return { intent: 'unsupported', recipient: '', content: '', feature: '', say: '' }; };
   await step({ text: 'nhắn cho ông Tuấn là chiều qua chơi', state: {}, ui }, nlu);
-  await step({ text: 'nhắn tin cho Lan hôm nay bác hơi mệt', state: {}, ui }, nlu);
-  assert.equal(called, 2);
+  const d = await step({ text: 'nhắn tin cho Lan hôm nay bác hơi mệt', state: {}, ui }, nlu);
+  assert.equal(called, 1, 'câu thứ hai do luật nhanh xử lý, không gọi mô hình');
+  assert.equal(d.action, 'confirm');
+  assert.equal(d.task?.slots.content, 'Hôm nay bác hơi mệt');
 });
 
 test('chào hỏi, cảm ơn, việc chưa hỗ trợ trả lời ngay không gọi LLM', async () => {

@@ -38,7 +38,11 @@ export type NluResult = {
   content: string;
   feature: string;
   say: string;
+  /** Động từ người dùng nói khi nhắn tin ("hoi" = hỏi, "bao" = bảo/báo, "noi" = nói với): để chuẩn hoá tin cho đúng. */
+  verb?: string;
 };
+/** Chuẩn hoá nội dung tin nhắn trước khi gửi: sửa chuẩn câu, KHÔNG viết lại. Lỗi hay quá hạn thì trả về chính nội dung đã gọt gọn. */
+export type Refine = (m: { content: string; recipient: string; verb?: string }) => Promise<string>;
 export type Nlu = (text: string, ctx: { state: DState; ui: Ui; honorific: string }) => Promise<NluResult>;
 
 // ---------- chuẩn hoá chữ ----------
@@ -64,7 +68,7 @@ export function cleanContent(s: string): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
-function lev(a: string, b: string): number {
+export function lev(a: string, b: string): number {
   const m = a.length, n = b.length;
   if (!m) return n;
   if (!n) return m;
@@ -255,38 +259,59 @@ export function healthTopic(t: string): string | null {
 }
 
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
-type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string };
+type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string; verb?: string };
 
-const SEND_VERB = /^(nhan tin|nhan|gui tin nhan|gui tin|gui)( cho| den)?$/;
+const SEND_VERB = /^(nhan tin|nhan|gui tin nhan|gui tin|gui|bao|noi|hoi)( cho| den| voi)?$/;
 const SEND_SEP = new Set(['rang', 'la', 'noi', 'nhe']);
 
-/** "nhắn cho con trai là mai bác về", "nhắn tin cho Lan", "nhắn tin": tách người nhận/nội dung bằng luật, không gọi LLM.
- *  Chỉ nhận khi phần người nhận khớp danh bạ hoặc là cách gọi họ hàng; còn lại để LLM xử lý như cũ. */
+/** "nhắn cho con trai là mai bác về", "hỏi Hải ăn cơm chưa", "bảo Lan là bác khoẻ", "nói với Hải mai bác ghé":
+ *  tách động từ / người nhận / nội dung bằng luật, không gọi LLM. Người nhận phải khớp CHÍNH XÁC danh bạ (hoặc là cách gọi
+ *  họ hàng); khớp gần để LLM và bước hỏi lại xử lý. */
 export function fastSend(orig: string, contacts: Contact[], roomId?: string | null): Fast | null {
   const words = orig.trim().split(/\s+/).filter(Boolean);
   const nw = words.map(norm);
   if (nw.some((w) => !w || w.includes(' '))) return null;
   if (nw.join(' ') === 'nhan tin' || nw.join(' ') === 'gui tin nhan' || nw.join(' ') === 'gui tin') return { intent: 'send_message' };
-  // động từ: 1–3 từ đầu (+ "cho"/"đến")
-  let i = 0;
+  // động từ: 1–4 từ đầu (+ "cho"/"đến"/"với")
   let verbEnd = -1;
   for (let k = 1; k <= 4 && k < nw.length; k++) {
     if (SEND_VERB.test(nw.slice(0, k).join(' '))) verbEnd = k;
   }
   if (verbEnd < 0) return null;
-  i = verbEnd;
+  const i = verbEnd;
+  const verbWord = nw[0] === 'hoi' ? 'hoi' : nw[0] === 'bao' ? 'bao' : nw[0] === 'noi' ? 'noi' : 'nhan';
+  const verb = verbWord === 'nhan' ? undefined : verbWord;
+  const exactOne = (ph: string) => resolveRecipient(ph, contacts, roomId, { fuzzy: false }).kind === 'one';
+
   let sep = -1;
   for (let k = i + 1; k < nw.length && k <= i + 4; k++) {
     if (SEND_SEP.has(nw[k])) { sep = k; break; }
   }
-  const rEnd = sep >= 0 ? sep : nw.length;
-  if (rEnd - i < 1 || rEnd - i > 4) return null;
-  const recipient = words.slice(i, rEnd).join(' ');
-  const rr = resolveRecipient(recipient, contacts, roomId);
-  if (rr.kind === 'none' && !isKinship(recipient)) return null;
-  const content = sep >= 0 ? words.slice(sep + 1).join(' ') : '';
-  if (sep >= 0 && content.length < 2) return null;
-  return { intent: 'send_message', recipient, content };
+  if (sep >= 0) {
+    if (sep - i < 1 || sep - i > 4) return null;
+    const recipient = words.slice(i, sep).join(' ');
+    const rr = resolveRecipient(recipient, contacts, roomId);
+    if (rr.kind === 'none' && !isKinship(recipient)) return null;
+    const content = words.slice(sep + 1).join(' ');
+    if (content.length < 2) return null;
+    return { intent: 'send_message', recipient, content, verb };
+  }
+  // Không có "là/rằng": thử cụm tên dài nhất (tối đa 3 từ) khớp chính xác, phần còn lại là nội dung ("hỏi Hải ăn cơm chưa").
+  const rest = words.length - i;
+  for (let k = Math.min(3, rest); k >= 1; k--) {
+    const ph = words.slice(i, i + k).join(' ');
+    if (!(exactOne(ph) || isKinship(ph))) continue;
+    const content = words.slice(i + k).join(' ');
+    if (k < rest && content.length < 2) continue;
+    return { intent: 'send_message', recipient: ph, content, verb };
+  }
+  // "nhắn cho Lan" (chỉ tên, nội dung hỏi sau): khớp cả gần đúng như trước (chỉ với "nhắn/gửi", không với hỏi/bảo/nói).
+  if (!verb && rest >= 1 && rest <= 4) {
+    const recipient = words.slice(i).join(' ');
+    const rr = resolveRecipient(recipient, contacts, roomId);
+    if (rest <= 2 && (rr.kind !== 'none' || isKinship(recipient))) return { intent: 'send_message', recipient, content: '', verb };
+  }
+  return null;
 }
 
 const GREETING = /^(xin chao|chao|alo|hello|hi)( vy| co vy| em vy| ban| con)?( a| nhe)?$|^vy( oi)?( a)?$/;
@@ -345,7 +370,7 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
 
 // ---------- phân giải người nhận ----------
 
-type Resolve = { kind: 'one'; contact: Contact } | { kind: 'many'; list: Contact[] } | { kind: 'none' };
+type Resolve = { kind: 'one'; contact: Contact; fuzzy?: boolean } | { kind: 'many'; list: Contact[] } | { kind: 'none' };
 
 const KINSHIP = /^(con trai|con gai|con|chau|chau trai|chau gai|bo|ba|me|mam|vo|chong|anh|chi|em|ong|ba noi|ba ngoai|cu|co|chu|bac|di|duong|cau|mo)$/;
 
@@ -354,7 +379,7 @@ export function isKinship(phrase: string): boolean {
   return KINSHIP.test(n) || /^(con|chau) (trai|gai|ut|dau|re)$/.test(n);
 }
 
-export function resolveRecipient(phrase: string, contacts: Contact[], roomId?: string | null): Resolve {
+export function resolveRecipient(phrase: string, contacts: Contact[], roomId?: string | null, opts: { fuzzy?: boolean } = {}): Resolve {
   const p = norm(phrase);
   if (!p) {
     const cur = roomId ? contacts.find((c) => c.id === roomId) : undefined;
@@ -368,6 +393,7 @@ export function resolveRecipient(phrase: string, contacts: Contact[], roomId?: s
   const exact = contacts.filter((c) => norm(c.name) === p || (c.username && norm(c.username) === p));
   if (exact.length === 1) return { kind: 'one', contact: exact[0] };
   if (exact.length > 1) return { kind: 'many', list: exact };
+  if (opts.fuzzy === false) return { kind: 'none' };
   // 3) khớp một phần theo từ / sai khác nhỏ (nghe nhầm)
   const scored = contacts
     .map((c) => {
@@ -390,7 +416,7 @@ export function resolveRecipient(phrase: string, contacts: Contact[], roomId?: s
     .sort((a, b) => a.best - b.best);
   if (!scored.length) return { kind: 'none' };
   const top = scored.filter((x) => x.best === scored[0].best);
-  return top.length === 1 ? { kind: 'one', contact: top[0].c } : { kind: 'many', list: top.map((x) => x.c) };
+  return top.length === 1 ? { kind: 'one', contact: top[0].c, fuzzy: true } : { kind: 'many', list: top.map((x) => x.c) };
 }
 
 // ---------- registry ----------
@@ -419,7 +445,37 @@ const ORD: Record<string, number> = { mot: 0, '1': 0, dau: 0, nhat: 0, hai: 1, '
 
 // ---------- bước hội thoại ----------
 
+/** Bước hội thoại + (nếu có [refine]) chuẩn hoá nội dung tin nhắn ngay trước khi hỏi/gửi. Chỉ chuẩn hoá khi nội dung mới hoặc vừa được sửa. */
 export async function step(
+  input: { text: string; state: DState; ui: Ui; lowConfidence?: boolean },
+  nlu: Nlu,
+  refine?: Refine,
+): Promise<Decision> {
+  const d = await stepCore(input, nlu);
+  if (!refine || d.action !== 'confirm' || d.intent !== 'send_message' || !d.task) return d;
+  const raw = d.task.slots.content ?? '';
+  if (!raw || d.task.slots.refined_from === raw) return d;
+  let out = raw;
+  try {
+    out = (await refine({ content: raw, recipient: d.task.slots.recipient_spoken || d.task.slots.recipient_name || '', verb: d.task.slots.msg_verb })).trim() || raw;
+  } catch {
+    out = raw;
+  }
+  const slots: Record<string, string> = { ...d.task.slots, content: out, refined_from: out };
+  delete slots.msg_verb; // chỉ dùng cho lần chuẩn hoá đầu; người dùng "sửa" sau đó là lời nguyên văn
+  const task: Task = { intent: d.task.intent, slots };
+  return { ...d, task, say: confirmSendSay(task, honorificOf(input.ui.honorific)) };
+}
+
+/** Câu Vy nói khi xác nhận gửi tin. Tên khớp "gần giống" (nghe nhầm) thì nói rõ để người dùng bắt lỗi. */
+export function confirmSendSay(task: Task, hon: string): string {
+  const name = task.slots.recipient_name ?? '';
+  const content = task.slots.content ?? '';
+  const lead = task.slots.recipient_fuzzy ? `Con nghe gần giống tên ${name}. ` : '';
+  return `${lead}Con gửi cho ${name}: ${content} ${hon[0].toUpperCase()}${hon.slice(1)} gửi nhé?`;
+}
+
+async function stepCore(
   input: { text: string; state: DState; ui: Ui; lowConfidence?: boolean },
   nlu: Nlu,
 ): Promise<Decision> {
@@ -509,7 +565,7 @@ export async function step(
   if (expects === 'name' && task) {
     const r = resolveRecipient(text, contacts);
     if (r.kind === 'one') {
-      setRecipient(task, r.contact);
+      setRecipient(task, r.contact, r.fuzzy === true);
       if (aliasPhrase) { learnAlias = { alias: norm(aliasPhrase), contactId: r.contact.id }; aliasPhrase = null; }
       return progress(task, ui, hon, contacts, aliasPhrase, learnAlias);
     }
@@ -542,7 +598,7 @@ export async function step(
       const orig = text.trim().split(/\s+/).slice(-content.split(' ').length).join(' ');
       if (norm(orig) === content) content = orig;
     }
-    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '' };
+    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '', verb: fast.verb };
   } else {
     try {
       nluOut = await nlu(text, { state, ui, honorific: hon });
@@ -560,7 +616,11 @@ export async function step(
   }
 
   task = { intent, slots: {} };
-  if (nluOut.recipient) task.slots.recipient_text = nluOut.recipient.slice(0, 40);
+  if (nluOut.recipient) {
+    task.slots.recipient_text = nluOut.recipient.slice(0, 40);
+    task.slots.recipient_spoken = nluOut.recipient.slice(0, 40);
+  }
+  if (nluOut.verb && intent === 'send_message') task.slots.msg_verb = nluOut.verb;
   if (nluOut.content) task.slots.content = cleanContent(nluOut.content.slice(0, 500));
   if (intent === 'open_feature') {
     // Mô hình đôi khi chọn "mở một mục" mà quên nói mục nào: lấy từ chính câu người dùng thay vì hỏi lại.
@@ -643,7 +703,9 @@ export function uiDecision(text: string, ctx: UiContext, hon: string): Decision 
   }
 }
 
-function setRecipient(task: Task, c: Contact) {
+function setRecipient(task: Task, c: Contact, fuzzy = false) {
+  if (fuzzy) task.slots.recipient_fuzzy = '1';
+  else delete task.slots.recipient_fuzzy;
   task.slots.room_id = c.id;
   task.slots.recipient_name = c.name;
   task.slots.recipient_kind = c.kind;
@@ -680,7 +742,7 @@ function progress(
     const phrase = task.slots.recipient_text ?? '';
     const r = resolveRecipient(phrase, contacts, ui.roomId);
     if (r.kind === 'one') {
-      setRecipient(task, r.contact);
+      setRecipient(task, r.contact, r.fuzzy === true);
     } else if (r.kind === 'many') {
       return askChoice(task, r.list, hon, aliasPhrase);
     } else if (!phrase) {
@@ -717,11 +779,9 @@ function progress(
     });
   }
   if (NEEDS_CONFIRM.has(intent)) {
-    const name = task.slots.recipient_name ?? '';
-    const content = task.slots.content ?? '';
     return mk({
       action: 'confirm', intent, task, expects: 'yes_no', expectsReply: true,
-      say: `Con gửi cho ${name}: ${content} ${hon[0].toUpperCase()}${hon.slice(1)} gửi nhé?`,
+      say: confirmSendSay(task, hon),
       sayClass: 'important', chips: ['Gửi', 'Sửa', 'Hủy'], learnAlias,
     });
   }

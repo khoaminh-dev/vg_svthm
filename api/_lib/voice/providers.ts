@@ -43,8 +43,8 @@ export async function deepseekChat(messages: Msg[], model: string, maxTokens = 3
   };
 }
 
-export async function groqJsonChat(messages: Msg[], maxTokens = 300, timeoutMs = 8000): Promise<ChatResult> {
-  const model = process.env.GROQ_LLM_MODEL ?? 'openai/gpt-oss-20b';
+export async function groqJsonChat(messages: Msg[], maxTokens = 300, timeoutMs = 8000, modelOverride?: string): Promise<ChatResult> {
+  const model = modelOverride || process.env.GROQ_LLM_MODEL || 'openai/gpt-oss-20b';
   const { value, failovers } = await withKeys('groq', async (key) => {
     const post = (withReasoning: boolean) =>
       timedFetch(
