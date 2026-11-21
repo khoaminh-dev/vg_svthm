@@ -635,7 +635,8 @@ class LiveLabController extends Notifier<LiveLabState> {
           // Chủ dự án không cần bước xác nhận: gửi ngay rồi đọc lại đã gửi cho ai, gửi gì (qua giọng Live, không giọng máy).
           _gate.clear();
           state = state.copyWith(confirmSay: null, confirmChips: const []);
-          say = await _sendNow(task!);
+          // Thật: hiện thẻ tên người nhận + đếm ngược rồi tự gửi (Huỷ được). Thử nghiệm: giả lập như cũ.
+          say = state.sendReal ? _actions.startSend(task!, _honorific) : await _sendNow(task!);
           cls = 'static';
           break;
         }

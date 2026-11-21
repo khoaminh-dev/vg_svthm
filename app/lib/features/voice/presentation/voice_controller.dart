@@ -304,6 +304,11 @@ class VoiceController extends Notifier<VoiceState> {
     var listenAfter = d.expectsReply;
 
     switch (d.action) {
+      case 'confirm' when VoiceActions.canAutoSend(d.task):
+        // Gửi tin: không hỏi "gửi nhé?"; thẻ hiện tên người nhận thật to rồi tự gửi sau vài giây (Huỷ được).
+        say = _actions.startSend(d.task!, _honorific);
+        sayClass = 'important';
+        listenAfter = false;
       case 'ask' || 'confirm':
         dialog = VoiceDialog(
           task: d.task,

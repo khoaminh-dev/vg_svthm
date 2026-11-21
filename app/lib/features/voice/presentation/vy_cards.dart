@@ -30,6 +30,7 @@ class VyCardView extends StatelessWidget {
       CallCard() => _CallBody(card: c),
       NoticeCard() => _NoticeBody(card: c),
       SosCard() => _SosBody(card: c),
+      SendCard() => _SendBody(card: c),
     };
     return Container(
       key: Key('vy-card-${c.runtimeType}'),
@@ -370,6 +371,68 @@ class _CallBody extends StatelessWidget {
                 Text(card.number, style: const TextStyle(fontSize: 20, color: Color(0xFF44516B))),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SendBody extends StatelessWidget {
+  const _SendBody({required this.card});
+
+  final SendCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Countdown(
+      seconds: card.seconds,
+      onDone: card.onSend,
+      builder: (context, left, done) => Column(
+        key: const Key('vy-send'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _Ring(
+                color: _navy,
+                child: done
+                    ? const Icon(Icons.send_rounded, color: Colors.white, size: 36)
+                    : Text('$left', key: const Key('vy-send-count'), style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w600, height: 1)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(done ? 'Đang gửi cho' : 'Sắp gửi cho', style: const TextStyle(fontSize: 17, color: _muted)),
+                    Text(
+                      card.name,
+                      key: const Key('vy-send-name'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 32, height: 1.1, fontWeight: FontWeight.w800, color: _navy),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (card.fuzzy) ...[
+            const SizedBox(height: 10),
+            Container(
+              key: const Key('vy-send-fuzzy'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: const Color(0xFFFFF3D6), borderRadius: BorderRadius.circular(14)),
+              child: const Text('Vy nghe tên này gần giống. Bấm Huỷ nếu sai người.', style: TextStyle(fontSize: 17, color: Color(0xFF7A5200))),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+            child: Text(card.text, key: const Key('vy-send-text'), style: const TextStyle(fontSize: 22, height: 1.3, color: _navy)),
           ),
         ],
       ),

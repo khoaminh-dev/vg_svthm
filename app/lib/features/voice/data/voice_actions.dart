@@ -43,6 +43,63 @@ class VoiceActions {
 
   Map<String, List<String>> _aliases = {};
 
+  /// Tin đã đủ người (khớp danh bạ) và nội dung: tự gửi theo đếm ngược, không hỏi xác nhận.
+  static bool canAutoSend(VoiceTask? t) =>
+      t != null &&
+      t.intent == 'send_message' &&
+      (t.slots['room_id'] ?? '').isNotEmpty &&
+      (t.slots['content'] ?? '').trim().isNotEmpty;
+
+  // Chặn gửi trùng một tin (cùng người, cùng nội dung) trong 2 phút, kể cả khi bấm "Gửi ngay" rồi hết giờ đếm ngược.
+  final Map<String, DateTime> _recentSends = {};
+
+  /// Tin gửi bằng giọng: hiện thẻ có TÊN người nhận thật to + nội dung, đếm ngược rồi TỰ GỬI (người dùng muốn không phải bấm xác nhận).
+  /// Huỷ hoặc đóng Vy trước khi hết giờ thì KHÔNG gửi. Tên khớp gần giống thì đếm lâu hơn và có dòng nhắc. Trả câu Vy nói.
+  String startSend(VoiceTask t, String honorific) {
+    final s = t.slots;
+    final name = s['recipient_name'] ?? 'người nhận';
+    final text = (s['content'] ?? '').trim();
+    final fuzzy = (s['recipient_fuzzy'] ?? '').isNotEmpty;
+    final seconds = fuzzy ? 6 : 4;
+    final fp = '${s['room_id']}|$text';
+    var fired = false;
+    final notifier = _ref.read(vyCardProvider.notifier);
+    void fire() {
+      if (fired) return;
+      fired = true;
+      final last = _recentSends[fp];
+      if (last != null && DateTime.now().difference(last) < const Duration(minutes: 2)) {
+        notifier.show(NoticeCard(title: 'Tin này vừa gửi rồi', body: 'Con không gửi lại lần nữa ạ.'));
+        return;
+      }
+      _recentSends[fp] = DateTime.now();
+      Analytics.track('voice_send_auto', {'fuzzy': fuzzy});
+      unawaited(() async {
+        final out = await execute(t, const [], honorific);
+        if (out != null) notifier.show(NoticeCard(title: 'Chưa gửi được', body: out));
+      }());
+    }
+
+    notifier.show(
+      SendCard(
+        name: name,
+        text: text,
+        seconds: seconds,
+        fuzzy: fuzzy,
+        onSend: fire,
+        actions: [
+          VyCardAction(label: 'Gửi ngay', primary: true, run: fire),
+          VyCardAction(label: 'Huỷ', run: () {
+            fired = true; // đã huỷ: bộ đếm có chạy tiếp cũng không gửi
+            notifier.clear();
+          }),
+        ],
+      ),
+    );
+    final lead = fuzzy ? 'Con nghe gần giống tên $name. ' : '';
+    return 'Dạ, ${lead}con gửi cho $name: $text. ${_cap(honorific)} bấm Huỷ nếu không muốn gửi ạ.';
+  }
+
   /// Lệnh đổi màn hình: chạy xong thì Vy thường thu gọn màn Vy để người dùng thấy kết quả.
   static const navIntents = {
     'open_chat',

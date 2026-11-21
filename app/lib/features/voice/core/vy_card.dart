@@ -120,6 +120,23 @@ class CallCard extends VyCard {
   final VoidCallback onCall;
 }
 
+/// Thẻ Gửi tin: TÊN người nhận thật to (để bắt lỗi nghe nhầm), nội dung, đếm ngược [seconds] giây rồi TỰ GỬI.
+/// Huỷ dừng ngay; "Gửi ngay" gửi liền. Chỉ gửi khi thẻ còn hiện: đóng Vy hoặc người dùng nói việc khác thì KHÔNG gửi.
+class SendCard extends VyCard {
+  SendCard({required this.name, required this.text, required this.seconds, required this.onSend, this.fuzzy = false, super.actions})
+    : super(replacesSpeech: false);
+
+  final String name;
+  final String text;
+  final int seconds;
+
+  /// Tên khớp "gần giống" (có thể nghe nhầm): thẻ nhắc người dùng kiểm tra tên.
+  final bool fuzzy;
+
+  /// Gửi (chỉ chạy một lần).
+  final VoidCallback onSend;
+}
+
 /// Thẻ SOS bằng giọng: đếm ngược [seconds] giây rồi mới báo người thân (D18). Người thật khởi động (nói rõ "gọi SOS"),
 /// nút Huỷ dừng ngay; thẻ bị gỡ (đóng Vy, nói việc khác) thì KHÔNG báo.
 class SosCard extends VyCard {
