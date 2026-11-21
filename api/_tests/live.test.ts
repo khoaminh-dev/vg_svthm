@@ -51,7 +51,7 @@ test('buildLiveSession chế độ R: cấu hình thêm hợp lệ được tr�
 test('buildLiveSession chế độ C: client delegation', () => {
   const s = buildLiveSession('C', 'cô', {}) as any;
   assert.deepEqual(s.delegation, { type: 'client', acknowledgement_delay_ms: ACK_DELAY_MS });
-  assert.ok(ACK_DELAY_MS >= 2000, 'lời đệm phải chậm hơn thời gian xử lý bình thường để không nói đè');
+  assert.ok(ACK_DELAY_MS <= 800, 'OpenAI từ chối lời đệm trên 800 ms; vượt trần làm mỗi lần mở Live mất thêm ~4 giây');
   assert.match(s.instructions, /CHỈ tự trả lời chào hỏi/);
   // Chế độ C buộc đọc nguyên văn và chuyển mọi câu trả lời kế tiếp; chế độ R không có các dòng này.
   assert.match(s.instructions, /NGUYÊN VĂN/);
