@@ -17,6 +17,7 @@ abstract final class Routes {
   static const community = '/community';
   static const camera = '/camera';
   static const liveLab = '/live-lab';
+  static const plan = '/plan';
   static const healthSetup = '/health-setup';
   static const healthProfile = '/health-profile';
   static const healthHistory = '/health-history';

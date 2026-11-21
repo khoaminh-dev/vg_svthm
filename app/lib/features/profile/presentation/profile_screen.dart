@@ -19,9 +19,24 @@ import '../../bp/data/bp_reminder_service.dart';
 import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../push/push_service.dart';
 import '../../voice/core/control_registry.dart';
+import '../../plan/data/plan_repository.dart';
+import '../../plan/domain/plan_models.dart';
 import '../data/phone_repository.dart';
 import '../../voice/core/vy_settings.dart';
 import '../../../shared/honorific.dart';
+
+/// Dòng phụ của mục "Gói Vy Live" ở Hồ sơ.
+String _planSubtitle(AsyncValue<PlanOverview> a) {
+  final o = a.value;
+  if (o == null) return 'Xem và đăng ký gói';
+  final mine = o.mine;
+  if (o.live) {
+    final until = mine != null && mine.isLiveAt(DateTime.now()) ? mine.expiresAt : null;
+    return until != null ? 'Đang bật đến ${formatDay(until)}' : 'Đang bật (do ${o.coveredBy ?? 'người thân'} đăng ký)';
+  }
+  if (mine != null && mine.isPending) return 'Đơn đang chờ xác nhận';
+  return 'Chưa đăng ký';
+}
 
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
 class ProfileScreen extends ConsumerWidget {
@@ -796,6 +811,15 @@ class _FamilySettings extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.go(Routes.bp),
           ),
+        ListTile(
+          key: const Key('profile-plan'),
+          minTileHeight: 64,
+          leading: _LeadIcon(Icons.workspace_premium_outlined),
+          title: const Text('Gói Vy Live', style: titleStyle),
+          subtitle: Text(_planSubtitle(ref.watch(planOverviewProvider))),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => context.push(Routes.plan),
+        ),
         ListTile(
           key: const Key('profile-role'),
           minTileHeight: 64,

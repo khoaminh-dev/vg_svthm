@@ -353,6 +353,9 @@ class VyCore extends Notifier<VyView> {
     _sync();
   }
 
+  /// Vừa được bật gói (hoặc quyền Live): bỏ lệnh chặn Live đã đặt trước đó để dùng được ngay.
+  void resetLiveBlock() => _liveBlockedUntil = null;
+
   void _blockLive(String why) {
     final permanent = why.contains('live_not_allowed') ||
         why.contains('live_disabled') ||
