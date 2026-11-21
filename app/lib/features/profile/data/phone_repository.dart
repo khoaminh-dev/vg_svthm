@@ -81,3 +81,13 @@ final phoneRepositoryProvider = Provider<PhoneRepository>(
 final myPhoneProvider = FutureProvider.autoDispose<String?>(
   (ref) => ref.watch(phoneRepositoryProvider).mine(),
 );
+
+/// Số điện thoại của một người thân đang liên kết (null nếu họ chưa nhập hoặc mình không được thấy).
+final personPhoneProvider = FutureProvider.autoDispose.family<String?, String>((ref, userId) async {
+  try {
+    final m = await ref.watch(phoneRepositoryProvider).ofUsers([userId]);
+    return m[userId];
+  } catch (_) {
+    return null;
+  }
+});

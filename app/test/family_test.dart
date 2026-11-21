@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,7 +24,11 @@ import 'package:vg_svthm/features/health/domain/health_models.dart';
 import 'package:vg_svthm/features/health/presentation/providers/health_providers.dart';
 import 'package:vg_svthm/features/meds/domain/meds_models.dart';
 import 'package:vg_svthm/features/meds/presentation/meds_providers.dart';
+import 'package:vg_svthm/features/profile/data/phone_repository.dart';
+import 'package:vg_svthm/features/profile/data/phone_repository.dart';
 import 'package:vg_svthm/features/push/push_service.dart';
+import 'package:vg_svthm/features/safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
+import 'package:vg_svthm/features/safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 
 import 'health_test.dart' show FakeHealthRepository;
 import 'meds_test.dart' show FakeMeds, dose;
@@ -141,6 +146,7 @@ Widget host(
   FakeBp? bpRepo,
   HealthRepository? health,
   FakeMeds? meds,
+  List<Override> extra = const [],
 }) => ProviderScope(
   key: UniqueKey(),
   overrides: [
@@ -153,6 +159,7 @@ Widget host(
       health ?? FakeHealthRepository(),
     ),
     medsRepositoryProvider.overrideWithValue(meds ?? FakeMeds()),
+    ...extra,
   ],
   child: MaterialApp(theme: AppTheme.light, home: child),
 );
@@ -426,6 +433,29 @@ void main() {
       expect(find.text('TRANG CHU'), findsOneWidget);
     },
   );
+
+  testWidgets('nút Gọi: chỉ hiện khi người thân có số; bấm là mở trình gọi với đúng số', (t) async {
+    bigScreen(t);
+    final dialed = <String>[];
+    final fam = FakeFamily(links: [link('l1'), link('l2', other: 'p2', name: 'Trần Văn Hùng')]);
+    await t.pumpWidget(
+      host(
+        const FamilyHomeScreen(),
+        fam: fam,
+        extra: [
+          personPhoneProvider('p1').overrideWith((ref) async => '0901 234 567'),
+          personPhoneProvider('p2').overrideWith((ref) async => null),
+          phoneLauncherProvider.overrideWithValue((n) async => dialed.add(n)),
+        ],
+      ),
+    );
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('call-p1')), findsOneWidget);
+    expect(find.byKey(const Key('call-p2')), findsNothing, reason: 'chưa có số thì ẩn nút');
+    await t.tap(find.byKey(const Key('call-p1')));
+    await t.pump();
+    expect(dialed, ['0901 234 567']);
+  });
 
   testWidgets(
     'màn Gia đình: rỗng thì mời nhập mã; có người thì hiện đèn, huyết áp và nút nhờ đo',

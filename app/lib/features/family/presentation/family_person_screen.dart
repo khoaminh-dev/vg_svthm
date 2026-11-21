@@ -3,6 +3,7 @@ import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../bp/presentation/widgets/bp_chart.dart';
@@ -14,6 +15,7 @@ import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../domain/family_models.dart';
 import '../../safety/presentation/safety_providers.dart';
+import '../../profile/data/phone_repository.dart';
 import '../../safety/presentation/sos_widgets.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
@@ -36,6 +38,7 @@ class FamilyPersonScreen extends ConsumerWidget {
     final risk = ref.watch(personRiskProvider(ownerId)).value;
     final status = ref.watch(personStatusProvider(ownerId)).value;
     final name = link?.name ?? 'Người thân';
+    final phone = ref.watch(personPhoneProvider(ownerId)).value;
 
     Future<void> refresh() async {
       ref
@@ -87,6 +90,20 @@ class FamilyPersonScreen extends ConsumerWidget {
         ), // chừa chỗ cho nút Vy nổi
         children: [
           if (status != null) _Banner(status: status),
+          if (phone != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.md, AppSpacing.md, 0),
+              child: FilledButton.icon(
+                key: const Key('person-call'),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+                onPressed: () {
+                  Analytics.track('family_call');
+                  ref.read(phoneLauncherProvider)(phone);
+                },
+                icon: const Icon(Icons.call_rounded),
+                label: Text('Gọi $name', style: const TextStyle(fontSize: 18), overflow: TextOverflow.ellipsis),
+              ),
+            ),
           const SizedBox(height: AppSpacing.md),
           FamCard(
             title: 'Huyết áp gần nhất',

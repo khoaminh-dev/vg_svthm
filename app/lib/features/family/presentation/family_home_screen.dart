@@ -12,7 +12,9 @@ import '../../../shared/widgets/ios_style.dart';
 import '../../../shared/widgets/user_avatar.dart';
 import '../../camera/presentation/camera_entry_card.dart';
 import '../../chat/presentation/providers/chat_controller.dart';
+import '../../profile/data/phone_repository.dart';
 import '../../safety/presentation/safety_providers.dart';
+import '../../safety/presentation/sos_widgets.dart' show phoneLauncherProvider;
 import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../domain/family_models.dart';
@@ -157,6 +159,7 @@ class PersonCard extends ConsumerWidget {
         ? null
         : readings.first;
     final risk = ref.watch(personRiskProvider(link.otherId)).value;
+    final phone = ref.watch(personPhoneProvider(link.otherId)).value;
 
     return FamCard(
       key: Key('person-card-${link.otherId}'),
@@ -270,6 +273,23 @@ class PersonCard extends ConsumerWidget {
                     label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Nhắn tin')),
                   ),
                 ),
+                if (phone != null) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      key: Key('call-${link.otherId}'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: () {
+                        Analytics.track('family_call');
+                        ref.read(phoneLauncherProvider)(phone);
+                      },
+                      icon: const Icon(Icons.call_rounded, size: 20),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Gọi')),
+                    ),
+                  ),
+                ],
                 if (link.can(FamilyPerm.medsView)) ...[
                   const SizedBox(width: 8),
                   Expanded(
