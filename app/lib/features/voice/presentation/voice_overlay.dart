@@ -60,7 +60,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
     final last = _lastBack;
     if (last != null && now.difference(last) < const Duration(seconds: 2)) return false; // lần hai: thoát
     _lastBack = now;
-    if (mounted) showAppSnackBar(context, 'Bấm Back lần nữa để thoát ứng dụng');
+    if (mounted) showAppSnackBar(context, 'Bấm lần nữa để thoát');
     return true;
   }
 
