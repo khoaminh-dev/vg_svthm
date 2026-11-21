@@ -7,6 +7,7 @@ import { getPolicy, invalidatePolicy } from '../_lib/voice/gate.js';
 import { encryptKey, isEncrypted, validSecret } from '../_lib/secretbox.js';
 import { audit } from '../_lib/audit.js';
 import { invalidateLiveUsers } from '../_lib/voice/live_start.js';
+import { PLAN_ACTIONS, handlePlanAction, plansOverview } from '../_lib/plans_admin.js';
 
 const PROVIDERS: Provider[] = ['deepseek', 'elevenlabs', 'groq', 'gemini', 'openai'];
 /** Nhà cung cấp bắt buộc mã hoá khoá khi lưu (khoá trả tiền theo mức dùng, lộ là mất tiền). */

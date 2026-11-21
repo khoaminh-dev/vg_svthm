@@ -34,3 +34,4 @@ Thumbs.db
 app/env.json
 
 scripts/nlu_compare/result-*.json
+supabase/.temp/

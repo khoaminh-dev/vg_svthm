@@ -1,5 +1,5 @@
 import type { VercelResponse } from '../vercel-types.js';
-import { dbSelect } from '../db.js';
+import { dbRpc, dbSelect } from '../db.js';
 import { allow } from '../auth.js';
 import { AllKeysFailed, UpstreamError, parseRetryAfter } from '../router.js';
 import { redact } from '../secretbox.js';
@@ -18,8 +18,25 @@ export function invalidateLiveUsers() {
   usersCache = null;
 }
 
+const planCache = new Map<string, { at: number; ok: boolean }>();
+
+/** Có gói Vy Live đang hiệu lực (tự mua, hoặc người chăm sóc đang liên kết mua). Nhớ 20 giây; lỗi DB thì dùng kết quả cũ, không có thì từ chối. */
+async function hasPlan(uid: string): Promise<boolean> {
+  const hit = planCache.get(uid);
+  if (hit && Date.now() - hit.at < CACHE_MS) return hit.ok;
+  try {
+    const ok = (await dbRpc<boolean>('has_live_plan', { p_user: uid })) === true;
+    if (planCache.size > 2000) planCache.clear();
+    planCache.set(uid, { at: Date.now(), ok });
+    return ok;
+  } catch {
+    return hit?.ok ?? false;
+  }
+}
+
 async function isLiveUser(uid: string): Promise<boolean> {
   if (liveAllowed(uid)) return true; // dự phòng qua biến môi trường
+  if (await hasPlan(uid)) return true; // gói đã được admin xác nhận thanh toán
   if (!usersCache || Date.now() - usersCache.at > CACHE_MS) {
     try {
       const rows = await dbSelect<{ user_id: string }[]>('live_users?select=user_id&limit=500');
