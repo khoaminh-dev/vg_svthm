@@ -34,7 +34,7 @@ String _planSubtitle(AsyncValue<PlanOverview> a) {
     final until = mine != null && mine.isLiveAt(DateTime.now()) ? mine.expiresAt : null;
     return until != null ? 'Đang bật đến ${formatDay(until)}' : 'Đang bật (do ${o.coveredBy ?? 'người thân'} đăng ký)';
   }
-  if (mine != null && mine.isPending) return 'Đơn đang chờ xác nhận';
+  if (mine != null && mine.isPending) return 'Yêu cầu đang chờ duyệt';
   return 'Chưa đăng ký';
 }
 

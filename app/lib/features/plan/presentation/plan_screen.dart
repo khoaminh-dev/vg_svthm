@@ -26,9 +26,9 @@ class PlanScreen extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Đặt ${p.name}?', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+        title: Text('Gửi yêu cầu ${p.name}?', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
         content: Text(
-          '${formatVnd(p.priceVnd)} cho ${p.days} ngày. Bạn sẽ nhận mã đơn và hướng dẫn thanh toán. Vy Live bật sau khi Viegrand xác nhận đã nhận tiền.',
+          '${formatVnd(p.priceVnd)} cho ${p.days} ngày. Yêu cầu của bạn sẽ được gửi cho Viegrand. Vy Live bật sau khi Viegrand duyệt.',
           style: const TextStyle(fontSize: 18),
         ),
         actionsAlignment: MainAxisAlignment.spaceBetween,
@@ -38,7 +38,7 @@ class PlanScreen extends ConsumerWidget {
             key: const Key('plan-confirm'),
             style: FilledButton.styleFrom(minimumSize: const Size(130, 52)),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Đặt gói', style: TextStyle(fontSize: 18)),
+            child: const Text('Gửi yêu cầu', style: TextStyle(fontSize: 18)),
           ),
         ],
       ),
@@ -164,7 +164,7 @@ class _StatusCard extends StatelessWidget {
                 : 'Do ${overview.coveredBy ?? 'người thân'} đăng ký cho bạn.',
           )
         : mine != null && mine.isPending
-            ? (Icons.hourglass_top_rounded, const Color(0xFFD08A1E), 'Đang chờ xác nhận', 'Viegrand đang chờ xác nhận thanh toán của bạn.')
+            ? (Icons.hourglass_top_rounded, const Color(0xFFD08A1E), 'Đang chờ duyệt', 'Yêu cầu của bạn đang chờ Viegrand duyệt.')
             : (Icons.lock_outline_rounded, AppColors.textMuted, 'Chưa bật Vy Live', elder ? hon('Chưa có gói. Bác có thể nhờ người thân đăng ký giúp.') : 'Chưa có gói. Chọn một gói bên dưới để bật Vy Live cho bạn và người thân.');
     return Container(
       key: const Key('plan-status'),
@@ -237,7 +237,7 @@ class _PlanCard extends StatelessWidget {
   }
 }
 
-/// Đơn đang chờ: mã đơn to (để ghi khi chuyển khoản), số tiền, hướng dẫn, nút huỷ.
+/// Yêu cầu đang chờ duyệt: mã to, gói, số tiền, ghi chú của Viegrand, nút huỷ.
 class _PendingCard extends StatelessWidget {
   const _PendingCard({required this.order, required this.payNote, required this.onCancel});
 
@@ -255,11 +255,11 @@ class _PendingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Đơn của bạn', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Yêu cầu của bạn', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text('${order.planName} · ${order.days} ngày · ${formatVnd(order.priceVnd)}', style: const TextStyle(fontSize: 18)),
           const SizedBox(height: 10),
-          const Text('Mã đơn (ghi khi chuyển khoản)', style: TextStyle(fontSize: 15, color: AppColors.textMuted)),
+          const Text('Mã yêu cầu', style: TextStyle(fontSize: 15, color: AppColors.textMuted)),
           Row(
             children: [
               Expanded(
@@ -271,11 +271,11 @@ class _PendingCard extends StatelessWidget {
               ),
               IconButton(
                 key: const Key('plan-copy'),
-                tooltip: 'Chép mã đơn',
+                tooltip: 'Chép mã yêu cầu',
                 icon: const Icon(Icons.copy_rounded),
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: order.code));
-                  if (context.mounted) showAppSnackBar(context, 'Đã chép mã đơn');
+                  if (context.mounted) showAppSnackBar(context, 'Đã chép mã yêu cầu');
                 },
               ),
             ],
@@ -289,7 +289,7 @@ class _PendingCard extends StatelessWidget {
             key: const Key('plan-cancel-order'),
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             onPressed: onCancel,
-            child: const Text('Huỷ đơn này', style: TextStyle(fontSize: 17)),
+            child: const Text('Huỷ yêu cầu này', style: TextStyle(fontSize: 17)),
           ),
         ],
       ),

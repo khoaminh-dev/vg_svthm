@@ -98,13 +98,13 @@ void main() {
   });
 
   testWidgets('đặt gói: hỏi lại, rồi hiện mã đơn và nút huỷ; huỷ thì quay lại danh sách', (t) async {
-    final repo = FakePlans(const PlanOverview(plans: [_month], payNote: 'Ghi mã đơn khi chuyển khoản'));
+    final repo = FakePlans(const PlanOverview(plans: [_month], payNote: 'Viegrand sẽ duyệt sớm'));
     await t.pumpWidget(host(repo));
     await t.pumpAndSettle();
 
     await t.tap(find.byKey(const Key('plan-p1')));
     await t.pumpAndSettle();
-    expect(find.text('Đặt Gói tháng?'), findsOneWidget);
+    expect(find.text('Gửi yêu cầu Gói tháng?'), findsOneWidget);
     await t.tap(find.byKey(const Key('plan-cancel')));
     await t.pumpAndSettle();
     expect(repo.calls, isEmpty, reason: 'bấm Thôi thì không tạo đơn');
@@ -116,8 +116,8 @@ void main() {
     expect(repo.calls, ['request:p1']);
     expect(find.byKey(const Key('plan-pending')), findsOneWidget);
     expect(find.text('VGABC123'), findsOneWidget);
-    expect(find.text('Ghi mã đơn khi chuyển khoản'), findsOneWidget);
-    expect(find.text('Đang chờ xác nhận'), findsOneWidget);
+    expect(find.text('Viegrand sẽ duyệt sớm'), findsOneWidget);
+    expect(find.text('Đang chờ duyệt'), findsOneWidget);
 
     await t.tap(find.byKey(const Key('plan-cancel-order')));
     await t.pumpAndSettle();
