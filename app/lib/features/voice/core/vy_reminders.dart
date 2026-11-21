@@ -89,9 +89,31 @@ class ReminderMemory {
   final laterCount = <String, int>{};
   DateTime? lastMessages;
 
+  /// Lúc đã nhắc từng việc (để nhớ qua lần mở lại app, tránh nhắc lặp cùng một việc).
+  final _shownAt = <String, int>{};
+
+  /// Giữ lại bao lâu thì quên (việc nhắc đã cũ, khoá của nó cũng không còn xuất hiện nữa).
+  static const keep = Duration(hours: 36);
+
   void markShown(ReminderPick p, DateTime now) {
     done.add(p.key);
+    _shownAt[p.key] = now.millisecondsSinceEpoch;
     if (p.kind == ReminderKind.messages) lastMessages = now;
+  }
+
+  /// Ảnh chụp để lưu trên máy: chỉ các việc đã nhắc chưa quá [keep].
+  Map<String, int> snapshot(DateTime now) => {
+    for (final e in _shownAt.entries)
+      if (done.contains(e.key) && now.millisecondsSinceEpoch - e.value < keep.inMilliseconds) e.key: e.value,
+  };
+
+  /// Nạp lại những việc đã nhắc ở lần chạy trước (bỏ cái quá hạn).
+  void restore(Map<String, int> saved, DateTime now) {
+    for (final e in saved.entries) {
+      if (now.millisecondsSinceEpoch - e.value >= keep.inMilliseconds) continue;
+      done.add(e.key);
+      _shownAt[e.key] = e.value;
+    }
   }
 
   /// Người dùng chọn "Để sau" ở nhắc tin nhắn: cho phép nhắc lại một lần (sau [messageGap]).
@@ -100,6 +122,7 @@ class ReminderMemory {
     if (n >= maxLater) return false;
     laterCount[p.key] = n + 1;
     done.remove(p.key);
+    _shownAt.remove(p.key);
     return true;
   }
 }

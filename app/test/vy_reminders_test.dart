@@ -31,6 +31,31 @@ const bpDue = BpDue(slot: 'morning', key: 'bp:2026-11-21:morning');
 NewMessages msg(String room, DateTime latest, {int n = 1}) => NewMessages(roomId: room, from: 'Giang', count: n, latest: latest);
 
 void main() {
+  group('ReminderMemory: nhớ qua lần mở lại app', () {
+    test('đã nhắc rồi, mở lại app (nạp từ bản lưu) thì không nhắc lặp cùng một việc', () {
+      final i = inp(dose: 'dose:a:0', bp: bpDue);
+      final before = ReminderMemory();
+      before.markShown(decideReminder(i, before)!, at(8, 0)); // nhắc thuốc
+      final saved = before.snapshot(at(8, 1));
+
+      final after = ReminderMemory()..restore(saved, at(8, 2)); // mở lại app
+      expect(decideReminder(i, after)!.kind, ReminderKind.bp); // thuốc đã nhắc, chuyển sang việc kế
+      after.markShown(decideReminder(i, after)!, at(8, 2));
+      expect(decideReminder(i, after), isNull);
+    });
+
+    test('quá 36 giờ thì quên; "Để sau" gỡ khỏi bản lưu', () {
+      final m = ReminderMemory();
+      m.markShown(const ReminderPick(ReminderKind.dose, 'dose:old:0'), at(8, 0));
+      expect(ReminderMemory().let((r) => r..restore(m.snapshot(at(8, 0)), at(8, 0).add(const Duration(hours: 40)))).done, isEmpty);
+
+      final msg = const ReminderPick(ReminderKind.messages, 'msg:r:1');
+      m.markShown(msg, at(8, 0));
+      m.later(msg);
+      expect(m.snapshot(at(8, 1)).containsKey('msg:r:1'), isFalse);
+    });
+  });
+
   group('decideReminder: ưu tiên và điều kiện chung', () {
     test('thuốc > đo huyết áp > tin nhắn khi cùng đến hạn', () {
       final i = inp(dose: 'dose:a:0', bp: bpDue, msgs: [msg('r1', at(7, 59))]);
@@ -188,4 +213,8 @@ void main() {
       expect(reminderSpeech(ReminderKind.messages, 'bác', from: 'Giang'), contains('có tin mới từ Giang'));
     });
   });
+}
+
+extension _Let<T> on T {
+  R let<R>(R Function(T) f) => f(this);
 }

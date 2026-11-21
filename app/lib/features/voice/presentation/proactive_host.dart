@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/router/app_router.dart';
@@ -46,6 +48,8 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
   DateTime _lastPoll = DateTime.fromMillisecondsSinceEpoch(0);
   List<({String roomId, String from, DateTime at})> _incoming = const [];
   bool _checking = false;
+  bool _loaded = false;
+  static const _kShown = 'vy_remind_shown';
 
   Dose? _dose; // cữ kế tiếp (do build giữ sống)
   List<DateTime> _measured = const [];
@@ -53,6 +57,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
   @override
   void initState() {
     super.initState();
+    unawaited(_loadMemory());
     _timer = Timer.periodic(_checkEvery, (_) => unawaited(check()));
     // Nhịp đầu sớm một chút sau khi vào app (dữ liệu thuốc đã tải).
     _first = Timer(const Duration(seconds: 8), () => unawaited(check()));
@@ -65,6 +70,26 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
     super.dispose();
   }
 
+  /// Nhớ việc đã nhắc qua các lần mở app: mở lại thì không nhắc lại đúng cữ thuốc/giờ đo vừa nhắc.
+  Future<void> _loadMemory() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(_kShown);
+      if (raw != null) {
+        final m = (jsonDecode(raw) as Map).map((k, v) => MapEntry(k as String, (v as num).toInt()));
+        _mem.restore(m, DateTime.now());
+      }
+    } catch (_) {}
+    _loaded = true;
+  }
+
+  Future<void> _saveMemory(DateTime now) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kShown, jsonEncode(_mem.snapshot(now)));
+    } catch (_) {}
+  }
+
   bool get _foreground {
     final s = WidgetsBinding.instance.lifecycleState;
     return s == null || s == AppLifecycleState.resumed;
@@ -72,7 +97,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
 
   /// Một nhịp kiểm tra. Công khai để kiểm thử/gọi tay.
   Future<void> check({DateTime? at}) async {
-    if (!mounted || _checking) return;
+    if (!mounted || _checking || !_loaded) return;
     _checking = true;
     try {
       final now = at ?? DateTime.now();
@@ -140,6 +165,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
       if (pick == null) return;
       await _show(pick, groups, d);
       _mem.markShown(pick, now);
+      unawaited(_saveMemory(now));
     } finally {
       _checking = false;
     }
