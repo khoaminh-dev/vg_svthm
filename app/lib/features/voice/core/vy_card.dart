@@ -5,13 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Một nút trên thẻ. "Chạm = nói": chạm nút làm đúng việc mà lời nói tương ứng sẽ làm.
 @immutable
 class VyCardAction {
-  const VyCardAction({required this.label, required this.run, this.primary = false});
+  const VyCardAction({required this.label, required this.run, this.primary = false, this.keepOpen = false});
 
   final String label;
   final VoidCallback run;
 
   /// Nút chính (đặc); các nút còn lại là phụ (nền nhạt).
   final bool primary;
+
+  /// Làm xong vẫn giữ panel mở (ví dụ "Nghe" ở nhắc tin nhắn: Vy đọc tiếp). Mặc định panel thu về thanh nhỏ, nhắc thì đóng.
+  final bool keepOpen;
 }
 
 /// Thẻ kết quả trong panel Vy (kế hoạch mục 8): thông tin hoặc lựa chọn có sẵn nút, thay cho một đoạn chữ dài.
@@ -126,6 +129,14 @@ class SosCard extends VyCard {
 
   /// Báo SOS (chỉ chạy một lần, khi hết đếm ngược).
   final VoidCallback onFire;
+}
+
+/// Thẻ nhắc chủ động (thuốc, đo huyết áp, tin nhắn): tiêu đề, một dòng nội dung và các nút trả lời. Giữ tới khi có việc khác.
+class NoticeCard extends VyCard {
+  NoticeCard({required this.title, required this.body, super.actions}) : super(replacesSpeech: true);
+
+  final String title;
+  final String body;
 }
 
 /// Thẻ "Đã gửi": tick xanh, gửi cho ai, nội dung. Tự thu về sau vài giây.

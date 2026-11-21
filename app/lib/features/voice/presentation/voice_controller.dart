@@ -159,6 +159,12 @@ class VoiceController extends Notifier<VoiceState> {
     }
   }
 
+  /// Mở phiên Vy thường KHÔNG mở micro (dùng cho nhắc chủ động: người dùng trả lời bằng nút, gõ chữ hoặc bấm mic sau).
+  void prepareSession() {
+    _newSession();
+    state = state.copyWith(panelOpen: true, transcript: '', say: '', chips: const [], error: null);
+  }
+
   /// Đóng bảng trợ lý và dừng mọi thứ.
   Future<void> close() async {
     _cancelRun();

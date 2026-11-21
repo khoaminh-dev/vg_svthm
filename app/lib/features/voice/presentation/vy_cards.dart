@@ -28,6 +28,7 @@ class VyCardView extends StatelessWidget {
       SentCard() => _SentBody(card: c),
       MsgCard() => _MsgBody(card: c, onAction: onAction),
       CallCard() => _CallBody(card: c),
+      NoticeCard() => _NoticeBody(card: c),
       SosCard() => _SosBody(card: c),
     };
     return Container(
@@ -409,6 +410,25 @@ class _SosBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _NoticeBody extends StatelessWidget {
+  const _NoticeBody({required this.card});
+
+  final NoticeCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const Key('vy-notice'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(card.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: _navy)),
+        const SizedBox(height: 6),
+        Text(card.body, style: const TextStyle(fontSize: 19, height: 1.35, color: Color(0xFF44516B))),
+      ],
     );
   }
 }

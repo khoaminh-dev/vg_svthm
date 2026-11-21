@@ -9,7 +9,7 @@ import 'control_registry.dart';
 
 /// Đường dẫn của màn đang ở TRÊN CÙNG, kể cả màn mở bằng `push` (Giải trí, Đo huyết áp, trình phát...).
 /// `routeInformationProvider` chỉ báo màn gốc nên màn chồng bị báo sai; cấu hình hiện tại của bộ định tuyến thì đúng.
-String _topPath(GoRouter router) {
+String topRoutePath(GoRouter router) {
   try {
     // Mục cuối của danh sách khớp là màn trên cùng; màn mở bằng `push` là một ImperativeRouteMatch có vị trí riêng
     // (còn `uri` của cấu hình thì vẫn là màn gốc).
@@ -31,7 +31,7 @@ final vyUiContextProvider = Provider<Map<String, Object?> Function()>((ref) {
         AppRole.family => 'family',
         _ => '',
       },
-      route: _topPath(ref.read(routerProvider)),
+      route: topRoutePath(ref.read(routerProvider)),
       playerOpen: ref.read(playerOpenProvider),
     );
   };

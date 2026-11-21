@@ -9,6 +9,9 @@ class VySettings {
     this.captions = true,
     this.sounds = true,
     this.introSeen = false,
+    this.remindDose = true,
+    this.remindBp = true,
+    this.remindMessages = true,
   });
 
   /// Hiện chữ khi Vy nói (cho người nghe kém hoặc nơi ồn). Mặc định bật.
@@ -20,18 +23,35 @@ class VySettings {
   /// Đã xem thẻ giải thích lần đầu.
   final bool introSeen;
 
-  VySettings copyWith({bool? captions, bool? sounds, bool? introSeen}) =>
-      VySettings(
-        captions: captions ?? this.captions,
-        sounds: sounds ?? this.sounds,
-        introSeen: introSeen ?? this.introSeen,
-      );
+  /// "Vy tự nhắc" từng loại (bật sẵn): đến giờ uống thuốc, đo huyết áp, tin nhắn mới.
+  final bool remindDose;
+  final bool remindBp;
+  final bool remindMessages;
+
+  VySettings copyWith({
+    bool? captions,
+    bool? sounds,
+    bool? introSeen,
+    bool? remindDose,
+    bool? remindBp,
+    bool? remindMessages,
+  }) => VySettings(
+    captions: captions ?? this.captions,
+    sounds: sounds ?? this.sounds,
+    introSeen: introSeen ?? this.introSeen,
+    remindDose: remindDose ?? this.remindDose,
+    remindBp: remindBp ?? this.remindBp,
+    remindMessages: remindMessages ?? this.remindMessages,
+  );
 }
 
 class VySettingsNotifier extends AsyncNotifier<VySettings> {
   static const _kCaptions = 'vy_captions';
   static const _kSounds = 'vy_sounds';
   static const _kIntro = 'vy_intro_seen';
+  static const _kRDose = 'vy_remind_dose';
+  static const _kRBp = 'vy_remind_bp';
+  static const _kRMsg = 'vy_remind_msg';
 
   @override
   Future<VySettings> build() async {
@@ -40,6 +60,9 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
       captions: p.getBool(_kCaptions) ?? true,
       sounds: p.getBool(_kSounds) ?? true,
       introSeen: p.getBool(_kIntro) ?? false,
+      remindDose: p.getBool(_kRDose) ?? true,
+      remindBp: p.getBool(_kRBp) ?? true,
+      remindMessages: p.getBool(_kRMsg) ?? true,
     );
     VySounds.enabled = s.sounds;
     return s;
@@ -58,6 +81,14 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
     state = AsyncData(_now.copyWith(sounds: v));
     final p = await SharedPreferences.getInstance();
     await p.setBool(_kSounds, v);
+  }
+
+  Future<void> setRemind({bool? dose, bool? bp, bool? messages}) async {
+    state = AsyncData(_now.copyWith(remindDose: dose, remindBp: bp, remindMessages: messages));
+    final p = await SharedPreferences.getInstance();
+    if (dose != null) await p.setBool(_kRDose, dose);
+    if (bp != null) await p.setBool(_kRBp, bp);
+    if (messages != null) await p.setBool(_kRMsg, messages);
   }
 
   Future<void> markIntroSeen() async {

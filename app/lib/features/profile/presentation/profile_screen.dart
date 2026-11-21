@@ -103,6 +103,33 @@ class ProfileScreen extends ConsumerWidget {
         onSet: (v) => ref.read(vySettingsProvider.notifier).setSounds(v),
       ),
       VyControl(
+        id: 'prof.remind.dose',
+        label: 'Vy tự nhắc uống thuốc',
+        aliases: const ['nhắc uống thuốc', 'tự nhắc uống thuốc'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.remindDose,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setRemind(dose: v),
+      ),
+      VyControl(
+        id: 'prof.remind.bp',
+        label: 'Vy tự nhắc đo huyết áp',
+        aliases: const ['tự nhắc đo huyết áp'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.remindBp,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setRemind(bp: v),
+      ),
+      VyControl(
+        id: 'prof.remind.msg',
+        label: 'Vy tự nhắc tin nhắn mới',
+        aliases: const ['nhắc tin nhắn', 'tự nhắc tin nhắn'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.remindMessages,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setRemind(messages: v),
+      ),
+      VyControl(
         id: 'prof.speak',
         label: 'Đọc lời khuyên sau khi đo',
         aliases: const ['đọc lời khuyên', 'lời khuyên'],
@@ -860,6 +887,42 @@ class _VySettingsGroup extends ConsumerWidget {
           onChanged: (v) {
             Analytics.track('vy_setting', {'captions': v});
             n.setCaptions(v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-remind-dose'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.medication_outlined),
+          title: const Text('Vy tự nhắc uống thuốc', style: titleStyle),
+          subtitle: const Text('Đến giờ thì Vy hiện lên và nhắc'),
+          value: s.remindDose,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'remind_dose': v});
+            n.setRemind(dose: v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-remind-bp'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.monitor_heart_outlined),
+          title: const Text('Vy tự nhắc đo huyết áp', style: titleStyle),
+          subtitle: const Text('Theo giờ nhắc đo, nếu hôm nay chưa đo'),
+          value: s.remindBp,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'remind_bp': v});
+            n.setRemind(bp: v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-remind-msg'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.chat_bubble_outline_rounded),
+          title: const Text('Vy tự nhắc tin nhắn mới', style: titleStyle),
+          subtitle: const Text('Hỏi bác có muốn nghe không'),
+          value: s.remindMessages,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'remind_msg': v});
+            n.setRemind(messages: v);
           },
         ),
         SwitchListTile(

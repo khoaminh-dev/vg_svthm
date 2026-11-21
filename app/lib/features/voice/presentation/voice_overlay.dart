@@ -9,6 +9,8 @@ import '../../auth/presentation/providers/auth_providers.dart';
 import '../core/vy_core.dart';
 import '../core/vy_cursor.dart';
 import 'vy_cursor_layer.dart';
+import '../../auth/domain/auth_user.dart';
+import 'proactive_host.dart';
 import 'vy_panel.dart';
 
 /// Lớp phủ trợ lý giọng nói trên mọi màn hình: nút Vy nổi + panel Vy ([VyPanelHost]).
@@ -78,6 +80,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
             },
           ),
         if (enabled) const Positioned.fill(child: VyPanelHost()),
+        // Vy tự nhắc (thuốc, đo huyết áp, tin nhắn mới): chỉ cho người cao tuổi.
+        if (enabled && user.role == AppRole.elder) const ProactiveRemindersHost(),
         // Con trỏ nổi trên cả panel (không nhận chạm).
         if (enabled) Positioned.fill(child: VyCursorLayer(key: ref.read(vyCursorSurfaceKeyProvider))),
       ],

@@ -57,6 +57,9 @@ const vyIdleAsk = Duration(seconds: 30);
 const vyIdleClose = Duration(seconds: 10);
 
 /// Vy Live lỗi (chưa được bật cho tài khoản này, máy chủ tắt, mạng...): lần mở sau dùng Vy thường, không thử lại ngay.
+/// Nhắc chủ động không ai trả lời thì tự đóng sau chừng này (không hỏi "còn cần con không").
+const vyReminderIdle = Duration(seconds: 45);
+
 const _liveBlockLong = Duration(minutes: 60);
 const _liveBlockShort = Duration(minutes: 2);
 
@@ -70,6 +73,7 @@ class VyCore extends Notifier<VyView> {
   bool _open = false;
   bool _starting = false; // đang chờ Vy Live nối (lỗi ở giai đoạn này là để dự phòng, không phải "tự đóng")
   bool _classicStarted = false;
+  bool _reminderMode = false; // panel mở vì Vy tự nhắc: Vy thường, chưa mở mic
   bool _userExpanded = false;
   bool _collapsed = false;
   bool _idlePrompt = false;
@@ -113,8 +117,11 @@ class VyCore extends Notifier<VyView> {
 
   /// Nút Vy: mở một phiên (chạm lúc đang mở thì bỏ qua).
   Future<void> open() async {
+    // Đang hiện nhắc chủ động mà người dùng chạm nút Vy: nâng lên phiên đầy đủ (Live nếu được).
+    if (_open && _reminderMode && !_classicStarted) await close(reason: 'reminder_upgrade');
     if (_open) return;
     final run = ++_run;
+    _reminderMode = false;
     _open = true;
     _starting = false;
     _classicStarted = false;
@@ -156,6 +163,7 @@ class VyCore extends Notifier<VyView> {
     _cancelTimers();
     final engine = _engine;
     final classicStarted = _classicStarted;
+    _reminderMode = false;
     _engine = VyEngine.none;
     _classicStarted = false;
     _starting = false;
@@ -204,6 +212,7 @@ class VyCore extends Notifier<VyView> {
 
   /// Nút mic của Vy thường (Live luôn mở micro nên không có nút này).
   Future<void> primary() async {
+    if (_open && _reminderMode) await _startClassicFromReminder();
     if (!_open || _engine != VyEngine.classic || !_classicStarted) return;
     _noteActivity();
     ref.read(vyCardProvider.notifier).clear();
@@ -219,6 +228,7 @@ class VyCore extends Notifier<VyView> {
       case VyEngine.live:
         await ref.read(liveLabProvider.notifier).tapChip(chip);
       case VyEngine.classic:
+        await _startClassicFromReminder();
         await ref.read(voiceControllerProvider.notifier).tapChip(chip);
       case VyEngine.none:
         break;
@@ -236,6 +246,7 @@ class VyCore extends Notifier<VyView> {
       case VyEngine.live:
         await ref.read(liveLabProvider.notifier).tapChip(t);
       case VyEngine.classic:
+        await _startClassicFromReminder();
         if (_classicStarted) await ref.read(voiceControllerProvider.notifier).tapChip(t);
       case VyEngine.none:
         break;
@@ -246,12 +257,56 @@ class VyCore extends Notifier<VyView> {
   void runCardAction(VyCardAction a) {
     _noteActivity();
     a.run();
-    if (_open) collapse();
+    if (!_open || a.keepOpen) return;
+    // Nhắc chủ động: trả lời xong là đóng (không để panel treo). Thẻ thường: thu về thanh nhỏ để thấy kết quả.
+    if (_reminderMode && !_classicStarted) {
+      unawaited(close(reason: 'reminder_done'));
+    } else {
+      collapse();
+    }
   }
 
   /// Đã đọc thẻ giải thích lần đầu.
   Future<void> dismissIntro() async {
     await ref.read(vySettingsProvider.notifier).markIntroSeen();
+    _sync();
+  }
+
+  // ---------- Nhắc chủ động (D19) ----------
+
+  /// Vy tự mở để nhắc: panel + thẻ + giọng máy nói [speech], bằng Vy thường (miễn phí), KHÔNG Live, KHÔNG tự mở mic.
+  /// Trả về `false` (không làm gì) nếu Vy đang mở. Người dùng trả lời bằng nút trên thẻ, gõ chữ, hoặc bấm mic (khi đó mới mở mic).
+  Future<bool> remind({required String speech, required VyCard card, String kind = ''}) async {
+    if (_open) return false;
+    ++_run;
+    _reminderMode = true;
+    _open = true;
+    _starting = false;
+    _classicStarted = false;
+    _engine = VyEngine.classic;
+    _userExpanded = false;
+    _collapsed = false;
+    _idlePrompt = false;
+    _sig = '';
+    _lastUser = '';
+    _cancelTimers();
+    ref.read(vyCardProvider.notifier).show(card);
+    HapticFeedback.lightImpact();
+    if (_settings.sounds) unawaited(VySounds.on());
+    Analytics.track('vy_remind', {'kind': kind});
+    _sync();
+    unawaited(_greet(speech)); // giọng máy; không chờ
+    return true;
+  }
+
+  /// Từ chế độ nhắc sang phiên Vy thường thật (người dùng gõ chữ, chạm gợi ý hoặc bấm mic).
+  Future<void> _startClassicFromReminder() async {
+    if (!_open || !_reminderMode || _classicStarted) return;
+    _reminderMode = false;
+    _classicStarted = true;
+    _cancelTimers();
+    await _voice.stop();
+    ref.read(voiceControllerProvider.notifier).prepareSession();
     _sync();
   }
 
@@ -347,10 +402,11 @@ class VyCore extends Notifier<VyView> {
       classicStarted: _classicStarted,
       closing: false,
       idlePrompt: _idlePrompt,
-      showIntro: !settings.introSeen,
+      showIntro: !settings.introSeen && !_reminderMode,
       userExpanded: _userExpanded,
       collapsed: _collapsed,
       captions: settings.captions,
+      reminderMode: _reminderMode,
     ).copyWith(card: ref.read(vyCardProvider));
 
     // Người dùng bắt đầu nói thì ngắt lời chào/câu hỏi của giọng máy ngay (không để Vy nói chen lên người dùng).
@@ -400,6 +456,17 @@ class VyCore extends Notifier<VyView> {
 
   /// Chỉ đếm giờ im lặng khi Vy đang "sẵn sàng". Không đếm khi chờ xác nhận, khẩn cấp, lỗi, đang nối hay đang làm việc.
   void _armIdle(VyView v) {
+    // Nhắc chủ động không ai trả lời: tự đóng êm sau [vyReminderIdle], không hỏi.
+    if (_reminderMode) {
+      _idleTimer ??= Timer(vyReminderIdle, () {
+        _idleTimer = null;
+        if (_open && _reminderMode) {
+          Analytics.track('vy_remind_ignored');
+          unawaited(close(reason: 'reminder_ignored'));
+        }
+      });
+      return;
+    }
     final idle = v.phase == VyPhase.ready && !v.showIntro;
     if (!idle) {
       _idleTimer?.cancel();

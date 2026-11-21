@@ -15,6 +15,7 @@ import 'package:vg_svthm/features/voice/presentation/voice_controller.dart';
 class FakeVoiceCtl extends VoiceController {
   int toggles = 0;
   int closes = 0;
+  int prepares = 0;
   final taps = <String>[];
 
   @override
@@ -24,6 +25,12 @@ class FakeVoiceCtl extends VoiceController {
   Future<void> toggle() async {
     toggles++;
     state = state.copyWith(panelOpen: true, status: VoiceStatus.listening);
+  }
+
+  @override
+  void prepareSession() {
+    prepares++;
+    state = state.copyWith(panelOpen: true);
   }
 
   @override

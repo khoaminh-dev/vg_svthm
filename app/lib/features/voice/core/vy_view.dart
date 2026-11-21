@@ -212,6 +212,7 @@ VyView deriveVyView({
   required bool userExpanded,
   required bool collapsed,
   required bool captions,
+  bool reminderMode = false,
 }) {
   VyView base(VyPhase phase) => VyView(
     phase: phase,
@@ -250,7 +251,8 @@ VyView deriveVyView({
         error: live.error,
       );
     case VyEngine.classic:
-      if (!classicStarted) return base(VyPhase.opening);
+      // Đang ở chế độ nhắc (chưa mở mic/chưa nói chuyện): sẵn sàng chờ người dùng trả lời bằng nút.
+      if (!classicStarted) return base(reminderMode ? VyPhase.ready : VyPhase.opening);
       final confirming =
           classic.dialog.expects == VoiceExpect.yesNo && classic.chips.isNotEmpty;
       final VyPhase phase;
