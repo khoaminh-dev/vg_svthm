@@ -468,7 +468,7 @@ class _ElderBpView extends ConsumerWidget {
               boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
             ),
             child: Text(
-              'Bác chưa đo lần nào.\nBấm nút xanh ở trên để đo lần đầu.',
+              'Bác chưa đo lần nào.\nBấm nút “Đo huyết áp bây giờ” ở trên để đo lần đầu.',
               textAlign: TextAlign.center,
               style: theme.textTheme.titleLarge,
             ),

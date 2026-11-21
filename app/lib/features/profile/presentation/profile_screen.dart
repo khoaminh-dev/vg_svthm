@@ -306,6 +306,8 @@ class ProfileScreen extends ConsumerWidget {
                   // Người cao tuổi: chỉ ba việc hay dùng, mỗi việc một ô to. Cài đặt còn lại gom vào "Cài đặt khác".
                   _ElderProfileShortcuts(me: user!.id),
                   const SizedBox(height: AppSpacing.md),
+                  const _PhoneSettings(elder: true),
+                  const SizedBox(height: AppSpacing.md),
                   const _BpReminderSettings(elder: true),
                   const SizedBox(height: AppSpacing.md),
                   Theme(
@@ -322,8 +324,6 @@ class ProfileScreen extends ConsumerWidget {
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.navyDeep),
                       ),
                       children: [
-                        const _PhoneSettings(),
-                        const SizedBox(height: AppSpacing.md),
                         InsetGroup(dividerIndent: 0, children: [speakTile]),
                         const SizedBox(height: AppSpacing.md),
                         const _VySettingsGroup(),
@@ -972,7 +972,9 @@ class _VySettingsGroup extends ConsumerWidget {
 /// Số điện thoại của tôi: để người thân đã liên kết nhờ Vy gọi cho mình, và Vy gọi được người thân cho mình ("gọi con trai").
 /// Lưu ở bảng riêng `profile_phones`: chỉ mình và người thân ĐANG liên kết thấy, người lạ không thấy.
 class _PhoneSettings extends ConsumerWidget {
-  const _PhoneSettings();
+  const _PhoneSettings({this.elder = false});
+
+  final bool elder;
 
   Future<void> _edit(BuildContext context, WidgetRef ref, String? current) async {
     final c = TextEditingController(text: current ?? '');
@@ -1058,12 +1060,12 @@ class _PhoneSettings extends ConsumerWidget {
       children: [
         ListTile(
           key: const Key('phone-row'),
-          minTileHeight: 64,
-          leading: const _LeadIcon(Icons.phone_outlined, size: 44),
-          title: const Text('Số điện thoại của tôi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+          minTileHeight: elder ? 84 : 64,
+          leading: _LeadIcon(Icons.phone_outlined, size: elder ? 52 : 44),
+          title: Text('Số điện thoại của tôi', style: TextStyle(fontSize: elder ? 22 : 20, fontWeight: FontWeight.w700)),
           subtitle: Text(
-            (phone ?? '').isEmpty ? 'Chưa có. Thêm để người thân gọi được' : phone!,
-            style: const TextStyle(fontSize: 17),
+            (phone ?? '').isEmpty ? 'Chưa có. Chạm để thêm số' : phone!,
+            style: TextStyle(fontSize: elder ? 20 : 17),
           ),
           trailing: const Icon(Icons.edit_outlined, size: 22),
           onTap: () => _edit(context, ref, phone),

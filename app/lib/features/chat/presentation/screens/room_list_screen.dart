@@ -326,7 +326,7 @@ class _EmptyRooms extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           simple
-              ? 'Bấm nút xanh ở trên để nhắn cho người thân.'
+              ? 'Bấm nút “Nhắn cho …” ở trên để gửi tin cho người thân.'
               : 'Nhắn cho người thân bằng tên người dùng, hoặc tạo một phòng cho cả nhà.',
           textAlign: TextAlign.center,
           style: TextStyle(

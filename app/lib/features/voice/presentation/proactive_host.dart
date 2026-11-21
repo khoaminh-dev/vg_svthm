@@ -175,7 +175,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
                 },
               ),
               VyCardAction(
-                label: 'Nhắc lại sau 15 phút',
+                label: 'Lát nữa nhắc',
                 run: () async {
                   Analytics.track('vy_remind_reply', {'kind': 'dose', 'reply': 'snooze'});
                   try {

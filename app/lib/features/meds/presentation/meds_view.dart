@@ -486,7 +486,7 @@ class _DoseCard extends StatelessWidget {
           if (state == DoseState.due)
             VyControl(
               id: 'meds.snooze.${dose.id}',
-              label: 'Nhắc lại sau 15 phút',
+              label: 'Nhắc sau 15 phút',
               aliases: [if (primary) ...const ['nhắc lại', 'nhắc tôi sau']],
               level: VyLevel.readBack,
               say: 'Dạ, con sẽ nhắc {hon} lại sau 15 phút ạ.',
@@ -602,7 +602,7 @@ class _DoseCard extends StatelessWidget {
                     child: TextButton(
                       key: Key('dose-snooze-${dose.id}'),
                       onPressed: snooze,
-                      child: const Text('Nhắc lại sau 15 phút'),
+                      child: const Text('Nhắc sau 15 phút'),
                     ),
                   ),
                 Expanded(
