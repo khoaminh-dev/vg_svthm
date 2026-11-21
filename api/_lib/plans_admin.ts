@@ -3,7 +3,7 @@ import { requireFreshAdmin } from './admin.js';
 import { dbInsert, dbPatch, dbSelect } from './db.js';
 import { audit } from './audit.js';
 import { newExpiry, parsePlan, validUuid } from './plans.js';
-import { invalidateLiveUsers } from './voice/live_start.js';
+import { invalidateLiveUsers } from './voice/live_cache.js';
 
 // Quản lý gói Vy Live: các gói đang bán, đơn chờ xác nhận thanh toán, cấp tay, hướng dẫn thanh toán.
 // Xác nhận thanh toán và sửa gói là thao tác nhạy cảm: cần đăng nhập admin mới (≤ 15 phút).

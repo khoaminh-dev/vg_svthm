@@ -119,11 +119,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store');
   try {
     if (req.method === 'GET') {
+      if (req.query?.view === 'plans') return res.status(200).json(await plansOverview());
       return res.status(200).json(await overview());
     }
     if (req.method !== 'POST') return res.status(405).end();
     const b = bodyObject(req) ?? {};
     const action = String(b.action ?? '');
+    if (PLAN_ACTIONS.includes(action)) return await handlePlanAction(req, res, b, action);
     const mutatesKeys = ['add_key', 'toggle_key', 'delete_key', 'test_key'].includes(action);
     if (mutatesKeys && !canEdit()) {
       return res.status(403).json({ error: 'locked', message: 'Hãy đặt biến ADMIN_PASS (≥6 ký tự, khác 123) trên Vercel rồi redeploy để mở khoá quản lý key.' });
