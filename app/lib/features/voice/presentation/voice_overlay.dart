@@ -9,6 +9,7 @@ import 'dart:async' show unawaited;
 import '../../../shared/honorific.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../data/voice_actions.dart' show voiceActionsProvider;
+import 'voice_controller.dart' show voiceApiProvider;
 import '../../../shared/widgets/vy_button.dart';
 import '../core/vy_context.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
@@ -38,6 +39,17 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay>
     WidgetsBinding.instance.addObserver(this);
     // Android mới chỉ chuyển Back cho Flutter khi có người "xin" xử lý; xin để Back ở Trang chủ hỏi lại thay vì thoát ngay.
     SystemNavigator.setFrameworkHandlesBack(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _warm());
+  }
+
+  void _warm() {
+    final u = ref.read(currentUserProvider);
+    if (u != null && !u.needsProfile) unawaited(ref.read(voiceApiProvider).warm());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _warm();
   }
 
   @override

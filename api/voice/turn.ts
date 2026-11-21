@@ -175,6 +175,8 @@ async function transcribe(audio: Buffer, mime: string, hint: string): Promise<St
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
+  // Làm ấm: app gọi khi mở/quay lại để lượt nói thật không dính khởi động nguội. Không xác thực, không làm gì, không tốn tài nguyên.
+  if (bodyObject(req)?.mode === 'ping') return res.status(204).end();
   const tStart = Date.now();
   // Xác thực và đọc chính sách độc lập nhau → chạy song song (trước đây nối đuôi nhau).
   const [uid, pol] = await Promise.all([requireUser(req, res), getPolicy()]);

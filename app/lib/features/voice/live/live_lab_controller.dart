@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../../core/analytics/analytics.dart';
 import '../../../core/diagnostics/app_trace.dart';
 import '../data/speech_player.dart';
 import '../data/voice_actions.dart';
@@ -42,6 +43,7 @@ class LiveLabState {
     this.confirmSay,
     this.confirmChips = const [],
     this.emergency = false,
+    this.thinking = false,
   });
 
   final LivePhase phase;
@@ -69,6 +71,9 @@ class LiveLabState {
   /// Vừa phát hiện lời khẩn cấp: hiện nhắc bấm nút gọi người nhà.
   final bool emergency;
 
+  /// Đã nghe xong lệnh, đang chờ não xử lý/Live bắt đầu nói: giao diện hiện "Vy đang nghĩ" thay vì như đang rảnh.
+  final bool thinking;
+
   LiveLabState copyWith({
     LivePhase? phase,
     String? mode,
@@ -83,6 +88,7 @@ class LiveLabState {
     Object? confirmSay = _keep,
     List<String>? confirmChips,
     bool? emergency,
+    bool? thinking,
   }) => LiveLabState(
     phase: phase ?? this.phase,
     mode: mode ?? this.mode,
@@ -97,6 +103,7 @@ class LiveLabState {
     confirmSay: identical(confirmSay, _keep) ? this.confirmSay : confirmSay as String?,
     confirmChips: confirmChips ?? this.confirmChips,
     emergency: emergency ?? this.emergency,
+    thinking: thinking ?? this.thinking,
   );
 }
 
@@ -190,6 +197,20 @@ class LiveLabController extends Notifier<LiveLabState> {
   void _metric(String k, String v) {
     state = state.copyWith(metrics: {...state.metrics, k: v});
     _log('# $k = $v');
+    // Số đo thật từ người dùng (chỉ con số, không có lời nói): để biết khâu nào của Live chậm. Truy vấn theo props->>'k'.
+    final ms = int.tryParse(v);
+    if (ms != null && k.endsWith('_ms')) Analytics.track('live_metric', {'k': k, 'ms': ms});
+  }
+
+  Timer? _thinkTimer;
+
+  /// Bật/tắt trạng thái "đang nghĩ" (tự tắt sau 12 giây để không kẹt).
+  void _setThinking(bool on) {
+    _thinkTimer?.cancel();
+    _thinkTimer = null;
+    if (state.thinking == on) return;
+    state = state.copyWith(thinking: on);
+    if (on) _thinkTimer = Timer(const Duration(seconds: 12), () => _setThinking(false));
   }
 
   String logText() => state.log.join('\n');
@@ -322,7 +343,7 @@ class LiveLabController extends Notifier<LiveLabState> {
 
   Future<void> _finish() async {
     await _teardown();
-    state = state.copyWith(phase: LivePhase.idle, confirmSay: null, confirmChips: const [], emergency: false);
+    state = state.copyWith(phase: LivePhase.idle, confirmSay: null, confirmChips: const [], emergency: false, thinking: false);
   }
 
   Future<void> _teardown() async {
@@ -401,6 +422,7 @@ class LiveLabController extends Notifier<LiveLabState> {
         _awaitingFirstSpeech = true;
       case 'session.output_transcript.delta':
         final d = (e['delta'] as String?) ?? '';
+        _setThinking(false); // Live bắt đầu nói
         // Chế độ C: Live tự trả lời một câu (chào hỏi...) mà không ủy quyền thì câu người dùng đó đã xong.
         // Phải bỏ phiên âm đi, nếu không nó dính vào đầu lệnh kế tiếp ("Con có thể làm gì Nhắn tin cho Giang...").
         // Chỉ bỏ khi người dùng đã im > 700 ms để không cắt ngang một câu đang nói dở.
@@ -423,6 +445,7 @@ class LiveLabController extends Notifier<LiveLabState> {
         state = state.copyWith(assistantText: state.assistantText + d);
       case 'session.delegation.created':
         _delegationAt = now;
+        if (state.mode == 'C') _setThinking(true);
         if (_lastUserAt >= 0) _metric('user_stop_to_delegation_ms', '${now - _lastUserAt}');
         if (state.mode == 'C') {
           final id = ((e['delegation'] as Map?)?['id'] ?? e['delegation_id']) as String?;
@@ -750,6 +773,7 @@ class LiveLabController extends Notifier<LiveLabState> {
   /// Nói câu trả lời. Câu khẩn cấp/quan trọng đọc bằng giọng máy (nguyên văn); còn lại qua Live.
   Future<void> _deliver(String say, String cls, String? delegationId, int seq) async {
     if (seq != _seq || say.trim().isEmpty) {
+      _setThinking(false);
       if (say.trim().isEmpty) _silentClose(delegationId, 'không có gì để nói');
       return;
     }
@@ -757,6 +781,7 @@ class LiveLabController extends Notifier<LiveLabState> {
     final local = cls == 'emergency' || cls == 'important' || delegationId == null;
     _lastResultAt = _sw.elapsedMilliseconds;
     if (local) {
+      _setThinking(false);
       _log('NÓI (giọng máy, $cls): $say');
       _silentClose(delegationId, 'đã nói bằng giọng máy');
       await _speakLocal(say, cls);

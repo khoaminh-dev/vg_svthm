@@ -35,6 +35,21 @@ class VoiceApi {
     'Content-Type': 'application/json',
   };
 
+  DateTime? _lastWarm;
+
+  /// Làm ấm máy chủ giọng nói (khởi động nguội tốn 0,3-0,8 giây ở lượt đầu). Tối đa 1 lần / 3 phút, nuốt mọi lỗi.
+  Future<void> warm() async {
+    final now = DateTime.now();
+    final last = _lastWarm;
+    if (last != null && now.difference(last) < const Duration(minutes: 3)) return;
+    _lastWarm = now;
+    try {
+      await _client
+          .post(Uri.parse('$_baseUrl/api/voice/turn'), headers: {'Content-Type': 'application/json'}, body: '{"mode":"ping"}')
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {}
+  }
+
   /// Một lượt hội thoại: gửi âm thanh (hoặc chữ) + trạng thái, nhận quyết định.
   Future<VoiceTurnResult> turn({
     required String sessionId,

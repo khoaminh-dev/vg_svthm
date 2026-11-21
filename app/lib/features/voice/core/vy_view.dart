@@ -239,6 +239,8 @@ VyView deriveVyView({
         phase = VyPhase.confirming;
       } else if (live.error != null) {
         phase = VyPhase.error;
+      } else if (live.thinking) {
+        phase = VyPhase.thinking; // đã nghe xong lệnh, đang xử lý
       } else {
         phase = VyPhase.ready;
       }
