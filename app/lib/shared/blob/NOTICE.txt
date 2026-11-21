@@ -1,0 +1,2 @@
+Phần lõi chuyển động (hồ sơ bán kính, mắt trên mặt cầu, 16 biểu cảm, số đo) được port sang Dart từ dự án Bloub
+https://github.com/jeremy-prt/bloub (MIT, (c) 2026 Jeremy Perret). Giữ nguyên giấy phép này.
