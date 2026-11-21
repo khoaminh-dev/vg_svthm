@@ -83,9 +83,10 @@ class ChatScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Nói chuyện với Vy',
+          TextButton.icon(
+            key: const Key('chat-vy'),
             icon: const Icon(Icons.mic_none_rounded),
+            label: const Text('Vy', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
             onPressed: () {
               Analytics.track('open_vy_from_chat');
               ref.read(vyCoreProvider.notifier).open();
@@ -260,20 +261,22 @@ class _QuickReplies extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        itemCount: replies.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, i) => ActionChip(
-          label: Text(replies[i]),
-          onPressed: () {
-            Analytics.track('chat_quick_reply');
-            onPick(replies[i]);
-          },
-        ),
+    // Xuống dòng thay vì cuộn ngang: mọi câu đều thấy ngay, không bị cắt ở mép màn hình.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final r in replies)
+            ActionChip(
+              label: Text(r, style: const TextStyle(fontSize: 17)),
+              onPressed: () {
+                Analytics.track('chat_quick_reply');
+                onPick(r);
+              },
+            ),
+        ],
       ),
     );
   }

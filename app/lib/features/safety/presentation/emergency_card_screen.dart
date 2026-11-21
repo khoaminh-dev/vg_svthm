@@ -8,6 +8,8 @@ import '../../../core/errors/app_failure.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
+import '../../profile/data/phone_repository.dart';
 import '../domain/safety_models.dart';
 import 'safety_providers.dart';
 
@@ -41,14 +43,28 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
     super.dispose();
   }
 
+  /// Số của chính chủ nhập ở Hồ sơ là nguồn chính: thẻ chưa có số thì lấy từ đó, khỏi nhập hai lần.
+  Future<void> _fillFromProfile() async {
+    final me = ref.read(currentUserProvider)?.id;
+    if (me == null || me != widget.ownerId || _phone.text.trim().isNotEmpty) return;
+    try {
+      final p = await ref.read(myPhoneProvider.future);
+      if (mounted && p != null && _phone.text.trim().isEmpty) setState(() => _phone.text = p);
+    } catch (_) {}
+  }
+
   void _fill(EmergencyCard? c) {
     if (_loaded) return;
     _loaded = true;
-    if (c == null) return;
+    if (c == null) {
+      _fillFromProfile();
+      return;
+    }
     _blood = c.bloodType;
     _allergies.text = c.allergies ?? '';
     _conditions.text = c.conditions ?? '';
     _phone.text = c.ownPhone ?? '';
+    _fillFromProfile();
     _note.text = c.note ?? '';
     for (var i = 0; i < c.contacts.length && i < 3; i++) {
       _names[i].text = c.contacts[i].name;
@@ -141,7 +157,10 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
                     key: const Key('card-phone'),
                     controller: _phone,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Số điện thoại của bác'),
+                    decoration: const InputDecoration(
+                      labelText: 'Số điện thoại của bác',
+                      helperText: 'Tự lấy từ Hồ sơ nếu bác đã nhập ở đó',
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text('Người liên hệ khẩn cấp', style: theme.textTheme.titleSmall),

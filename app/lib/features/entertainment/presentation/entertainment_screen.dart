@@ -185,6 +185,8 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                     label: 'Chọn mục khác',
                     onPressed: _backToCategories,
                   ),
+                // Người cao tuổi đã có thanh "Về trang chủ" lớn ở đáy: không thêm lối thoát thứ hai ở trên.
+                if (!elder)
                 SoftIconButton(
                   icon: Icons.close_rounded,
                   label: 'Đóng',
