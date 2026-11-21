@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import '../core/vi_text.dart' show isGoodbyeText;
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
@@ -324,7 +326,21 @@ class LiveLabController extends Notifier<LiveLabState> {
     await done.future.timeout(const Duration(seconds: 10), onTimeout: () {});
   }
 
+  Timer? _byeTimer;
+
+  /// Người dùng chào tạm biệt và Live đang đáp một câu ngắn: đợi câu chào phát xong rồi tự kết thúc phiên.
+  void _maybeGoodbye(String heard, {int waitMs = 3200}) {
+    if (_gate.pending || _byeTimer != null || !isGoodbyeText(heard)) return;
+    _log('tạm biệt: "$heard" → tự kết thúc sau câu chào');
+    _byeTimer = Timer(Duration(milliseconds: waitMs), () {
+      _endReason = 'người dùng chào tạm biệt';
+      unawaited(end());
+    });
+  }
+
   Future<void> end() async {
+    _byeTimer?.cancel();
+    _byeTimer = null;
     if (state.phase == LivePhase.idle || state.phase == LivePhase.closing) return;
     if (_endReason.isEmpty) _endReason = 'người dùng bấm Kết thúc';
     _log('kết thúc phiên: $_endReason');
@@ -433,6 +449,7 @@ class LiveLabController extends Notifier<LiveLabState> {
             _user.lastChangeMs >= 0 &&
             now - _user.lastChangeMs > 700) {
           _log('bỏ phiên âm câu Live tự trả lời: "${_user.text}"');
+          _maybeGoodbye(_user.text);
           _user.take();
         }
         if (_awaitingFirstSpeech && _lastUserAt >= 0) {
@@ -567,6 +584,8 @@ class LiveLabController extends Notifier<LiveLabState> {
       );
       return;
     }
+    // Chào tạm biệt mà Live lại giao cho phần xử lý: não trả lời câu chào, rồi tự đóng sau đó.
+    _maybeGoodbye(text, waitMs: 5000);
     // Đang chờ xác nhận gửi tin mà người dùng nói cả câu ("bấm gửi cho bác luôn đi"): coi như bấm đúng nút.
     var toBrain = text;
     if (_gate.pending) {

@@ -33,6 +33,7 @@ export const ACK_DELAY_MS = 800;
 /** Chế độ C: ứng dụng (Vy cũ) lo hành động, GPT-Live chỉ là giọng. Cần đọc nguyên văn và chuyển mọi câu trả lời kế tiếp. */
 const clientExtra = (hon: string) => `
 - Bạn CHỈ tự trả lời chào hỏi, cảm ơn, tạm biệt. MỌI câu khác của ${hon} (mở, bật, phát, nghe nhạc, dừng, tiếp, quay lại, xem, đọc, nhắn, gửi, hỏi về sức khoẻ, hay bất cứ điều gì bạn chưa chắc) đều phải giao ngay cho phần xử lý phía sau. Không hỏi lại ${hon} (ví dụ hỏi thể loại nhạc), không nói "con sẽ mở/làm", không nói "để con nhờ phần xử lý", không đoán.
+- Khi ${hon} chào tạm biệt (tạm biệt, bye, hẹn gặp lại...), chỉ đáp ĐÚNG một câu ngắn: "Dạ, con chào ${hon} ạ." rồi dừng, không hỏi thêm, không chúc dài.
 - Khi phần xử lý phía sau gửi lời cần nói, hãy đọc lại NGUYÊN VĂN lời đó, không thêm, không bớt, không diễn đạt lại.
 - Nếu phần xử lý vừa hỏi ${hon} một câu (nhắn cho ai, nhắn gì, có gửi không, chọn ai...), thì MỌI câu ${hon} nói kế tiếp, kể cả "ừ", "không", "gửi", "sửa", một cái tên hay nội dung tin nhắn, đều phải giao cho phần xử lý. Không tự trả lời, không tự xác nhận.
 - Nếu phần xử lý báo không cần nói gì thì hãy giữ im lặng, đừng tự nói thêm.`;

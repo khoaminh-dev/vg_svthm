@@ -354,9 +354,10 @@ class VoiceController extends Notifier<VoiceState> {
     await _speakAndMaybeListen(
       say,
       sayClass,
-      listenAfter: listenAfter,
+      listenAfter: listenAfter && !d.endSession,
       run: run,
       alreadySpeaking: true,
+      endAfter: d.endSession,
     );
   }
 
@@ -366,11 +367,17 @@ class VoiceController extends Notifier<VoiceState> {
     required bool listenAfter,
     required int run,
     bool alreadySpeaking = false,
+    bool endAfter = false,
   }) async {
     if (!alreadySpeaking)
       state = state.copyWith(status: VoiceStatus.speaking, say: say);
     await _player.speak(say, sayClass: sayClass);
     if (run != _run) return;
+    if (endAfter) {
+      // Chào tạm biệt xong: đóng panel, VyCore thấy panel đóng sẽ đóng phiên.
+      state = state.copyWith(status: VoiceStatus.idle, panelOpen: false);
+      return;
+    }
     if (listenAfter) {
       await _listen(); // mở mic ngay khi trợ lý nói xong
     } else {

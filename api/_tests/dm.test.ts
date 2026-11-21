@@ -203,3 +203,22 @@ test('chào hỏi, cảm ơn, việc chưa hỗ trợ trả lời ngay không g�
   assert.equal((await step({ text: 'gọi video cho con', state: {}, ui }, noNlu)).action, 'unsupported');
   assert.equal((await step({ text: 'thời tiết hôm nay', state: {}, ui }, noNlu)).action, 'unsupported');
 });
+
+test('tạm biệt: nhận câu ngắn, không nhận khi nằm trong nội dung tin nhắn', async () => {
+  const { isGoodbye } = await import('../_lib/voice/dm.js');
+  for (const t of ['tam biet', 'tam biet vy', 'bye bye', 'chao tam biet con nhe', 'cam on con tam biet', 'hen gap lai nhe']) {
+    assert.equal(isGoodbye(t), true, t);
+  }
+  for (const t of ['nhan cho lan la tam biet nhe', 'chao', 'cam on', 'mo nhac tam biet', 'toi muon noi tam biet voi ba lan']) {
+    assert.equal(isGoodbye(t), false, t);
+  }
+});
+
+test('tạm biệt trong lúc đang chờ xác nhận: chào rồi kết thúc phiên, không gửi tin', async () => {
+  const nlu: Nlu = async () => ({ intent: 'other', recipient: '', content: '', feature: '', say: '' });
+  const ui: Ui = { honorific: 'bác', contacts: [] } as unknown as Ui;
+  const d = await step({ text: 'Tạm biệt', state: { expects: 'yes_no', task: { intent: 'send_message', slots: { recipient_id: 'x', content: 'a' } } } as unknown as DState, ui }, nlu);
+  assert.equal(d.endSession, true);
+  assert.equal(d.intent, 'goodbye');
+  assert.match(d.say, /chào/);
+});

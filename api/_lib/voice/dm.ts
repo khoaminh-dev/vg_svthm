@@ -30,6 +30,8 @@ export type Decision = {
   chips: string[];
   aliasPhrase: string | null;
   learnAlias?: { alias: string; contactId: string };
+  /** Người dùng chào tạm biệt: app nói xong câu chào thì tự đóng Vy. */
+  endSession?: boolean;
 };
 
 export type NluResult = {
@@ -96,6 +98,7 @@ const S = {
   askName: (h: string) => `Dạ, ${h} nói tên người đó trong danh bạ giúp con nhé.`,
   sentOk: () => 'Dạ, con gửi rồi ạ.',
   cancelled: () => 'Dạ, con hủy rồi ạ.',
+  bye: (h: string) => `Dạ, con chào ${h} ạ.`,
   notHeard: (h: string) => `Con chưa nghe rõ, ${h} nói lại giúp con nhé.`,
   opened: () => 'Dạ, con mở rồi ạ.',
   help: (h: string) => `Con giúp ${h} nhắn tin, đo huyết áp, xem lịch sử huyết áp, nói về tình trạng sức khoẻ và mở video, nhạc trên YouTube ạ.`,
@@ -314,6 +317,12 @@ export function fastSend(orig: string, contacts: Contact[], roomId?: string | nu
   return null;
 }
 
+/** Chào tạm biệt (t đã bỏ dấu). Chỉ nhận câu ngắn, để "nhắn cho Lan là tạm biệt nhé" không làm Vy tự tắt. */
+export function isGoodbye(t: string): boolean {
+  if (t.split(' ').length > 6) return false;
+  return /^(vy |co vy |em vy )?(cam on )?(vy |con |em )?(chao )?(tam biet|bye|bye bye|hen gap lai|chao nhe|chao nha|tat vy di|dong vy lai|ket thuc di|vy nghi di|thoi nghi di)( vy| con| em| nhe| nha| a| nghen| nhi| nhoe)*$/.test(t);
+}
+
 const GREETING = /^(xin chao|chao|alo|hello|hi)( vy| co vy| em vy| ban| con)?( a| nhe)?$|^vy( oi)?( a)?$/;
 const THANKS = /^(cam on|cam on vy|cam on con|cam on em)( nhieu| a| nhe| lam)*$/;
 const NOT_SUPPORTED = /^(goi video|thoi tiet|may gio|bay gio la may gio|hom nay (la )?(thu|ngay) may|dat bao thuc|bao thuc)/;
@@ -504,6 +513,8 @@ async function stepCore(
   // 2) hủy
   if (CANCEL.test(t)) return mk({ action: 'cancel', say: S.cancelled() });
   if (REPEAT.test(t) && t.split(' ').length <= 4) return mk({ action: 'repeat', say: '' });
+  // 2b) tạm biệt: nói một câu chào rồi tự đóng
+  if (expects !== 'free_text' && isGoodbye(t)) return mk({ action: 'answer', intent: 'goodbye', say: S.bye(hon), endSession: true });
 
   let task: Task | null = state.task ? { intent: state.task.intent, slots: { ...state.task.slots } } : null;
   let learnAlias: Decision['learnAlias'];

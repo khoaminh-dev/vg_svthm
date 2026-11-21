@@ -90,6 +90,7 @@ class VoiceDecision {
     this.expectsReply = false,
     this.chips = const [],
     this.aliasPhrase,
+    this.endSession = false,
   });
 
   factory VoiceDecision.fromJson(Map<String, dynamic> j) => VoiceDecision(
@@ -109,8 +110,11 @@ class VoiceDecision {
     expectsReply: j['expects_reply'] as bool? ?? false,
     chips: [for (final c in (j['chips'] as List<dynamic>? ?? const [])) '$c'],
     aliasPhrase: j['alias_phrase'] as String?,
+    endSession: j['end_session'] as bool? ?? false,
   );
 
+  /// Người dùng chào tạm biệt: nói xong câu chào thì đóng Vy.
+  final bool endSession;
   final String
   action; // ask | confirm | execute | answer | cancel | unsupported | repeat
   final String? intent;

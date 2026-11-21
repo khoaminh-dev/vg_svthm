@@ -299,6 +299,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         choices: decision.choices,
         say: decision.say,
         say_class: decision.sayClass,
+        end_session: decision.endSession === true,
         expects_reply: decision.expectsReply,
         chips: decision.chips,
         alias_phrase: decision.aliasPhrase,
