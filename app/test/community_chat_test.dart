@@ -146,7 +146,7 @@ void main() {
         ),
       );
       await t.pumpAndSettle();
-      expect(find.text('3 người dùng'), findsOneWidget);
+      expect(find.text('Gợi ý 3 người. Gõ tên hoặc @username để tìm người khác.'), findsOneWidget);
       expect(find.text('Nguyễn Thị Lan'), findsOneWidget);
       expect(find.text('@lan'), findsOneWidget);
       final before = calls;
@@ -172,7 +172,7 @@ void main() {
 
       await t.tap(find.byKey(const Key('community-clear')));
       await t.pumpAndSettle();
-      expect(find.text('3 người dùng'), findsOneWidget);
+      expect(find.text('Gợi ý 3 người. Gõ tên hoặc @username để tìm người khác.'), findsOneWidget);
       expect(find.byKey(const Key('community-clear')), findsNothing);
     },
   );
@@ -215,7 +215,7 @@ void main() {
     show.value = true;
     await t.pumpAndSettle();
     expect(
-      find.text('3 người dùng'),
+      find.text('Gợi ý 3 người. Gõ tên hoặc @username để tìm người khác.'),
       findsOneWidget,
       reason: 'từ khoá cũ phải được xoá',
     );

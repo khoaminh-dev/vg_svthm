@@ -204,6 +204,8 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                               body: 'Thử gõ tên hoặc @username khác.',
                             );
                     }
+                    // Chưa tìm gì: chỉ gợi ý vài người, không phơi cả danh sách người lạ.
+                    final shown = query.isEmpty ? list.take(5).toList() : list;
                     return ListView(
                       key: const Key('community-list'),
                       keyboardDismissBehavior:
@@ -219,7 +221,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                           ),
                           child: Text(
                             query.isEmpty
-                                ? '${list.length} người dùng'
+                                ? 'Gợi ý ${shown.length} người. Gõ tên hoặc @username để tìm người khác.'
                                 : '${list.length} kết quả',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: AppColors.textMuted,
@@ -228,7 +230,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                         ),
                         InsetGroup(
                           children: [
-                            for (final p in list) _PersonRow(person: p),
+                            for (final p in shown) _PersonRow(person: p),
                           ],
                         ),
                       ],

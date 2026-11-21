@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/router/app_router.dart' show healthSetupSkipped;
 import '../../../../core/router/routes.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
@@ -157,6 +159,14 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
     }
   }
 
+  /// Chưa sẵn sàng: vào app trước, điền sau trong Hồ sơ → Hồ sơ sức khoẻ.
+  void _skip() {
+    final id = ref.read(currentUserProvider)?.id;
+    if (id != null) healthSetupSkipped.add(id);
+    Analytics.track('health_setup_skipped');
+    context.go(Routes.home);
+  }
+
   void _back() {
     if (_page > 0) {
       setState(() => _page--);
@@ -288,6 +298,15 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
                       ),
                     ),
                   ),
+                  if (!widget.editing)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: TextButton(
+                        key: const Key('health-skip'),
+                        onPressed: _saving ? null : _skip,
+                        child: const Text('Để sau', style: TextStyle(fontSize: 18)),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -22,45 +22,6 @@ import '../../voice/core/control_registry.dart';
 import '../data/phone_repository.dart';
 import '../../voice/core/vy_settings.dart';
 
-/// Đổi vai trò đổi cả giao diện của app, nên hỏi lại trước khi mở màn chọn (tránh chạm nhầm).
-Future<void> confirmRoleChange(BuildContext context) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => VyControlScope(
-      dialogId: 'dlg.role',
-      dialogTitle: 'Đổi vai trò?',
-      controls: [
-        VyControl(id: 'dlg.role.ok', label: 'Đổi vai trò', level: VyLevel.selfOnly),
-        VyControl(
-          id: 'dlg.role.stay',
-          label: 'Thôi',
-          aliases: const ['không', 'huỷ', 'hủy'],
-          onInvoke: () => Navigator.pop(ctx, false),
-        ),
-      ],
-      child: AlertDialog(
-        title: const Text('Đổi vai trò?', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-        content: const Text('Giao diện của app sẽ thay đổi theo vai trò mới.', style: TextStyle(fontSize: 18)),
-        actionsAlignment: MainAxisAlignment.spaceBetween,
-        actions: [
-          TextButton(
-            key: const Key('role-cancel'),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Thôi', style: TextStyle(fontSize: 18)),
-          ),
-          FilledButton(
-            key: const Key('role-confirm'),
-            style: FilledButton.styleFrom(minimumSize: const Size(140, 52)),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Đổi vai trò', style: TextStyle(fontSize: 18)),
-          ),
-        ],
-      ),
-    ),
-  );
-  if (ok == true && context.mounted) context.push(Routes.chooseRoleChange);
-}
-
 /// Tab Hồ sơ: thông tin tài khoản, phiên bản app và đăng xuất.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -841,7 +802,7 @@ class _FamilySettings extends ConsumerWidget {
           title: const Text('Đổi vai trò', style: titleStyle),
           subtitle: Text('Đang là: ${ref.watch(currentUserProvider)?.role?.label ?? 'chưa chọn'}'),
           trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => confirmRoleChange(context),
+          onTap: () => context.push(Routes.chooseRoleChange),
         ),
         if (!isFamily && !hideShortcuts)
         ListTile(

@@ -43,6 +43,10 @@ import '../../features/safety/presentation/sos_screen.dart';
 import '../../features/meds/presentation/med_plan_list_screen.dart';
 import '../../features/health/presentation/screens/health_setup_screen.dart';
 
+/// Người dùng đã bấm "Để sau" ở hồ sơ sức khoẻ ban đầu trong lần mở app này: không ép điền nữa cho tới lần mở sau.
+/// Mở app lần sau mà vẫn chưa điền thì hỏi lại (kèm nút "Để sau").
+final healthSetupSkipped = <String>{};
+
 final routerProvider = Provider<GoRouter>((ref) {
   // Báo cho router chạy lại redirect mỗi khi trạng thái đăng nhập đổi.
   final refresh = ValueNotifier<int>(0);
@@ -82,6 +86,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final hp = ref.read(healthProfileProvider);
       final missing =
           user.role != AppRole.family &&
+          !healthSetupSkipped.contains(user.id) &&
           !hp.isLoading &&
           !hp.hasError &&
           hp.hasValue &&
