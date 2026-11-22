@@ -509,6 +509,13 @@ class _ElderProfileShortcuts extends ConsumerWidget {
           () => context.push(Routes.familyInvite),
         ),
         big(
+          'profile-plan',
+          Icons.workspace_premium_outlined,
+          'Gói Vy Live',
+          _planSubtitle(ref.watch(planOverviewProvider)),
+          () => context.push(Routes.plan),
+        ),
+        big(
           'profile-emergency-card',
           Icons.medical_information_outlined,
           'Thẻ y tế khẩn cấp',
@@ -811,6 +818,7 @@ class _FamilySettings extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.go(Routes.bp),
           ),
+        if (!hideShortcuts)
         ListTile(
           key: const Key('profile-plan'),
           minTileHeight: 64,

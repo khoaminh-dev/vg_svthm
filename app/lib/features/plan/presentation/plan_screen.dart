@@ -82,6 +82,10 @@ class PlanScreen extends ConsumerWidget {
         children: [
           _StatusCard(overview: o, now: now, elder: elder),
           const SizedBox(height: AppSpacing.md),
+          if (!o.live && !(mine != null && mine.isPending)) ...[
+            const _Benefits(),
+            const SizedBox(height: AppSpacing.md),
+          ],
           if (mine != null && mine.isPending) ...[
             _PendingCard(order: mine, payNote: o.payNote, onCancel: () => _cancel(context, ref)),
           ] else ...[
@@ -90,10 +94,6 @@ class PlanScreen extends ConsumerWidget {
               style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
-            Text(
-              'Một gói dùng được cho cả người thân đang liên kết. SOS và nhắc thuốc luôn miễn phí.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-            ),
             const SizedBox(height: AppSpacing.sm),
             if (o.plans.isEmpty)
               Container(
@@ -188,6 +188,48 @@ class _StatusCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lợi ích của gói, ba dòng icon thay cho đoạn văn: nhìn là hiểu.
+class _Benefits extends StatelessWidget {
+  const _Benefits();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget row(IconData icon, String text) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(color: Color(0xFFEAF0FF), shape: BoxShape.circle),
+            child: Icon(icon, size: 24, color: AppColors.navyDeep),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.navyDeep)),
+          ),
+        ],
+      ),
+    );
+    return Container(
+      key: const Key('plan-benefits'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 14, offset: Offset(0, 3))],
+      ),
+      child: Column(
+        children: [
+          row(Icons.record_voice_over_rounded, 'Nói chuyện với Vy tự nhiên như người thật'),
+          row(Icons.groups_2_rounded, 'Một gói dùng chung cho cả người thân'),
+          row(Icons.shield_outlined, 'SOS và nhắc thuốc luôn miễn phí'),
         ],
       ),
     );
