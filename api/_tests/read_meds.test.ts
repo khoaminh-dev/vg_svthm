@@ -92,3 +92,37 @@ test('đã có màn Thuốc: "uống rồi" vẫn là nút Đã uống, còn "u�
   const b = await step({ text: 'hôm nay uống thuốc gì', state: {}, ui }, noNlu);
   assert.equal(b.intent, 'read_meds');
 });
+
+import { forgotQuery, markDoseQuery, snoozeDoseQuery } from '../_lib/voice/dm.ts';
+
+test('forgotQuery: nhận câu hỏi quên cữ, không nhận câu khẳng định', () => {
+  for (const s of ['hôm nay tôi có quên uống thuốc cữ nào không', 'tôi có quên cữ thuốc nào không', 'có bỏ sót cữ nào không', 'hôm nay tôi uống thuốc chưa', 'còn cữ nào chưa uống không']) {
+    assert.equal(forgotQuery(norm(s)), true, s);
+  }
+  for (const s of ['tôi quên uống thuốc rồi', 'tôi uống thuốc rồi', 'mở thuốc', 'nhắn cho Lan là quên mang thuốc']) {
+    assert.equal(forgotQuery(norm(s)), false, s);
+  }
+});
+
+test('markDoseQuery / snoozeDoseQuery', () => {
+  for (const s of ['uống rồi', 'tôi uống thuốc rồi', 'tôi uống rồi ạ', 'đã uống thuốc rồi', 'con uống xong rồi']) {
+    assert.equal(markDoseQuery(norm(s)), true, s);
+  }
+  for (const s of ['tôi chưa uống thuốc', 'uống thuốc chưa', 'tôi uống thuốc gì', 'có uống rồi không']) {
+    assert.equal(markDoseQuery(norm(s)), false, s);
+  }
+  for (const s of ['chưa uống', 'lát nữa tôi uống', 'nhắc lại sau']) assert.equal(snoozeDoseQuery(norm(s)), true, s);
+  assert.equal(snoozeDoseQuery(norm('chưa uống thuốc gì cả')), false);
+});
+
+test('step: "hôm nay có quên cữ nào không" → read_meds forgot; "uống rồi" → mark_dose', async () => {
+  const ui = { screen: '/', contacts: [], honorific: 'bác' };
+  const a = await step({ text: 'hôm nay tôi có quên uống thuốc cữ nào không', state: {}, ui }, noNlu);
+  assert.equal(a.intent, 'read_meds');
+  assert.equal((a.task?.slots.content ?? '').toLowerCase(), 'forgot');
+  const b = await step({ text: 'tôi uống thuốc rồi', state: {}, ui }, noNlu);
+  assert.equal(b.intent, 'mark_dose');
+  assert.equal(b.action, 'execute');
+  const c = await step({ text: 'lát nữa tôi uống', state: {}, ui }, noNlu);
+  assert.equal(c.intent, 'snooze_dose');
+});

@@ -213,7 +213,61 @@ void main() {
       expect(reminderSpeech(ReminderKind.messages, 'bác', from: 'Giang'), contains('có tin mới từ Giang'));
     });
   });
+
+  group('hỏi lại "đã uống chưa"', () {
+    final due = at(8, 0);
+    final end = at(10, 0);
+    String? key(DateTime now, {bool pending = true, DateTime? snooze}) =>
+        doseFollowUpKey(doseId: 'x', now: now, dueAt: due, windowEnd: end, pending: pending, snoozedUntil: snooze);
+
+    test('chưa tới 15 phút: chưa hỏi; 15 phút: lần 1; 30 phút: lần 2', () {
+      expect(key(at(8, 10)), isNull);
+      expect(key(at(8, 15)), 'dosechk:x:0:1');
+      expect(key(at(8, 29)), 'dosechk:x:0:1');
+      expect(key(at(8, 30)), 'dosechk:x:0:2');
+      expect(key(at(9, 30)), 'dosechk:x:0:2');
+    });
+
+    test('đã uống, quá cửa sổ hoặc đang hoãn thì không hỏi; hết hoãn thì tính lại từ lúc hết hoãn', () {
+      expect(key(at(8, 20), pending: false), isNull);
+      expect(key(at(10, 5)), isNull);
+      expect(key(at(8, 20), snooze: at(8, 40)), isNull);
+      expect(key(at(8, 45), snooze: at(8, 40)), isNull);
+      expect(key(at(8, 56), snooze: at(8, 40)), startsWith('dosechk:x:'));
+    });
+
+    test('quyết định: hỏi lại sau khi đã nhắc; không dồn nếu vừa nhắc; một lần cho mỗi mốc', () {
+      final mem = ReminderMemory();
+      final first = decideReminder(
+        ReminderInputs(now: at(8, 16), foreground: true, busy: false, doseCheckKey: 'dosechk:x:0:1'),
+        mem,
+      );
+      expect(first?.kind, ReminderKind.doseCheck);
+      mem.markShown(first!, at(8, 16));
+      expect(
+        decideReminder(ReminderInputs(now: at(8, 17), foreground: true, busy: false, doseCheckKey: 'dosechk:x:0:1'), mem),
+        isNull,
+      );
+      // mốc 2 mà vừa mới nhắc 5 phút: chờ
+      expect(
+        decideReminder(ReminderInputs(now: at(8, 21), foreground: true, busy: false, doseCheckKey: 'dosechk:x:0:2'), mem),
+        isNull,
+      );
+      expect(
+        decideReminder(ReminderInputs(now: at(8, 31), foreground: true, busy: false, doseCheckKey: 'dosechk:x:0:2'), mem)?.kind,
+        ReminderKind.doseCheck,
+      );
+    });
+
+    test('nền sau, đang bận hoặc tắt nhắc thuốc thì không hỏi', () {
+      final k = 'dosechk:x:0:1';
+      expect(decideReminder(ReminderInputs(now: at(8, 16), foreground: false, busy: false, doseCheckKey: k), ReminderMemory()), isNull);
+      expect(decideReminder(ReminderInputs(now: at(8, 16), foreground: true, busy: true, doseCheckKey: k), ReminderMemory()), isNull);
+      expect(decideReminder(ReminderInputs(now: at(8, 16), foreground: true, busy: false, enabledDose: false, doseCheckKey: k), ReminderMemory()), isNull);
+    });
+  });
 }
+
 
 extension _Let<T> on T {
   R let<R>(R Function(T) f) => f(this);

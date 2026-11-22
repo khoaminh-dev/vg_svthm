@@ -235,10 +235,32 @@ export function callTarget(t: string): string | null {
   return m[1].replace(/\s+(di|nhe|nha|a|giup toi|giup con|cho toi|cho con|ngay|luon)$/g, '').trim();
 }
 
+/** Câu hỏi "có quên/bỏ sót cữ thuốc nào không", "đã uống thuốc chưa"; t đã bỏ dấu. Vy đọc ra các cữ quá giờ chưa uống. */
+export function forgotQuery(t: string): boolean {
+  const tail = '( a| nhi| nhe| vay| the| day)*';
+  if (/\b(quen|bo sot|bo lo|bo qua)\b.*\b(cu|lan|dot|thuoc|uong)\b.*\b(nao|khong|chua)\b/.test(t) && !/\broi\b/.test(t)) return true;
+  if (/\b(cu|lan|dot|thuoc)\b.*\b(nao|gi)\b.*\b(quen|chua uong|bo sot)\b/.test(t) && /\b(khong|chua)\b/.test(t)) return true;
+  if (new RegExp('^(hom nay )?(toi |con |em )?(da )?uong thuoc( hom nay)? chua' + tail + '$').test(t)) return true;
+  if (/\bchua uong\b.*\b(nao|khong)\b/.test(t)) return true;
+  return false;
+}
+
+/** Người dùng BÁO đã uống ("uống rồi", "tôi uống thuốc rồi", "uống xong rồi"); t đã bỏ dấu. Câu hỏi hay câu phủ định không tính. */
+export function markDoseQuery(t: string): boolean {
+  if (/\b(chua|khong|dung|co|may|nao|gi|sao|chua)\b/.test(t) && !/\bco uong\b/.test(t)) return false;
+  return /^(vua |da )*(toi |con |em )?(vua |da )*uong (het |xong )?(thuoc )?(ca )?(roi|xong|xong roi|het roi)( a| nhe| nha| day| ne| nghen)*$/.test(t);
+}
+
+/** Người dùng nói lát nữa mới uống ("lát nữa tôi uống", "chưa uống, nhắc lại sau"); t đã bỏ dấu. */
+export function snoozeDoseQuery(t: string): boolean {
+  return /^(chua uong( thuoc)?|lat nua (toi |con )?uong( thuoc)?|chut nua (toi |con )?uong( thuoc)?|nhac (toi |con )?lai (sau|lat nua)|nhac lai sau)( a| nhe| nha| nghen| day)*$/.test(t);
+}
+
 /** Câu HỎI về lịch uống thuốc ("tối nay tôi phải uống thuốc gì", "mấy giờ uống thuốc", "cữ thuốc kế tiếp"); t đã bỏ dấu.
  *  Chỉ nhận câu hỏi, KHÔNG nhận câu khẳng định như "tôi uống thuốc rồi" (đó là báo đã uống) hay "mở thuốc" (mở màn). */
 export function medsQuery(t: string): boolean {
   if (/^(cu|lan|dot) (ke tiep|tiep theo)$/.test(t)) return true; // "cữ kế tiếp" (cữ chỉ nói về thuốc)
+  if (forgotQuery(t)) return true; // "hôm nay tôi có quên cữ nào không"
   if (!/\bthuoc\b/.test(t)) return false;
   if (/\b(roi|chua uong|het thuoc|mua thuoc|doi thuoc|bo thuoc|dung thuoc|doc don|don thuoc|tac dung|phu|liet)\b/.test(t)) return false;
   if (/^(mo|vao|xem|chuyen (sang|qua|den)|chup|quet|them|sua) /.test(t)) return false;
@@ -362,6 +384,9 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
   }
   if (/^(doc|nghe|cho nghe|xem) (tin nhan|tin)( moi| gan day| vua toi)?$|^(co|con) tin (nhan )?(moi )?(nao|khong)$|^ai (vua )?(nhan|gui)( tin)?( cho (toi|bac|con|co|chu))?$/.test(t))
     return { intent: 'read_messages' };
+  if (markDoseQuery(t)) return { intent: 'mark_dose' };
+  if (snoozeDoseQuery(t)) return { intent: 'snooze_dose' };
+  if (forgotQuery(t)) return { intent: 'read_meds', content: 'forgot' };
   if (medsQuery(t)) return { intent: 'read_meds' };
   const hs = healthTopic(t);
   if (hs) return { intent: 'health_status', content: hs };
@@ -436,7 +461,7 @@ const REQUIRED: Record<string, string[]> = {
   open_feature: ['feature'],
   play_video: ['content'],
   video_control: ['content'],
-  measure_bp: [], show_bp: [], read_bp: [], read_meds: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
+  measure_bp: [], show_bp: [], read_bp: [], read_meds: [], mark_dose: [], snooze_dose: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message', 'record_bp']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
@@ -796,6 +821,6 @@ function progress(
       sayClass: 'important', chips: ['Gửi', 'Sửa', 'Hủy'], learnAlias,
     });
   }
-  const say = ['read_bp', 'read_meds', 'read_messages', 'call_contact'].includes(intent) ? '' : S.opened();
+  const say = ['read_bp', 'read_meds', 'mark_dose', 'snooze_dose', 'read_messages', 'call_contact'].includes(intent) ? '' : S.opened();
   return mk({ action: 'execute', intent, task, say, learnAlias });
 }

@@ -10,6 +10,7 @@ import 'package:vg_svthm/features/bp/domain/bp_models.dart';
 import 'package:vg_svthm/features/bp/presentation/providers/bp_providers.dart';
 import 'package:vg_svthm/features/entertainment/data/youtube_service.dart';
 import 'package:vg_svthm/features/entertainment/presentation/entertainment_providers.dart';
+import 'package:vg_svthm/features/meds/data/meds_repository.dart';
 import 'package:vg_svthm/features/meds/domain/meds_models.dart';
 import 'package:vg_svthm/features/meds/presentation/meds_providers.dart';
 import 'package:vg_svthm/features/voice/core/vy_card.dart';
@@ -332,12 +333,13 @@ void main() {
   });
 
   group('Nơi tạo thẻ (VoiceActions)', () {
-    ProviderContainer make({List<BpReading> bp = const [], List<Dose> doses = const [], List<VideoItem> videos = const []}) {
+    ProviderContainer make({List<BpReading> bp = const [], List<Dose> doses = const [], List<VideoItem> videos = const [], MedsRepository? meds}) {
       final router = GoRouter(routes: [GoRoute(path: '/', builder: (_, _) => const SizedBox())]);
       final c = ProviderContainer(overrides: [
         routerProvider.overrideWithValue(router),
         bpReadingsProvider.overrideWith((ref) async => bp),
         myDosesProvider.overrideWith((ref) async => doses),
+        if (meds != null) medsRepositoryProvider.overrideWithValue(meds),
         videoSearchProvider.overrideWithValue(_FakeSearch(videos)),
       ]);
       return c;
@@ -418,6 +420,76 @@ void main() {
       expect(none.read(vyCardProvider), isNull);
     });
 
+    test('hỏi "có quên cữ nào không": nói rõ cữ quá giờ chưa uống, thẻ có nút ghi "Đã uống" cho cữ đó', () async {
+      final day = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final repo = _FakeMeds();
+      final c = make(
+        doses: [
+          dose('a', 'Sáng', day.add(const Duration(minutes: 1)), status: 'missed'),
+          dose('b', 'Trưa', day.add(const Duration(minutes: 2)), status: 'taken'),
+        ],
+        meds: repo,
+      );
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('read_meds', {'content': 'Forgot'}), const [], 'bác');
+      expect(say, contains('chưa uống túi sáng'));
+      final card = c.read(vyCardProvider)! as MedCard;
+      expect(card.title, 'Còn 1 cữ chưa uống');
+      expect(card.actions.first.label, 'Đã uống túi Sáng');
+      card.actions.first.run();
+      await Future<void>.delayed(Duration.zero);
+      expect(repo.calls, ['a:taken']);
+    });
+
+    test('hỏi "có quên không" khi không quên cữ nào: trả lời rõ là không quên', () async {
+      final day = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final c = make(doses: [dose('a', 'Sáng', day.add(const Duration(minutes: 1)), status: 'taken')]);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('read_meds', {'content': 'Forgot'}), const [], 'bác');
+      expect(say, contains('không quên cữ nào'));
+    });
+
+    test('nói "uống rồi": ghi cữ vừa đến giờ gần nhất, hỏi tiếp cữ còn lại, có nút hoàn tác', () async {
+      final day = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final repo = _FakeMeds();
+      final c = make(
+        doses: [
+          dose('a', 'Sáng', day.add(const Duration(minutes: 1))),
+          dose('b', 'Trưa', day.add(const Duration(minutes: 2))),
+        ],
+        meds: repo,
+      );
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('mark_dose'), const [], 'bác');
+      expect(repo.calls, ['b:taken']);
+      expect(say, contains('đã uống túi trưa'));
+      expect(say, contains('túi sáng'));
+      final card = c.read(vyCardProvider)! as NoticeCard;
+      expect(card.actions.map((a) => a.label), ['Đã uống túi Sáng', 'Hoàn tác']);
+      card.actions.last.run();
+      await Future<void>.delayed(Duration.zero);
+      expect(repo.calls.last, 'b:pending');
+    });
+
+    test('nói "uống rồi" khi chưa có cữ nào tới giờ: không ghi bừa', () async {
+      final repo = _FakeMeds();
+      final c = make(meds: repo);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('mark_dose'), const [], 'bác');
+      expect(repo.calls, isEmpty);
+      expect(say, contains('đều đã ghi'));
+    });
+
+    test('nói "lát nữa uống": hoãn 15 phút đúng cữ đang chờ', () async {
+      final day = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final repo = _FakeMeds();
+      final c = make(doses: [dose('a', 'Sáng', day.add(const Duration(minutes: 1)))], meds: repo);
+      addTearDown(c.dispose);
+      final say = await c.read(voiceActionsProvider).execute(task('snooze_dose'), const [], 'bác');
+      expect(repo.calls, ['a:snooze15']);
+      expect(say, contains('15 phút'));
+    });
+
     test('tìm video chung chung: KHÔNG hiện thẻ che màn, mà bật đánh số trên video thật và giữ hàng đợi', () async {
       final c = make(videos: [for (var i = 1; i <= 8; i++) video(i)]);
       addTearDown(c.dispose);
@@ -439,3 +511,15 @@ void main() {
 
 void unawaited0(Future<void> f) {}
 
+class _FakeMeds implements MedsRepository {
+  final calls = <String>[];
+
+  @override
+  Future<void> setDose(String doseId, String status) async => calls.add('$doseId:$status');
+
+  @override
+  Future<void> snooze(String doseId, int minutes) async => calls.add('$doseId:snooze$minutes');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}

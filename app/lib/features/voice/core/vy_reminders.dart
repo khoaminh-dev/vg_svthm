@@ -3,7 +3,13 @@
 library;
 
 /// Loại nhắc, theo thứ tự ưu tiên giảm dần: thuốc > đo huyết áp > tin nhắn (SOS/khẩn cấp luôn thắng và chặn mọi nhắc).
-enum ReminderKind { dose, bp, messages }
+enum ReminderKind { dose, doseCheck, bp, messages }
+
+/// Sau lần nhắc thuốc mà chưa xác nhận: hỏi lại "đã uống chưa" ở các mốc này (tối đa 2 lần, trước mốc 45 phút báo người thân).
+const doseCheckAfter = [Duration(minutes: 15), Duration(minutes: 30)];
+
+/// Hai lần nhắc thuốc liền nhau cách nhau ít nhất chừng này (đỡ nhắc dồn khi mở app muộn).
+const doseGap = Duration(minutes: 10);
 
 /// Khoảng cách tối thiểu giữa hai lần nhắc tin nhắn.
 const messageGap = Duration(minutes: 15);
@@ -57,6 +63,7 @@ class ReminderInputs {
     this.enabledMessages = true,
     this.quiet = false,
     this.doseKey,
+    this.doseCheckKey,
     this.bpDue,
     this.messages = const [],
   });
@@ -79,6 +86,9 @@ class ReminderInputs {
   /// Cữ thuốc đang đến giờ (mã `dose:<id>:<mốc hoãn>`), null nếu không có.
   final String? doseKey;
 
+  /// Hỏi lại "đã uống chưa" (mã `dosechk:<id>:<mốc hoãn>:<lần>`), null nếu chưa tới mốc.
+  final String? doseCheckKey;
+
   final BpDue? bpDue;
   final List<NewMessages> messages;
 }
@@ -88,6 +98,7 @@ class ReminderMemory {
   final done = <String>{};
   final laterCount = <String, int>{};
   DateTime? lastMessages;
+  DateTime? lastDose;
 
   /// Lúc đã nhắc từng việc (để nhớ qua lần mở lại app, tránh nhắc lặp cùng một việc).
   final _shownAt = <String, int>{};
@@ -99,6 +110,7 @@ class ReminderMemory {
     done.add(p.key);
     _shownAt[p.key] = now.millisecondsSinceEpoch;
     if (p.kind == ReminderKind.messages) lastMessages = now;
+    if (p.kind == ReminderKind.dose || p.kind == ReminderKind.doseCheck) lastDose = now;
   }
 
   /// Ảnh chụp để lưu trên máy: chỉ các việc đã nhắc chưa quá [keep].
@@ -134,6 +146,12 @@ ReminderPick? decideReminder(ReminderInputs i, ReminderMemory mem) {
   final dk = i.doseKey;
   if (i.enabledDose && dk != null && !mem.done.contains(dk)) {
     return ReminderPick(ReminderKind.dose, dk);
+  }
+
+  final ck = i.doseCheckKey;
+  if (i.enabledDose && ck != null && !mem.done.contains(ck)) {
+    final last = mem.lastDose;
+    if (last == null || i.now.difference(last) >= doseGap) return ReminderPick(ReminderKind.doseCheck, ck);
   }
 
   final bp = i.bpDue;
@@ -189,6 +207,28 @@ bool doseIsDueForReminder({
   return true;
 }
 
+/// Mã lần hỏi lại "đã uống chưa" của một cữ: tính từ giờ uống (hoặc từ lúc hết hoãn), mốc [doseCheckAfter]. Null nếu chưa tới mốc,
+/// đã xác nhận, quá cửa sổ, hoặc đang hoãn.
+String? doseFollowUpKey({
+  required String doseId,
+  required DateTime now,
+  required DateTime dueAt,
+  required DateTime windowEnd,
+  required bool pending,
+  DateTime? snoozedUntil,
+}) {
+  if (!pending || now.isAfter(windowEnd)) return null;
+  if (snoozedUntil != null && now.isBefore(snoozedUntil)) return null;
+  final base = snoozedUntil ?? dueAt;
+  final elapsed = now.difference(base);
+  var n = 0;
+  for (var k = 0; k < doseCheckAfter.length; k++) {
+    if (elapsed >= doseCheckAfter[k]) n = k + 1;
+  }
+  if (n == 0) return null;
+  return 'dosechk:$doseId:${snoozedUntil?.millisecondsSinceEpoch ?? 0}:$n';
+}
+
 /// Giờ nhắc đo huyết áp hôm nay đã đến mà CHƯA đo (kể từ 1 giờ trước giờ nhắc) và còn trong [bpWindow]; null nếu không.
 /// [slots] dạng {"morning": "08:00", "evening": "19:00"}; [measured] là các lần đo gần nhất.
 BpDue? bpReminderDue(DateTime now, Map<String, String> slots, List<DateTime> measured) {
@@ -240,6 +280,8 @@ String reminderSpeech(ReminderKind kind, String hon, {String? doseWhat, String? 
   switch (kind) {
     case ReminderKind.dose:
       return 'Đến giờ uống thuốc rồi $hon ơi.${doseWhat == null ? '' : ' $hon lấy $doseWhat nhé.'}';
+    case ReminderKind.doseCheck:
+      return '$hon đã uống${doseWhat == null ? ' thuốc' : ' $doseWhat'} chưa ạ?';
     case ReminderKind.bp:
       return 'Đến giờ đo huyết áp rồi $hon ơi.';
     case ReminderKind.messages:

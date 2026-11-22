@@ -136,6 +136,18 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
         doseKey = doseReminderKey(d.id, d.snoozedUntil);
       }
 
+      String? doseCheckKey;
+      if (d != null) {
+        doseCheckKey = doseFollowUpKey(
+          doseId: d.id,
+          now: now,
+          dueAt: d.dueAt,
+          windowEnd: d.windowEnd,
+          pending: d.status == 'pending',
+          snoozedUntil: d.snoozedUntil,
+        );
+      }
+
       final bpSettings = ref.read(bpReminderSettingsProvider).value ?? const BpReminderSettings();
       final bp = bpSettings.effectiveEnabled(elder: true) ? bpReminderDue(now, bpSettings.slots, _measured) : null;
 
@@ -157,6 +169,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
           enabledMessages: settings.remindMessages,
           quiet: quiet,
           doseKey: doseKey,
+          doseCheckKey: doseCheckKey,
           bpDue: bp,
           messages: [for (final g in groups) if (g.roomId != openRoom) g],
         ),
@@ -206,6 +219,44 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
                 label: 'Lát nữa nhắc',
                 run: () async {
                   Analytics.track('vy_remind_reply', {'kind': 'dose', 'reply': 'snooze'});
+                  try {
+                    await repo.snooze(d.id, 15);
+                  } catch (_) {}
+                  refresh();
+                },
+              ),
+            ],
+          ),
+        );
+      case ReminderKind.doseCheck:
+        final d = dose;
+        if (d == null) return;
+        final repo = ref.read(medsRepositoryProvider);
+        void refresh() => ref
+          ..invalidate(myDosesProvider)
+          ..invalidate(myPlansProvider);
+        await core.remind(
+          kind: 'dose_check',
+          speech: reminderSpeech(ReminderKind.doseCheck, hon, doseWhat: '${d.bag ? 'túi ' : ''}${d.label.toLowerCase()}'),
+          card: NoticeCard(
+            title: 'Đã uống thuốc chưa ạ?',
+            body: '${d.hm} · ${d.bag ? 'Túi ' : ''}${d.label}${d.items.isEmpty ? '' : '\n${d.items.map((i) => i.text).join('; ')}'}',
+            actions: [
+              VyCardAction(
+                label: 'Đã uống rồi',
+                primary: true,
+                run: () async {
+                  Analytics.track('vy_remind_reply', {'kind': 'dose_check', 'reply': 'taken'});
+                  try {
+                    await repo.setDose(d.id, 'taken');
+                  } catch (_) {}
+                  refresh();
+                },
+              ),
+              VyCardAction(
+                label: 'Chưa, nhắc lại sau',
+                run: () async {
+                  Analytics.track('vy_remind_reply', {'kind': 'dose_check', 'reply': 'snooze'});
                   try {
                     await repo.snooze(d.id, 15);
                   } catch (_) {}

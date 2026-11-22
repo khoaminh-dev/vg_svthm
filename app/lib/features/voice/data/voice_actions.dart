@@ -234,7 +234,11 @@ class VoiceActions {
       case 'read_bp':
         return await readBp(honorific);
       case 'read_meds':
-        return await readMeds(honorific);
+        return await readMeds(honorific, forgot: (s['content'] ?? '').toLowerCase() == 'forgot');
+      case 'mark_dose':
+        return await markDoseTaken(honorific);
+      case 'snooze_dose':
+        return await snoozeDose(honorific);
       case 'record_bp':
         return await recordBp(s, honorific);
       case 'read_messages':
@@ -637,7 +641,7 @@ class VoiceActions {
   }
 
   /// Đọc cữ thuốc kế tiếp và các cữ hôm nay, kèm thẻ Thuốc.
-  Future<String> readMeds(String honorific) async {
+  Future<String> readMeds(String honorific, {bool forgot = false}) async {
     final cap = '${honorific[0].toUpperCase()}${honorific.substring(1)}';
     final List<Dose> all;
     try {
@@ -669,10 +673,12 @@ class VoiceActions {
       DoseState.due => ('Đến giờ', AppColors.navy),
       DoseState.upcoming => ('Sắp tới', AppColors.textMuted),
     };
+    // Cữ đã quá giờ mà chưa uống (kể cả cữ chờ máy chủ đánh dấu): Vy nói ra và cho ghi "đã uống" ngay trên thẻ.
+    final missed = [for (final d in todays) if (d.stateAt(now) == DoseState.missed) d];
     final router = _ref.read(routerProvider);
     _ref.read(vyCardProvider.notifier).show(
       MedCard(
-        title: next != null ? 'Cữ kế tiếp lúc ${next.hm}' : 'Thuốc hôm nay',
+        title: missed.isNotEmpty ? 'Còn ${missed.length} cữ chưa uống' : (next != null ? 'Cữ kế tiếp lúc ${next.hm}' : 'Thuốc hôm nay'),
         rows: [
           for (final d in todays)
             MedRow(
@@ -685,9 +691,23 @@ class VoiceActions {
             ),
         ],
         actions: [
+          for (final m in missed.take(2))
+            VyCardAction(
+              label: 'Đã uống ${m.bag ? 'túi ' : ''}${m.label}',
+              primary: true,
+              run: () async {
+                Analytics.track('vy_dose_mark', {'via': 'card_missed'});
+                try {
+                  await _ref.read(medsRepositoryProvider).setDose(m.id, 'taken');
+                } catch (_) {}
+                _ref
+                  ..invalidate(myDosesProvider)
+                  ..invalidate(myPlansProvider);
+              },
+            ),
           VyCardAction(
             label: 'Mở màn thuốc',
-            primary: true,
+            primary: missed.isEmpty,
             run: () {
               _ref.read(healthTabProvider.notifier).set(2);
               router.go(Routes.bp);
@@ -696,14 +716,111 @@ class VoiceActions {
         ],
       ),
     );
+    final names = missed.map((d) => '${d.bag ? 'túi ' : ''}${d.label.toLowerCase()} lúc ${d.hm}').join(' và ');
+    final lead = missed.isNotEmpty
+        ? 'Hôm nay $honorific chưa uống $names ạ. $cap uống bù rồi thì nói "uống rồi" để con ghi lại nhé. '
+        : (forgot ? 'Hôm nay $honorific không quên cữ nào ạ. ' : '');
     if (next == null) {
-      return '$cap đã xong các cữ thuốc hôm nay rồi ạ.';
+      return missed.isNotEmpty ? lead.trim() : '$lead$cap đã xong các cữ thuốc hôm nay rồi ạ.'.trim();
     }
     final left = todays
         .where((d) => d.id != next!.id && (d.stateAt(now) == DoseState.upcoming || d.stateAt(now) == DoseState.due))
         .length;
     final more = left > 0 ? ' Hôm nay còn $left cữ nữa.' : '';
-    return 'Cữ kế tiếp lúc ${next.hm}: ${next.what}.$more';
+    return '${lead}Cữ kế tiếp lúc ${next.hm}: ${next.what}.$more';
+  }
+
+  /// Các cữ hôm nay đang chờ ghi (đã đến giờ hoặc quá giờ, chưa uống/bỏ qua), mới nhất trước.
+  Future<List<Dose>?> _openDoses() async {
+    try {
+      final all = await _ref.read(myDosesProvider.future);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final list = [
+        for (final d in all)
+          if (d.status != 'taken' &&
+              d.status != 'skipped' &&
+              !d.dueAt.isBefore(today) &&
+              d.dueAt.isBefore(today.add(const Duration(days: 1))) &&
+              !d.dueAt.isAfter(now.add(Dose.earlyWindow)))
+            d,
+      ]..sort((a, b) => b.dueAt.compareTo(a.dueAt));
+      return list;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Người dùng nói "uống rồi": ghi cữ vừa đến giờ gần nhất là đã uống (có nút hoàn tác). Còn cữ khác chưa ghi thì hỏi tiếp.
+  Future<String> markDoseTaken(String honorific) async {
+    final open = await _openDoses();
+    if (open == null) return 'Con chưa ghi được, $honorific bấm "Đã uống" ở màn thuốc giúp con nhé.';
+    if (open.isEmpty) return 'Dạ, các cữ đến giờ đều đã ghi là uống rồi ạ.';
+    final d = open.first;
+    final repo = _ref.read(medsRepositoryProvider);
+    try {
+      await repo.setDose(d.id, 'taken');
+    } catch (_) {
+      return 'Con chưa ghi được, $honorific bấm "Đã uống" ở màn thuốc giúp con nhé.';
+    }
+    Analytics.track('vy_dose_mark', {'via': 'voice'});
+    _ref
+      ..invalidate(myDosesProvider)
+      ..invalidate(myPlansProvider);
+    final others = open.skip(1).toList();
+    final name = '${d.bag ? 'túi ' : ''}${d.label.toLowerCase()}';
+    _ref.read(vyCardProvider.notifier).show(
+      NoticeCard(
+        title: 'Đã ghi uống $name',
+        body: '${d.hm}${others.isEmpty ? '' : '\nCòn chưa ghi: ${others.map((o) => '${o.bag ? 'túi ' : ''}${o.label} ${o.hm}').join(', ')}'}',
+        actions: [
+          for (final o in others.take(2))
+            VyCardAction(
+              label: 'Đã uống ${o.bag ? 'túi ' : ''}${o.label}',
+              primary: true,
+              run: () async {
+                Analytics.track('vy_dose_mark', {'via': 'card_other'});
+                try {
+                  await repo.setDose(o.id, 'taken');
+                } catch (_) {}
+                _ref
+                  ..invalidate(myDosesProvider)
+                  ..invalidate(myPlansProvider);
+              },
+            ),
+          VyCardAction(
+            label: 'Hoàn tác',
+            run: () async {
+              try {
+                await repo.setDose(d.id, 'pending');
+              } catch (_) {}
+              _ref
+                ..invalidate(myDosesProvider)
+                ..invalidate(myPlansProvider);
+            },
+          ),
+        ],
+      ),
+    );
+    final tail = others.isEmpty
+        ? ''
+        : ' Còn ${others.length == 1 ? '${others.first.bag ? 'túi ' : ''}${others.first.label.toLowerCase()} lúc ${others.first.hm}' : '${others.length} cữ nữa'} chưa ghi, $honorific đã uống chưa ạ?';
+    return 'Dạ, con ghi $honorific đã uống $name rồi ạ.$tail';
+  }
+
+  /// Người dùng nói "lát nữa uống": hoãn nhắc cữ đang chờ 15 phút.
+  Future<String> snoozeDose(String honorific) async {
+    final open = await _openDoses();
+    if (open == null || open.isEmpty) return 'Dạ, hiện không có cữ nào đang chờ ạ.';
+    final d = open.first;
+    try {
+      await _ref.read(medsRepositoryProvider).snooze(d.id, 15);
+    } catch (_) {
+      return 'Con chưa hoãn được ạ.';
+    }
+    Analytics.track('vy_dose_snooze', {'via': 'voice'});
+    _ref.invalidate(myDosesProvider);
+    return 'Dạ, 15 phút nữa con nhắc $honorific uống ${d.bag ? 'túi ' : ''}${d.label.toLowerCase()} nhé.';
   }
 
   Future<String> readBp(String honorific) async {
