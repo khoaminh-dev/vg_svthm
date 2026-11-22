@@ -364,6 +364,40 @@ async function handleSos(b: Record<string, unknown>) {
   })));
 }
 
+// SOS chưa ai nhận sau 60 giây: báo lại tất cả con (kèm vị trí nếu đã có).
+async function handleSosRepeat(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const sosId = String(b.sos_id ?? '');
+  if (!owner || !sosId) return { skipped: 'bad_request' };
+  const carers = await carersOf(owner, ['alerts']);
+  if (!carers.length) return { sent: 0 };
+  const [name, tokens, ev] = await Promise.all([
+    nameOf(owner),
+    tokensOf(carers),
+    select<{ lat: number | null; status: string }[]>(`sos_events?id=eq.${sosId}&select=lat,status`),
+  ]);
+  if (ev[0]?.status !== 'open') return { skipped: 'handled' };
+  const where = ev[0]?.lat != null ? ' Đã có vị trí.' : '';
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: `SOS CHƯA AI NHẬN: ${name} cần giúp`, body: `Đã hơn 1 phút chưa ai nhận.${where} Bấm để gọi ngay.`, data: { type: 'sos', sos_id: sosId, owner_id: owner } },
+  })));
+}
+
+// SOS chưa ai nhận sau 3 phút: nhắc chính chủ gọi 115.
+async function handleSosOwner(b: Record<string, unknown>) {
+  const owner = String(b.owner_id ?? '');
+  const sosId = String(b.sos_id ?? '');
+  if (!owner || !sosId) return { skipped: 'bad_request' };
+  const ev = await select<{ status: string }[]>(`sos_events?id=eq.${sosId}&select=status`);
+  if (ev[0]?.status !== 'open') return { skipped: 'handled' };
+  const tokens = await tokensOf([owner]);
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: 'Chưa ai nhận tin SOS của bác', body: 'Nếu cần giúp ngay, bác bấm vào đây rồi gọi 115.', data: { type: 'sos', sos_id: sosId, owner_id: owner } },
+  })));
+}
+
 async function handleSosAck(b: Record<string, unknown>) {
   const owner = String(b.owner_id ?? '');
   const sosId = String(b.sos_id ?? '');
@@ -448,6 +482,8 @@ Deno.serve(async (req) => {
       : b.type === 'dose_missed' ? await handleDoseMissed(b)
       : b.type === 'sos' ? await handleSos(b)
       : b.type === 'sos_ack' ? await handleSosAck(b)
+      : b.type === 'sos_repeat' ? await handleSosRepeat(b)
+      : b.type === 'sos_owner' ? await handleSosOwner(b)
       : b.type === 'digest' ? await handleDigest(b)
       : b.type === 'med_reminder' ? await handleMedReminder(b)
       : { skipped: 'type' };

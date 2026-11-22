@@ -16,13 +16,13 @@ final phoneLauncherProvider = Provider<Future<void> Function(String)>(
   },
 );
 
-/// Nút SOS phải GIỮ đủ [hold] mới gửi, để không bấm thoáng qua hay bấm nhầm. Có vòng tiến trình và rung.
+/// Nút SOS phải GIỮ đủ [hold] (2 giây) mới gửi, để không bấm thoáng qua hay bấm nhầm. Có vòng tiến trình và rung.
 /// Người dùng TalkBack không giữ được: thao tác "kích hoạt" mở hộp xác nhận.
 class SosHoldButton extends StatefulWidget {
   const SosHoldButton({
     super.key,
     required this.onTriggered,
-    this.hold = const Duration(seconds: 3),
+    this.hold = const Duration(seconds: 2),
   });
 
   final VoidCallback onTriggered;
@@ -96,7 +96,7 @@ class _SosHoldButtonState extends State<SosHoldButton>
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Nút SOS. Giữ ba giây để báo người thân',
+      label: 'Nút SOS. Giữ hai giây để báo người thân',
       onTap: _confirm,
       excludeSemantics: true,
       child: Listener(
@@ -143,8 +143,8 @@ class _SosHoldButtonState extends State<SosHoldButton>
                             _c.isAnimating
                                 ? 'Giữ thêm ${(widget.hold.inMilliseconds * (1 - _c.value) / 1000).ceil()} giây…'
                                 : _hint
-                                ? 'Giữ đủ 3 giây để gọi SOS'
-                                : 'Giữ 3 giây để gọi SOS',
+                                ? 'Giữ đủ 2 giây để gọi SOS'
+                                : 'Giữ 2 giây để gọi SOS',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 19,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/errors/app_failure.dart';
@@ -93,6 +94,22 @@ class _SosScreenState extends ConsumerState<SosScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Người thân: một chạm vừa nhận SOS (để người khác khỏi gọi trùng) vừa gọi cho người cần giúp.
+  Future<void> _ackAndCall(SosEvent e, String phone) async {
+    final call = ref.read(phoneLauncherProvider);
+    unawaited(call(phone));
+    await _ack(e);
+  }
+
+  Future<void> _openMap(SosEvent e) async {
+    try {
+      await launchUrl(
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lng}'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {}
   }
 
   Future<void> _cancel(SosEvent e) async {
@@ -192,14 +209,22 @@ class _SosScreenState extends ConsumerState<SosScreen> {
               key: const Key('sos-status-handled'),
             );
           } else if (mine) {
+            // Quá 1 phút chưa ai nhận: máy chủ đã báo lại lần nữa, màn này nhắc gọi 115.
+            final waited = watchers.isNotEmpty && DateTime.now().difference(e.createdAt) >= const Duration(seconds: 60);
             status = _banner(
               theme,
               Icons.notifications_active_rounded,
-              watchers.isEmpty ? 'Chưa báo được cho ai' : 'Đã báo cho ${watchers.map((l) => _nameOf(links, l.otherId)).join(', ')}',
+              watchers.isEmpty
+                  ? 'Chưa báo được cho ai'
+                  : waited
+                      ? 'Chưa ai nhận tin của bác'
+                      : 'Đã báo cho ${watchers.map((l) => _nameOf(links, l.otherId)).join(', ')}',
               watchers.isEmpty
                   ? 'Chưa có người thân liên kết nhận SOS. Hãy gọi cấp cứu 115 hoặc người thân ngay.'
-                  : hon('Đang chờ người thân nhận. Nếu nguy hiểm, bác gọi 115 ngay.'),
-              key: const Key('sos-status-open'),
+                  : waited
+                      ? hon('Con đã báo lại cho người thân. Nếu nguy hiểm, bác gọi 115 ngay.')
+                      : hon('Đang chờ người thân nhận. Nếu nguy hiểm, bác gọi 115 ngay.'),
+              key: Key(waited ? 'sos-status-waited' : 'sos-status-open'),
             );
           } else {
             status = _banner(theme, Icons.sos_rounded, '$who vừa bấm SOS lúc $time',
@@ -211,22 +236,40 @@ class _SosScreenState extends ConsumerState<SosScreen> {
             key: Key(mine ? 'sos-owner' : 'sos-carer'),
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              // Chủ đang cần giúp: nút gọi lên đầu, không phải kéo xuống tìm.
+              if (mine && e.open) ...[
+                CallButtons(card: card),
+                const SizedBox(height: 6),
+              ],
               status,
               const SizedBox(height: AppSpacing.md),
               if (!mine && e.open) ...[
-                FilledButton.icon(
-                  key: const Key('sos-ack'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 56),
-                    backgroundColor: AppColors.levelGood,
-                  ),
-                  onPressed: _busy ? null : () => _ack(e),
-                  icon: const Icon(Icons.check),
-                  label: const Text('Tôi đã nhận', style: TextStyle(fontSize: 19)),
+                Builder(builder: (_) {
+                  final phone = (card?.ownPhone ?? '').trim();
+                  return FilledButton.icon(
+                    key: const Key('sos-ack'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 64),
+                      backgroundColor: AppColors.levelGood,
+                    ),
+                    onPressed: _busy ? null : () => phone.isEmpty ? _ack(e) : _ackAndCall(e, phone),
+                    icon: Icon(phone.isEmpty ? Icons.check : Icons.call),
+                    label: Text(phone.isEmpty ? 'Tôi đã nhận' : 'Gọi $who & nhận SOS', style: const TextStyle(fontSize: 19)),
+                  );
+                }),
+                const SizedBox(height: 10),
+              ],
+              if (!mine && e.hasLocation) ...[
+                OutlinedButton.icon(
+                  key: const Key('sos-map'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
+                  onPressed: () => _openMap(e),
+                  icon: const Icon(Icons.location_on_outlined),
+                  label: Text('Xem vị trí của $who', style: const TextStyle(fontSize: 18)),
                 ),
                 const SizedBox(height: 10),
               ],
-              CallButtons(card: card, ownerLabel: mine ? null : who),
+              if (!(mine && e.open)) CallButtons(card: card, ownerLabel: mine ? null : who),
               const SizedBox(height: 6),
               EmergencyCardView(card: card, medsTexts: meds),
               if (mine && e.open) ...[

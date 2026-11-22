@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/errors/app_failure.dart';
@@ -33,9 +36,27 @@ class SupabaseSafetyRepository implements SafetyRepository {
 
   @override
   Future<String> triggerSos() => _guard(() async {
-    final id = await _client.rpc('trigger_sos');
-    return id as String;
+    final id = await _client.rpc('trigger_sos') as String;
+    // Vị trí gửi bù sau (không chặn SOS): người thân thấy nút "Xem vị trí" khi có.
+    unawaited(_attachLocation(id));
+    return id;
   });
+
+  Future<void> _attachLocation(String id) async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return;
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return;
+      final p = await Geolocator.getLastKnownPosition() ??
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 8)),
+          );
+      await _client.rpc('update_sos_location', params: {'p_id': id, 'p_lat': p.latitude, 'p_lng': p.longitude});
+    } catch (_) {
+      // không có vị trí thì thôi, SOS vẫn đã gửi
+    }
+  }
 
   @override
   Future<String> ackSos(String id) => _guard(() async {

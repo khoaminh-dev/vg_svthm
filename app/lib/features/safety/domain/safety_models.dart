@@ -8,6 +8,8 @@ class SosEvent {
     this.cancelled = false,
     this.handledBy,
     this.handledAt,
+    this.lat,
+    this.lng,
   });
 
   factory SosEvent.fromMap(Map<String, dynamic> m) => SosEvent(
@@ -20,6 +22,8 @@ class SosEvent {
     handledAt: m['handled_at'] == null
         ? null
         : DateTime.parse(m['handled_at'] as String).toLocal(),
+    lat: (m['lat'] as num?)?.toDouble(),
+    lng: (m['lng'] as num?)?.toDouble(),
   );
 
   final String id;
@@ -29,6 +33,11 @@ class SosEvent {
   final bool cancelled;
   final String? handledBy;
   final DateTime? handledAt;
+
+  /// Vị trí lúc bấm SOS (có sau vài giây nếu người dùng cho phép).
+  final double? lat;
+  final double? lng;
+  bool get hasLocation => lat != null && lng != null;
 
   /// SOS còn mở: chưa ai nhận, chưa huỷ.
   bool get open => !handled;

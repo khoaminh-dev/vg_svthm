@@ -70,12 +70,14 @@ class FakeSafety implements SafetyRepository {
   }
 }
 
-SosEvent sosEvent({String owner = 'me', bool handled = false, String? by}) => SosEvent(
+SosEvent sosEvent({String owner = 'me', bool handled = false, String? by, DateTime? at, double? lat, double? lng}) => SosEvent(
   id: 's1',
   ownerId: owner,
-  createdAt: DateTime(2026, 11, 16, 14, 5),
+  createdAt: at ?? DateTime(2026, 11, 16, 14, 5),
   handled: handled,
   handledBy: by,
+  lat: lat,
+  lng: lng,
 );
 
 Widget hostSos(Widget child, {required FakeSafety safety, required FakeFamily fam, List<String>? dialed}) => ProviderScope(
@@ -98,8 +100,8 @@ const _card = EmergencyCard(
 );
 
 void main() {
-  group('nút SOS giữ 3 giây', () {
-    testWidgets('giữ đủ 3 giây thì gửi; thả sớm thì không và nhắc giữ đủ', (t) async {
+  group('nút SOS giữ 2 giây', () {
+    testWidgets('giữ đủ 2 giây thì gửi; thả sớm thì không và nhắc giữ đủ', (t) async {
       var n = 0;
       await t.pumpWidget(MaterialApp(home: Scaffold(body: SosHoldButton(onTriggered: () => n++))));
       // Thả sau 1 giây
@@ -110,7 +112,7 @@ void main() {
       await g.up();
       await t.pump();
       expect(n, 0);
-      expect(find.text('Giữ đủ 3 giây để gọi SOS'), findsOneWidget);
+      expect(find.text('Giữ đủ 2 giây để gọi SOS'), findsOneWidget);
       // Chạm nhanh cũng không gửi
       await t.tap(find.byKey(const Key('sos-button')));
       await t.pump(const Duration(seconds: 4));
@@ -118,7 +120,7 @@ void main() {
       // Giữ đủ
       g = await t.startGesture(t.getCenter(find.byKey(const Key('sos-button'))));
       await t.pump(); // khung hình đầu tiên đặt mốc bắt đầu của bộ đếm
-      await t.pump(const Duration(milliseconds: 3100));
+      await t.pump(const Duration(milliseconds: 2100));
       expect(n, 1);
       await g.up();
       await t.pump();
@@ -129,7 +131,7 @@ void main() {
   testWidgets('màn SOS của chủ: báo cho ai, gọi 115, huỷ bấm nhầm', (t) async {
     bigScreen(t);
     final dialed = <String>[];
-    final safety = FakeSafety(event: sosEvent(), cardData: _card);
+    final safety = FakeSafety(event: sosEvent(at: DateTime.now()), cardData: _card);
     final fam = FakeFamily(links: [link('l1', role: 'owner', other: 'c1', name: 'Minh')]);
     await t.pumpWidget(hostSos(const SosScreen(sosId: 's1'), safety: safety, fam: fam, dialed: dialed));
     await t.pumpAndSettle();
@@ -175,10 +177,32 @@ void main() {
 
     await t.tap(find.byKey(const Key('sos-ack')));
     await t.pumpAndSettle();
+    expect(dialed, ['0912 345 678', '0912 345 678'], reason: 'một chạm vừa nhận vừa gọi chủ SOS');
     expect(safety.calls, contains('ack:s1'));
     expect(find.byKey(const Key('sos-status-handled')), findsOneWidget);
     expect(find.text('Bạn đã nhận SOS này'), findsOneWidget);
     expect(find.byKey(const Key('sos-ack')), findsNothing);
+  });
+
+  testWidgets('con: nút duy nhất vừa gọi vừa nhận; có vị trí thì có nút xem vị trí', (t) async {
+    bigScreen(t);
+    final dialed = <String>[];
+    final safety = FakeSafety(event: sosEvent(owner: 'p1', lat: 10.77, lng: 106.69), cardData: _card);
+    await t.pumpWidget(hostSos(const SosScreen(sosId: 's1'), safety: safety, fam: FakeFamily(links: [link('l1')]), dialed: dialed));
+    await t.pumpAndSettle();
+    expect(find.text('Gọi Nguyễn Thị Lan & nhận SOS'), findsOneWidget);
+    expect(find.byKey(const Key('sos-map')), findsOneWidget);
+  });
+
+  testWidgets('chủ: nút gọi 115 nằm trên cùng; quá 1 phút chưa ai nhận thì báo "chưa ai nhận"', (t) async {
+    bigScreen(t);
+    final safety = FakeSafety(event: sosEvent(at: DateTime.now().subtract(const Duration(minutes: 2))), cardData: _card);
+    final fam = FakeFamily(links: [link('l1', role: 'owner', other: 'c1', name: 'Minh')]);
+    await t.pumpWidget(hostSos(const SosScreen(sosId: 's1'), safety: safety, fam: fam));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('sos-status-waited')), findsOneWidget);
+    expect(find.text('Chưa ai nhận tin của bác'), findsOneWidget);
+    expect(t.getTopLeft(find.byKey(const Key('call-115'))).dy, lessThan(t.getTopLeft(find.byKey(const Key('sos-status-waited'))).dy));
   });
 
   testWidgets('đã có người khác nhận: con thấy tên người đó, không có nút nhận', (t) async {
