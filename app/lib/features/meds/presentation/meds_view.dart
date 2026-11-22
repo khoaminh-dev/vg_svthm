@@ -288,7 +288,23 @@ class _MedsViewState extends ConsumerState<MedsView> {
       const SizedBox(height: AppSpacing.md),
       _Card(
         title: '7 ngày qua',
-        child: _WeekStrip(doses: all, today: today, now: now),
+        child: Column(
+          children: [
+            _WeekStrip(doses: all, today: today, now: now),
+            const SizedBox(height: 10),
+            // Chú thích để nhìn là hiểu: xanh = đủ, vàng = thiếu, đỏ = quên, xám = chưa có cữ.
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 14,
+              runSpacing: 4,
+              children: const [
+                _Legend(Icons.check_circle_rounded, AppColors.levelGood, 'Uống đủ'),
+                _Legend(Icons.timelapse_rounded, AppColors.levelWatch, 'Thiếu'),
+                _Legend(Icons.cancel_rounded, AppColors.levelDanger, 'Quên'),
+              ],
+            ),
+          ],
+        ),
       ),
       const SizedBox(height: AppSpacing.md),
       Padding(
@@ -616,16 +632,29 @@ class _DoseCard extends StatelessWidget {
               ],
             ),
           ],
-          if (state == DoseState.missed)
+          if (state == DoseState.missed) ...[
+            const SizedBox(height: AppSpacing.md),
+            // Lỡ giờ nhưng đã uống (muộn): ghi lại được, không còn ngõ cụt.
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: OutlinedButton.icon(
+                key: Key('dose-taken-late-${dose.id}'),
+                onPressed: take,
+                icon: const Icon(Icons.check_rounded, size: 24),
+                label: const Text('Tôi đã uống rồi', style: TextStyle(fontSize: 18)),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                hon('Bác không uống bù. Nếu băn khoăn, bác hỏi bác sĩ nhé.'),
+                hon('Chưa uống thì bác đừng uống bù, hỏi bác sĩ nhé.'),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: AppColors.textMuted,
                 ),
               ),
             ),
+          ],
           if (canUndo)
             Align(
               alignment: Alignment.centerRight,
@@ -643,6 +672,26 @@ class _DoseCard extends StatelessWidget {
 
   static String _hm(DateTime t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend(this.icon, this.color, this.text);
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 4),
+        Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      ],
+    );
+  }
 }
 
 /// 7 ngày qua: mỗi ngày một vòng, đầy là uống đủ, nửa là thiếu, rỗng là bỏ lỡ.

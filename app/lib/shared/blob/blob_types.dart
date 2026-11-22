@@ -31,8 +31,8 @@ class BlobPalette {
     Color.lerp(a.accent, b.accent, t)!,
   );
 
-  /// Chưa đánh thức: xám, khói trôi chậm.
-  static const sleeping = BlobPalette(Color(0xFF8D94A3), Color(0xFFB4BAC6), Color(0xFFE3E6EC), Color(0xFF9AA1AF));
+  /// Đang nghỉ (chờ chạm): xanh nhạt, mắt nhắm, thở nhẹ. Không xám để khỏi giống nút bị tắt.
+  static const sleeping = BlobPalette(Color(0xFFA3B4FF), Color(0xFFBFCDFF), Color(0xFFE8EEFF), Color(0xFF8CA0FF));
 
   static BlobPalette of(BlobMood m) => switch (m) {
     BlobMood.calm => const BlobPalette(Color(0xFF7F93FF), Color(0xFF9DB6FF), Color(0xFFDDE8FF), Color(0xFF6F86FF)),

@@ -49,7 +49,9 @@ void main() {
     final vy = t.getSize(find.byKey(const Key('elder-vy')));
     expect(vy.height, greaterThan(300), reason: 'Vy là nút chính, chiếm vùng lớn nhất màn hình');
     for (final tile in elderTiles) {
-      expect(find.byKey(Key('elder-tile-${tile.key}')), findsOneWidget, reason: tile.label);
+      // Thuốc và Sức khoẻ đã có thẻ riêng ở trên, không lặp thành ô.
+      final inCard = tile.key == 'meds' || tile.key == 'health';
+      expect(find.byKey(Key('elder-tile-${tile.key}')), inCard ? findsNothing : findsOneWidget, reason: tile.label);
     }
     expect(find.text('Tin nhắn'), findsOneWidget);
     expect(find.text('Cộng đồng'), findsOneWidget);

@@ -217,7 +217,9 @@ class BlobEngine {
     // --- mắt ---
     final eyes = <BlobEye>[];
     final eyeOpen = aw > 0.45 ? easeOutBack(clamp01((aw - 0.45) / 0.45)) : 0.0;
-    final eyeAlpha = clamp01(aw * 1.6 - 0.5) * (1 - _bangV);
+    // Lúc nghỉ: mắt nhắm (vạch mảnh) để trông như đang chờ, không phải nút bị tắt.
+    final restAlpha = 0.75 * (1 - clamp01(aw * 2.2));
+    final eyeAlpha = math.max(clamp01(aw * 1.6 - 0.5), restAlpha) * (1 - _bangV);
     if (eyeAlpha > 0.01) {
       final ex = _curExpr();
       final g = HeadGaze(
@@ -260,7 +262,7 @@ class BlobEngine {
       eyes: eyes,
       cloudT: _cloudPhase,
       cloudSpeed: 1,
-      glow: clamp01(0.35 + 0.4 * aw + 0.35 * lvl + 0.3 * _kick),
+      glow: clamp01(0.35 + 0.4 * aw + 0.35 * lvl + 0.3 * _kick + 0.12 * (1 - aw) * math.sin(t * 1.6)),
       ringT: ringOn ? easeOutCubic(rp) : 0,
       ringAlpha: ringOn ? 1 - rp : 0,
       bang: _bangV,

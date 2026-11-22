@@ -423,7 +423,8 @@ void main() {
     await t.pumpWidget(host(const MedsView(), repo));
     await t.pumpAndSettle();
     expect(find.text('Chưa uống, đã quá giờ'), findsOneWidget);
-    expect(find.textContaining('không uống bù'), findsWidgets);
+    expect(find.textContaining('đừng uống bù'), findsWidgets);
+    expect(find.text('Tôi đã uống rồi'), findsWidgets, reason: 'cữ quá giờ vẫn ghi được là đã uống muộn');
     expect(find.byKey(const Key('dose-taken-m1')), findsNothing);
     await t.pumpWidget(const SizedBox());
   });

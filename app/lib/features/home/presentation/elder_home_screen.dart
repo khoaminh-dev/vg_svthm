@@ -57,6 +57,9 @@ const elderTiles = [
   ElderTile('relax', Icons.smart_display_outlined, 'Giải trí', 'fun'),
 ];
 
+/// Hai mục đã có thẻ riêng (thuốc kế tiếp, huyết áp) nên không hiện thêm ô lối tắt.
+const _cardCovered = {'meds', 'health'};
+
 /// Những câu gợi ý luân phiên dưới Vy, để người dùng biết mình có thể nói gì.
 const vyHints = [
   'Đo huyết áp cho tôi',
@@ -216,15 +219,17 @@ class ElderHomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: GridView.count(
                 key: const Key('elder-grid'),
-                crossAxisCount: 3,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1.45,
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 2.5,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
+                  // Thuốc và Sức khoẻ đã có thẻ bấm được ở trên, nên không lặp thành ô nữa.
                   for (final t in elderTiles)
-                    _TileButton(tile: t, onTap: () => _open(context, ref, t)),
+                    if (!_cardCovered.contains(t.key))
+                      _TileButton(tile: t, onTap: () => _open(context, ref, t)),
                 ],
               ),
             ),
@@ -319,7 +324,7 @@ class _VyHeroState extends ConsumerState<_VyHero>
                                 horizontal: AppSpacing.lg,
                               ),
                               child: Text(
-                                'Ví dụ: “${vyHints[i]}”',
+                                '“${vyHints[i]}”',
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   color: AppColors.textMuted,
@@ -369,25 +374,25 @@ class _TileButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Column(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     decoration: const BoxDecoration(
                       color: Color(0xFFEAF0FF),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(tile.icon, size: 24, color: AppColors.navyDeep),
+                    child: Icon(tile.icon, size: 26, color: AppColors.navyDeep),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 10),
                   Text(
                     tile.label,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w500,
                       color: AppColors.navyDeep,
                     ),
@@ -561,25 +566,33 @@ class _MiniDose extends ConsumerWidget {
   }
 }
 
-class _MiniBp extends StatelessWidget {
+class _MiniBp extends ConsumerWidget {
   const _MiniBp({required this.latest});
 
   final dynamic latest;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final r = latest;
     return Semantics(
       label: r == null
           ? 'Chưa có số đo huyết áp'
           : 'Huyết áp gần nhất ${r.systolic} trên ${r.diastolic}, ${r.category.label}',
       excludeSemantics: true,
-      child: _InfoBox(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          Analytics.track('tap_feature', {'feature': 'health', 'shell': 'elder'});
+          ref.read(healthTabProvider.notifier).set(0);
+          context.go(Routes.bp);
+        },
+        child: _InfoBox(
         key: const Key('elder-bp'),
         title: 'Huyết áp gần nhất',
         value: r == null ? '--/--' : '${r.systolic}/${r.diastolic}',
         sub: r == null ? 'Chưa có lần đo nào' : r.category.label as String,
         subColor: r == null ? null : r.category.color as Color,
+        ),
       ),
     );
   }
