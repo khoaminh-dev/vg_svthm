@@ -91,13 +91,19 @@ class UpdateRepository {
       final info = await PackageInfo.fromPlatform();
       final current = int.tryParse(info.buildNumber);
       if (current == null) return null;
-      final row = await _client
+      // Dòng 'android_preview' chỉ trả về cho tài khoản thử nghiệm (RLS), người khác chỉ thấy 'android'.
+      final rows = await _client
           .from('app_versions')
           .select()
-          .eq('platform', 'android')
-          .maybeSingle();
-      if (row == null) return null;
-      return evaluateUpdate(currentBuild: current, row: row);
+          .inFilter('platform', ['android', 'android_preview']);
+      AppUpdate? best;
+      for (final row in rows) {
+        final u = evaluateUpdate(currentBuild: current, row: row);
+        if (u != null && (best == null || u.latestBuild > best.latestBuild)) {
+          best = u;
+        }
+      }
+      return best;
     } catch (_) {
       return null;
     }
