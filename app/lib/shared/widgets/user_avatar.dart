@@ -17,7 +17,9 @@ class UserAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    // Tên Việt: chữ cái đầu của tên gọi (từ cuối), "Bà Hoa" -> H.
+    final words = name.trim().split(RegExp(r'\s+'));
+    final initial = name.trim().isEmpty ? '?' : words.last.characters.first.toUpperCase();
 
     return CircleAvatar(
       radius: radius,

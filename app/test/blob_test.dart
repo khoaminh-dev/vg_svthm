@@ -33,14 +33,17 @@ void main() {
     expect(out.reduce(math.max), greaterThan(1.05));
   });
 
-  test('ngủ: xám, không có mắt', () {
+  test('nghỉ: xanh nhạt (không xám), mắt nhắm thành vạch mảnh', () {
     final e = BlobEngine();
     run(e, 2);
     final f = e.frame(200, OrbMode.idle);
     expect(f.awake, lessThan(0.05));
-    expect(f.eyes, isEmpty);
+    expect(f.eyes, isNotEmpty, reason: 'mắt nhắm vẫn vẽ để trông như đang chờ');
+    for (final eye in f.eyes) {
+      expect(eye.alpha, greaterThan(0.1));
+    }
     final c = f.palette.mid;
-    expect((c.r - c.b).abs(), lessThan(0.1), reason: 'xám: R gần B');
+    expect(c.b - c.r, greaterThan(0.15), reason: 'xanh nhạt: B vượt R, không còn xám');
     expect(finite(f), true);
   });
 
