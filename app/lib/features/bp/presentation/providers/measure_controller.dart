@@ -17,7 +17,23 @@ import '../../domain/bp_protocol.dart';
 import 'bp_providers.dart';
 
 /// prep: chuẩn bị + hỏi bối cảnh · resting: đếm ngược ngồi nghỉ · ready: camera · analyzing/done/failed như trước.
-enum MeasureStep { prep, resting, ready, analyzing, done, failed }
+/// confirm: số đọc có vẻ lạ, hỏi người dùng "đúng không?" trước khi lưu và đưa lời khuyên.
+enum MeasureStep { prep, resting, ready, analyzing, confirm, done, failed }
+
+/// Lúc bắt đầu một phiên đo (null = không đo). Để không nhắc đo khi người dùng đang đo.
+class BpMeasuringSince extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+  void set(DateTime? t) => state = t;
+}
+
+final bpMeasuringSinceProvider = NotifierProvider<BpMeasuringSince, DateTime?>(
+  BpMeasuringSince.new,
+);
+
+/// Đang đo trong 20 phút gần đây thì coi là đang đo.
+bool bpIsMeasuring(DateTime? since, DateTime now) =>
+    since != null && now.difference(since).inMinutes < 20;
 
 /// Ngồi nghỉ yên 5 phút trước khi đo (AHA); vừa uống cà phê/hút thuốc thì chờ 30 phút.
 const bpRestSeconds = 300;
@@ -48,6 +64,7 @@ class MeasureState {
     this.restEndsAt,
     this.sessionId,
     this.symptoms,
+    this.irregular,
   });
 
   final MeasureStep step;
@@ -75,6 +92,9 @@ class MeasureState {
   /// Người dùng báo có triệu chứng nguy hiểm (null = chưa hỏi).
   final bool? symptoms;
 
+  /// Máy báo nhịp tim không đều (null = chưa hỏi).
+  final bool? irregular;
+
   MeasureState copyWith({
     MeasureStep? step,
     String? imagePath,
@@ -89,6 +109,7 @@ class MeasureState {
     int? restTotal,
     DateTime? restEndsAt,
     bool? symptoms,
+    bool? irregular,
   }) => MeasureState(
     step: step ?? this.step,
     imagePath: imagePath ?? this.imagePath,
@@ -104,6 +125,7 @@ class MeasureState {
     restEndsAt: restEndsAt ?? this.restEndsAt,
     sessionId: sessionId,
     symptoms: symptoms ?? this.symptoms,
+    irregular: irregular ?? this.irregular,
   );
 }
 
@@ -128,6 +150,8 @@ class MeasureController extends Notifier<MeasureState> {
   void reset() {
     unawaited(ref.read(adviceSpeakerProvider).stop());
     _restStartedAt = null;
+    _pending = null;
+    ref.read(bpMeasuringSinceProvider.notifier).set(null);
     state = const MeasureState();
   }
 
@@ -137,6 +161,7 @@ class MeasureController extends Notifier<MeasureState> {
     Analytics.track('bp_prep_view', {
       'ctx': contexts.map((c) => c.name).join(','),
     });
+    ref.read(bpMeasuringSinceProvider.notifier).set(clock());
     state = MeasureState(
       step: contexts.isEmpty ? MeasureStep.ready : MeasureStep.prep,
       contexts: contexts,
@@ -241,6 +266,42 @@ class MeasureController extends Notifier<MeasureState> {
     if (advice != null) unawaited(_say(advice));
   }
 
+  /// Người dùng cho biết máy có báo nhịp tim không đều không (có thể là rung nhĩ).
+  Future<void> answerIrregular(bool yes) async {
+    Analytics.track('bp_irregular', {'yes': yes});
+    state = state.copyWith(irregular: yes);
+    if (!yes) return;
+    final sid = state.sessionId;
+    final ctx = [...?state.reading?.context, 'irregular_pulse'];
+    if (sid != null) {
+      unawaited(
+        ref
+            .read(bpRepositoryProvider)
+            .markContext(sid, ctx)
+            .catchError((_) {}),
+      );
+    }
+    unawaited(_say(bpScriptText(BpScript.irregular)));
+  }
+
+  _Pending? _pending;
+
+  /// Số đọc có vẻ lạ: người dùng xác nhận đúng thì mới lưu và đưa lời khuyên.
+  Future<void> confirmReading() async {
+    final p = _pending;
+    if (p == null) return;
+    _pending = null;
+    Analytics.track('bp_confirm', {'ok': true});
+    await _finish(p.imagePath, p.scan, p.parsed, p.history, p.prior);
+  }
+
+  /// Số đọc sai: bỏ, chụp lại (không lưu gì).
+  void rejectReading() {
+    Analytics.track('bp_confirm', {'ok': false});
+    _pending = null;
+    retakePhoto();
+  }
+
   Future<void> _say(String text) async {
     try {
       if (!await ref.read(speakAdviceProvider.future)) return;
@@ -299,6 +360,47 @@ class MeasureController extends Notifier<MeasureState> {
       }
       final history = await historyF;
 
+      // Số lạ (huyết áp quá cao, chênh lệch quá nhỏ/lớn, nhảy so với số trước): hỏi lại trước khi lưu.
+      if (bpLooksSuspicious(
+        parsed.systolic,
+        parsed.diastolic,
+        previous: prior.samples.isEmpty ? null : prior.samples.last,
+      )) {
+        _pending = _Pending(imagePath, scan, parsed, history, prior);
+        Analytics.track('bp_confirm_ask');
+        state = MeasureState(
+          step: MeasureStep.confirm,
+          imagePath: imagePath,
+          reading: BpReading(
+            systolic: parsed.systolic,
+            diastolic: parsed.diastolic,
+            pulse: parsed.pulse,
+            measuredAt: parsed.measuredAt,
+            source: parsed.source,
+          ),
+          samples: prior.samples,
+          contexts: prior.contexts,
+          rested: prior.rested,
+          restTotal: prior.restTotal,
+          sessionId: prior.sessionId,
+          symptoms: prior.symptoms,
+        );
+        return;
+      }
+      await _finish(imagePath, scan, parsed, history, prior);
+    } catch (e) {
+      state = _failed(imagePath, errorMessage(e));
+    }
+  }
+
+  Future<void> _finish(
+    String imagePath,
+    dynamic scan,
+    dynamic parsed,
+    List<BpReading> history,
+    MeasureState prior,
+  ) async {
+    try {
       // Gộp vào phiên (tối đa 3 số). Số đo này đủ chuẩn nếu trước đó đã ngồi nghỉ đủ.
       final samples = [
         ...prior.samples,
@@ -399,6 +501,15 @@ class MeasureController extends Notifier<MeasureState> {
       state = _failed(imagePath, errorMessage(e));
     }
   }
+}
+
+class _Pending {
+  const _Pending(this.imagePath, this.scan, this.parsed, this.history, this.prior);
+  final String imagePath;
+  final dynamic scan;
+  final dynamic parsed;
+  final List<BpReading> history;
+  final MeasureState prior;
 }
 
 final measureControllerProvider =

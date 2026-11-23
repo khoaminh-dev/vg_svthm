@@ -125,7 +125,9 @@ export function assess(models: { stroke: any; heart: any; diabetes?: any }, inpu
   const recent = (trusted.length ? trusted : input.readings).slice(0, 3);
   const sysMed = median(recent.map((r) => r.systolic));
   const diaMed = median(recent.map((r) => r.diastolic));
-  const hypertensionDerived = sysMed >= 140 || diaMed >= 90;
+  // AHA: không chẩn đoán từ một ngày; cần số đo ở ít nhất 2 ngày khác nhau.
+  const days = new Set(recent.map((r) => r.measuredAt.slice(0, 10))).size;
+  const hypertensionDerived = days >= 2 && (sysMed >= 140 || diaMed >= 90);
   const hyp = input.hypertension === true || hypertensionDerived;
 
   const pStroke = predictLogistic(models.stroke, [age, male, b(hyp), b(input.heartDisease), b(input.smoker)]);

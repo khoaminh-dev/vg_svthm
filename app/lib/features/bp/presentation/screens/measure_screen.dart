@@ -320,6 +320,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                 alignment: Alignment.topCenter,
                 child: switch (m.step) {
                   MeasureStep.done => MeasureResultPanel(m: m),
+                  MeasureStep.confirm => _ConfirmPanel(m: m),
                   MeasureStep.failed => const _RetakeButton(),
                   MeasureStep.prep ||
                   MeasureStep.resting => const SizedBox.shrink(),
@@ -682,6 +683,10 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
                 const SizedBox(height: AppSpacing.sm),
                 _ActionCard(m: m),
               ],
+              if (!m.saving) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _IrregularAsk(m: m),
+              ],
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
@@ -829,6 +834,131 @@ class _MeasureResultPanelState extends ConsumerState<MeasureResultPanel> {
 }
 
 /// Chỉ một nút chụp lại, cùng chỗ với nút chụp.
+/// Số đọc có vẻ lạ: hỏi "đúng không?" trước khi lưu và đưa lời khuyên.
+class _ConfirmPanel extends ConsumerWidget {
+  const _ConfirmPanel({required this.m});
+  final MeasureState m;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final r = m.reading!;
+    final ctl = ref.read(measureControllerProvider.notifier);
+    return Container(
+      key: const Key('bp-confirm'),
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            hon('Máy đọc được ${r.systolic}/${r.diastolic}. Bác xem lại màn hình máy đo, số này đúng không?'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: FilledButton.icon(
+              key: const Key('bp-confirm-yes'),
+              onPressed: ctl.confirmReading,
+              icon: const Icon(Icons.check_rounded),
+              label: const Text(
+                'Đúng',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton.icon(
+              key: const Key('bp-confirm-no'),
+              onPressed: ctl.rejectReading,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text(
+                'Sai, chụp lại',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hỏi máy có báo nhịp tim không đều không (có thể là rung nhĩ: máy đo tại nhà dễ sai).
+class _IrregularAsk extends ConsumerWidget {
+  const _IrregularAsk({required this.m});
+  final MeasureState m;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ctl = ref.read(measureControllerProvider.notifier);
+    if (m.irregular == true) {
+      return Container(
+        key: const Key('bp-irregular-note'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.levelWatch.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+        child: Text(
+          bpScriptText(BpScript.irregular),
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+    }
+    if (m.irregular == false) return const SizedBox.shrink();
+    return Container(
+      key: const Key('bp-irregular-ask'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.sky.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Máy có hiện biểu tượng nhịp tim không đều (hình trái tim nhấp nháy) không?',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('bp-irregular-yes'),
+                  onPressed: () => ctl.answerIrregular(true),
+                  child: const Text('Có'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  key: const Key('bp-irregular-no'),
+                  onPressed: () => ctl.answerIrregular(false),
+                  child: const Text('Không'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RetakeButton extends ConsumerWidget {
   const _RetakeButton();
 
@@ -1320,3 +1450,10 @@ class _ActionCardState extends ConsumerState<_ActionCard> {
     );
   }
 }
+
+/// Chỉ để kiểm thử widget riêng lẻ.
+@visibleForTesting
+Widget MeasureConfirmPanelForTest({required MeasureState m}) => _ConfirmPanel(m: m);
+
+@visibleForTesting
+Widget MeasureIrregularAskForTest({required MeasureState m}) => _IrregularAsk(m: m);

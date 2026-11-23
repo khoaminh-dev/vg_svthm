@@ -688,6 +688,22 @@ class _WeekCard extends StatelessWidget {
             '${week.readings} lần đo trong ${week.days} ngày',
             style: theme.textTheme.bodyMedium,
           ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              key: const Key('bp-week-progress'),
+              value: (week.days / 7).clamp(0.0, 1.0),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            week.days >= 7
+                ? 'Đủ 7 ngày đo chuẩn'
+                : 'Ngày đo chuẩn: ${week.days}/7',
+            style: theme.textTheme.bodySmall,
+          ),
           const SizedBox(height: 6),
           if (week.enough)
             StatusChip(label: week.category.label, color: week.category.color)

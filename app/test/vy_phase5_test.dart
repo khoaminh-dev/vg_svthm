@@ -37,6 +37,9 @@ class FakeBpRepo implements BpRepository {
   Future<void> markSymptoms(String sessionId, List<String> symptoms) async {}
 
   @override
+  Future<void> markContext(String sessionId, List<String> context) async {}
+
+  @override
   Future<List<BpReading>> list({int limit = 200, String? ownerId}) async => added;
 }
 

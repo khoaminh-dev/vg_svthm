@@ -38,6 +38,20 @@ enum BpScript {
   elevated,
   keepMonitoring,
   singleReading,
+  irregular,
+}
+
+/// Số đọc có vẻ lạ nên cần người dùng xác nhận: chênh lệch tâm thu/tâm trương quá nhỏ hoặc quá lớn,
+/// huyết áp rất cao (tránh báo động nhầm vì đọc sai chữ số), hoặc nhảy mạnh so với số đo trước trong phiên.
+bool bpLooksSuspicious(int sys, int dia, {BpSample? previous}) {
+  final pp = sys - dia;
+  if (pp < 20 || pp > 100) return true;
+  if (bpIsSevere(sys, dia)) return true;
+  if (previous != null &&
+      ((sys - previous.sys).abs() >= 40 || (dia - previous.dia).abs() >= 25)) {
+    return true;
+  }
+  return false;
 }
 
 /// Một số đo trong phiên: [rested] = đã ngồi nghỉ yên đủ 5 phút trước số đo này.
@@ -174,6 +188,7 @@ const Map<BpScript, String> bpScriptBase = {
   BpScript.elevated: 'Huyết áp hơi cao. Bác cứ đo đều mỗi ngày, cùng giờ, và nhớ ngồi yên 5 phút trước khi đo nhé.',
   BpScript.keepMonitoring: 'Huyết áp đang cao. Bác đo đều vài ngày, mỗi lần ngồi yên 5 phút trước khi đo, và nhắc bác sĩ xem các số đo nhé.',
   BpScript.singleReading: 'Mới đo một lần nên chưa chuẩn. Bác ngồi yên 1 phút rồi đo thêm một số nữa nhé.',
+  BpScript.irregular: 'Máy báo nhịp tim không đều nên số đo có thể chưa chính xác. Bác cho bác sĩ biết trong lần khám tới, và đi khám sớm nếu thấy hồi hộp hay chóng mặt nhé.',
 };
 
 String bpScriptText(BpScript key) => hon(bpScriptBase[key]!);

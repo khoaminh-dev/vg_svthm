@@ -13,5 +13,6 @@
  "normal": "Huyết áp bình thường. Bác cứ đo đều, cùng giờ mỗi ngày nhé.",
  "elevated": "Huyết áp hơi cao. Bác cứ đo đều mỗi ngày, cùng giờ, và nhớ ngồi yên 5 phút trước khi đo nhé.",
  "keep_monitoring": "Huyết áp đang cao. Bác đo đều vài ngày, mỗi lần ngồi yên 5 phút trước khi đo, và nhắc bác sĩ xem các số đo nhé.",
- "single_reading": "Mới đo một lần nên chưa chuẩn. Bác ngồi yên 1 phút rồi đo thêm một số nữa nhé."
+ "single_reading": "Mới đo một lần nên chưa chuẩn. Bác ngồi yên 1 phút rồi đo thêm một số nữa nhé.",
+ "irregular": "Máy báo nhịp tim không đều nên số đo có thể chưa chính xác. Bác cho bác sĩ biết trong lần khám tới, và đi khám sớm nếu thấy hồi hộp hay chóng mặt nhé."
 }

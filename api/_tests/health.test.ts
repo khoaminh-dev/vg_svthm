@@ -19,11 +19,11 @@ test('TypeScript khớp scikit-learn trên 180 đầu vào ngẫu nhiên (3 mode
   }
 });
 
-const reading = (s: number, d: number, pulse: number | null = 70) => ({
+const reading = (s: number, d: number, pulse: number | null = 70, day = 14) => ({
   systolic: s,
   diastolic: d,
   pulse,
-  measuredAt: '2026-11-14T08:00:00Z',
+  measuredAt: `2026-11-${String(day).padStart(2, '0')}T08:00:00Z`,
 });
 
 const base: RiskInput = {
@@ -72,7 +72,7 @@ test('cơn tăng huyết áp: khẩn cấp bất kể model', () => {
 test('suy ra tăng huyết áp từ trung vị 3 lần đo gần nhất', () => {
   const r = assess(HEALTH_MODELS, {
     ...base,
-    readings: [reading(145, 88), reading(150, 92), reading(120, 80)],
+    readings: [reading(145, 88, 70, 14), reading(150, 92, 70, 13), reading(120, 80, 70, 12)],
   });
   assert.equal(r.hypertensionDerived, true);
   const r2 = assess(HEALTH_MODELS, { ...base, readings: [reading(145, 88), reading(120, 78), reading(118, 76)] });
@@ -140,21 +140,28 @@ test('thêm tiểu đường không làm đổi mức tổng (chỉ hai model đ
 });
 
 test('số đo chưa đủ chuẩn (vừa ngủ dậy...) không làm suy ra tăng huyết áp; số đủ chuẩn mới tính', () => {
-  const untrusted = (s: number, d: number) => ({ ...reading(s, d), protocolOk: false });
-  const trustedR = (s: number, d: number) => ({ ...reading(s, d), protocolOk: true });
+  const untrusted = (s: number, d: number, day = 14) => ({ ...reading(s, d, 70, day), protocolOk: false });
+  const trustedR = (s: number, d: number, day = 14) => ({ ...reading(s, d, 70, day), protocolOk: true });
   // 3 số cao nhưng đều chưa đủ chuẩn + 1 số đủ chuẩn bình thường: không suy ra tăng huyết áp
   const r = assess(HEALTH_MODELS, { ...base, readings: [untrusted(150, 95), untrusted(148, 94), trustedR(118, 76), untrusted(146, 92)] });
   assert.equal(r.hypertensionDerived, false);
   assert.ok(!r.reasons.includes('bp_high_now'));
   // số đủ chuẩn vẫn cao thì vẫn suy ra
-  const r2 = assess(HEALTH_MODELS, { ...base, readings: [trustedR(150, 95), trustedR(148, 94), trustedR(146, 92)] });
+  const r2 = assess(HEALTH_MODELS, { ...base, readings: [trustedR(150, 95, 14), trustedR(148, 94, 13), trustedR(146, 92, 12)] });
   assert.equal(r2.hypertensionDerived, true);
   // số cũ (không rõ chuẩn) xử lý như trước
-  const r3 = assess(HEALTH_MODELS, { ...base, readings: [reading(145, 88), reading(150, 92), reading(120, 80)] });
+  const r3 = assess(HEALTH_MODELS, { ...base, readings: [reading(145, 88, 70, 14), reading(150, 92, 70, 13), reading(120, 80, 70, 12)] });
   assert.equal(r3.hypertensionDerived, true);
 });
 
 test('số rất cao mới nhất vẫn khẩn cấp dù chưa đủ chuẩn (an toàn trước)', () => {
   const r = assess(HEALTH_MODELS, { ...base, readings: [{ ...reading(190, 110), protocolOk: false }, { ...reading(118, 76), protocolOk: true }] });
   assert.equal(r.level, 'urgent');
+});
+
+test('quy tắc 2 ngày: 3 số cao cùng một ngày chưa đủ để suy ra tăng huyết áp', () => {
+  const sameDay = assess(HEALTH_MODELS, { ...base, readings: [reading(150, 95), reading(148, 94), reading(146, 92)] });
+  assert.equal(sameDay.hypertensionDerived, false);
+  const twoDays = assess(HEALTH_MODELS, { ...base, readings: [reading(150, 95, 70, 14), reading(148, 94, 70, 14), reading(146, 92, 70, 13)] });
+  assert.equal(twoDays.hypertensionDerived, true);
 });

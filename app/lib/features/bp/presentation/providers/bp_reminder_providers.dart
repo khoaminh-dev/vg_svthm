@@ -10,6 +10,7 @@ import '../../../push/push_service.dart';
 import '../../data/bp_reminder_plan.dart';
 import '../../data/bp_reminder_service.dart';
 import 'bp_providers.dart';
+import 'measure_controller.dart';
 import '../../../../shared/honorific.dart';
 
 final bpReminderServiceProvider = Provider<BpReminderService>(
@@ -88,7 +89,10 @@ class _BpReminderHostState extends ConsumerState<BpReminderHost>
         .sync(
           enabled: settings.effectiveEnabled(elder: elder),
           slots: settings.slots,
-          measuredToday: readings.any((r) => sameDay(r.measuredAt, now)),
+          // Đang đo dở thì không nhắc đo (tránh nhắc đúng lúc người dùng đang ngồi nghỉ).
+          measuredToday:
+              readings.any((r) => sameDay(r.measuredAt, now)) ||
+              bpIsMeasuring(ref.read(bpMeasuringSinceProvider), now),
           quietStart: prefs?.quietStart,
           quietEnd: prefs?.quietEnd,
           hon: elder ? honorific : 'bạn',
@@ -101,6 +105,7 @@ class _BpReminderHostState extends ConsumerState<BpReminderHost>
     ref.listen(bpReadingsProvider, (_, _) => _sync());
     ref.listen(bpReminderSettingsProvider, (_, _) => _sync());
     ref.listen(pushPrefsProvider, (_, _) => _sync());
+    ref.listen(bpMeasuringSinceProvider, (_, _) => _sync());
     ref.listen(currentUserProvider, (_, _) => _sync());
     return widget.child;
   }

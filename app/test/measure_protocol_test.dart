@@ -32,6 +32,9 @@ class _Repo implements BpRepository {
   Future<List<BpReading>> list({int limit = 200, String? ownerId}) async => const [];
   @override
   Future<void> markSymptoms(String sessionId, List<String> symptoms) async => marked[sessionId] = symptoms;
+
+  @override
+  Future<void> markContext(String sessionId, List<String> context) async {}
 }
 
 BpReading _r(int s, int d, {bool? ok}) =>

@@ -10,4 +10,7 @@ abstract interface class BpRepository {
 
   /// Ghi triệu chứng người dùng báo cho cả phiên đo (`none` nếu không có).
   Future<void> markSymptoms(String sessionId, List<String> symptoms);
+
+  /// Ghi lại bối cảnh của cả phiên đo (ví dụ thêm `irregular_pulse`).
+  Future<void> markContext(String sessionId, List<String> context);
 }

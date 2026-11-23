@@ -48,6 +48,15 @@ class SupabaseBpRepository implements BpRepository {
       });
 
   @override
+  Future<void> markContext(String sessionId, List<String> context) =>
+      _guard(() async {
+        await _client
+            .from('bp_readings')
+            .update({'context': context})
+            .eq('session_id', sessionId);
+      });
+
+  @override
   Future<void> delete(String id) => _guard(() async {
     await _client.from('bp_readings').delete().eq('id', id);
   });
