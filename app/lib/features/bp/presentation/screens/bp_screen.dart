@@ -202,7 +202,7 @@ class BpScreen extends ConsumerWidget {
                                   padding: EdgeInsets.all(48),
                                   child: Center(
                                     child: Text(
-                                      'Chưa có lần đo nào.\nBấm nút máy ảnh để đo lần đầu.',
+                                      'Chưa có lần đo nào.\nBấm nút máy ảnh để đo lần đầu. Bác nhớ ngồi yên 5 phút trước khi đo nhé.',
                                       textAlign: TextAlign.center,
                                     ),
                                   ),
@@ -292,7 +292,7 @@ class BpScreen extends ConsumerWidget {
                                     Row(
                                       children: [
                                         StatusChip(
-                                          label: latest.category.label,
+                                          label: latest.displayLabel,
                                           color: latest.category.color,
                                         ),
                                         const SizedBox(width: 10),
@@ -309,6 +309,11 @@ class BpScreen extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.md),
+                              if (BpWeek.of(list, DateTime.now()) case final w?)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                                  child: _WeekCard(week: w),
+                                ),
                               Container(
                                 margin: const EdgeInsets.symmetric(
                                   horizontal: AppSpacing.md,
@@ -394,7 +399,7 @@ class BpScreen extends ConsumerWidget {
                                         ),
                                       ),
                                       subtitle: Text(
-                                        '${_fmt(r.measuredAt)} · ${r.category.label}',
+                                        '${_fmt(r.measuredAt)} · ${r.displayLabel}${r.protocolOk == false ? ' · chưa đủ chuẩn' : ''}',
                                       ),
                                       trailing: IconButton(
                                         tooltip: 'Xoá',
@@ -522,7 +527,7 @@ class _ElderBpView extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    latest.category.label,
+                    latest.displayLabel,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 22,
@@ -649,4 +654,51 @@ class _Legend extends StatelessWidget {
       Text(label, style: Theme.of(context).textTheme.labelMedium),
     ],
   );
+}
+
+/// Trung bình 7 ngày gần đây (chỉ số đo đủ chuẩn). Dưới 3 ngày thì nói rõ cần đo thêm, không kết luận.
+class _WeekCard extends StatelessWidget {
+  const _WeekCard({required this.week});
+  final BpWeek week;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const Key('bp-week'),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [BoxShadow(color: AppColors.cardShadow, blurRadius: 16, offset: Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('7 ngày gần đây', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 6),
+          Text(
+            'Trung bình ${week.avgSys}/${week.avgDia} mmHg',
+            key: const Key('bp-week-avg'),
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${week.readings} lần đo trong ${week.days} ngày',
+            style: theme.textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 6),
+          if (week.enough)
+            StatusChip(label: week.category.label, color: week.category.color)
+          else
+            Text(
+              hon('Cần đo thêm ${week.daysMissing} ngày nữa để đánh giá. Bác ngồi yên 5 phút trước mỗi lần đo nhé.'),
+              key: const Key('bp-week-need'),
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+        ],
+      ),
+    );
+  }
 }

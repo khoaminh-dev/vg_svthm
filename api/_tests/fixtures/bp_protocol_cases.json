@@ -1,0 +1,611 @@
+[
+ {
+  "name": "bình thường 1 số",
+  "readings": [
+   [
+    118,
+    76,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "none",
+   "script": "normal",
+   "category": "normal",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "bình thường đã nghỉ",
+  "readings": [
+   [
+    110,
+    70,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "none",
+   "script": "normal",
+   "category": "normal",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "biên 119/79",
+  "readings": [
+   [
+    119,
+    79,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "none",
+   "script": "normal",
+   "category": "normal",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 120/79 hơi cao 1 số",
+  "readings": [
+   [
+    120,
+    79,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "elevated",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 129/79",
+  "readings": [
+   [
+    129,
+    79,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "elevated",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 130/79 độ1",
+  "readings": [
+   [
+    130,
+    79,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage1",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 119/80 độ1 do tâm trương",
+  "readings": [
+   [
+    119,
+    80,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage1",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 139/89",
+  "readings": [
+   [
+    139,
+    89,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage1",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 140/89 độ2",
+  "readings": [
+   [
+    140,
+    89,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage2",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 139/90 độ2",
+  "readings": [
+   [
+    139,
+    90,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage2",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 180/120 chưa phải severe",
+  "readings": [
+   [
+    180,
+    120,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage2",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 181/100 severe",
+  "readings": [
+   [
+    181,
+    100,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "recheck_1min",
+   "script": "severe_wait",
+   "category": "crisis",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "biên 150/121 severe",
+  "readings": [
+   [
+    150,
+    121,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "recheck_1min",
+   "script": "severe_wait",
+   "category": "crisis",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "mới ngủ dậy 150/95",
+  "readings": [
+   [
+    150,
+    95,
+    0
+   ]
+  ],
+  "context": [
+   "woke_up"
+  ],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "woke_up",
+   "category": "stage2",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "vừa đi lại 145/90",
+  "readings": [
+   [
+    145,
+    90,
+    0
+   ]
+  ],
+  "context": [
+   "exertion"
+  ],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "after_walk",
+   "category": "stage2",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "cà phê 135/85 chưa nghỉ",
+  "readings": [
+   [
+    135,
+    85,
+    0
+   ]
+  ],
+  "context": [
+   "caffeine_smoke"
+  ],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "caffeine_smoke",
+   "category": "stage1",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "cà phê nhưng bình thường",
+  "readings": [
+   [
+    115,
+    75,
+    0
+   ]
+  ],
+  "context": [
+   "caffeine_smoke"
+  ],
+  "symptoms": null,
+  "expect": {
+   "action": "none",
+   "script": "normal",
+   "category": "normal",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "ngủ dậy 150/95, nghỉ ngồi rồi đo lại 118/76: bỏ số chưa nghỉ",
+  "readings": [
+   [
+    150,
+    95,
+    0
+   ],
+   [
+    118,
+    76,
+    1
+   ]
+  ],
+  "context": [
+   "woke_up"
+  ],
+  "symptoms": null,
+  "expect": {
+   "action": "none",
+   "script": "normal",
+   "category": "normal",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "ngủ dậy, đã nghỉ rồi mà 1 số vẫn cao",
+  "readings": [
+   [
+    145,
+    92,
+    1
+   ]
+  ],
+  "context": [
+   "woke_up"
+  ],
+  "symptoms": null,
+  "expect": {
+   "action": "rest_recheck",
+   "script": "high_recheck",
+   "category": "stage2",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "2 số đã nghỉ 150/95 và 148/94 vẫn cao",
+  "readings": [
+   [
+    150,
+    95,
+    1
+   ],
+   [
+    148,
+    94,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "call_doctor_today",
+   "script": "still_high",
+   "category": "stage2",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "2 số độ 1",
+  "readings": [
+   [
+    134,
+    84,
+    1
+   ],
+   [
+    132,
+    82,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "monitor",
+   "script": "keep_monitoring",
+   "category": "stage1",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "2 số hơi cao",
+  "readings": [
+   [
+    124,
+    76,
+    1
+   ],
+   [
+    126,
+    78,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "monitor",
+   "script": "elevated",
+   "category": "elevated",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "severe lần 1 chưa hỏi triệu chứng",
+  "readings": [
+   [
+    190,
+    110,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "recheck_1min",
+   "script": "severe_wait",
+   "category": "crisis",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "severe lần 2 chưa biết triệu chứng",
+  "readings": [
+   [
+    190,
+    110,
+    1
+   ],
+   [
+    186,
+    108,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "ask_symptoms",
+   "script": "ask_symptoms",
+   "category": "crisis",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "severe lần 2 không triệu chứng",
+  "readings": [
+   [
+    190,
+    110,
+    1
+   ],
+   [
+    186,
+    108,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": false,
+  "expect": {
+   "action": "call_doctor_now",
+   "script": "severe_confirm",
+   "category": "crisis",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "severe lần 2 có triệu chứng",
+  "readings": [
+   [
+    190,
+    110,
+    1
+   ],
+   [
+    186,
+    108,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": true,
+  "expect": {
+   "action": "call_115",
+   "script": "emergency",
+   "category": "crisis",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "severe lần 1 có triệu chứng thì 115 ngay",
+  "readings": [
+   [
+    190,
+    110,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": true,
+  "expect": {
+   "action": "call_115",
+   "script": "emergency",
+   "category": "crisis",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "triệu chứng thắng số bình thường",
+  "readings": [
+   [
+    118,
+    76,
+    0
+   ]
+  ],
+  "context": [],
+  "symptoms": true,
+  "expect": {
+   "action": "call_115",
+   "script": "emergency",
+   "category": "normal",
+   "protocolOk": false
+  }
+ },
+ {
+  "name": "severe rồi hạ về 150/95: tính trung bình tất cả cho an toàn",
+  "readings": [
+   [
+    188,
+    110,
+    0
+   ],
+   [
+    150,
+    95,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "call_doctor_today",
+   "script": "still_high",
+   "category": "stage2",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "severe rồi hạ về 125/80: vẫn tính trung bình tất cả",
+  "readings": [
+   [
+    188,
+    110,
+    0
+   ],
+   [
+    125,
+    80,
+    1
+   ]
+  ],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "call_doctor_today",
+   "script": "still_high",
+   "category": "stage2",
+   "protocolOk": true
+  }
+ },
+ {
+  "name": "không có số đo",
+  "readings": [],
+  "context": [],
+  "symptoms": null,
+  "expect": {
+   "action": "none",
+   "script": "normal",
+   "category": "normal",
+   "protocolOk": false
+  }
+ }
+]

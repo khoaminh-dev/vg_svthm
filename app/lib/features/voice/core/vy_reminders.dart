@@ -283,7 +283,7 @@ String reminderSpeech(ReminderKind kind, String hon, {String? doseWhat, String? 
     case ReminderKind.doseCheck:
       return '$hon đã uống${doseWhat == null ? ' thuốc' : ' $doseWhat'} chưa ạ?';
     case ReminderKind.bp:
-      return 'Đến giờ đo huyết áp rồi $hon ơi.';
+      return 'Đến giờ đo huyết áp rồi $hon ơi. $hon ngồi yên 5 phút trước khi đo nhé.';
     case ReminderKind.messages:
       return count > 1
           ? '$hon có $count tin mới từ ${from ?? 'người thân'}. $hon muốn nghe không ạ?'

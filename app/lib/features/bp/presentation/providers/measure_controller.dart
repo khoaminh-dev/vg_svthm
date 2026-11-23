@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,18 +13,41 @@ import '../../../ocr/presentation/providers/ocr_controller.dart';
 import '../../../ocr/presentation/providers/ocr_providers.dart';
 import '../../domain/bp_advice.dart';
 import '../../domain/bp_models.dart';
+import '../../domain/bp_protocol.dart';
 import 'bp_providers.dart';
 
-enum MeasureStep { ready, analyzing, done, failed }
+/// prep: chuẩn bị + hỏi bối cảnh · resting: đếm ngược ngồi nghỉ · ready: camera · analyzing/done/failed như trước.
+enum MeasureStep { prep, resting, ready, analyzing, done, failed }
+
+/// Ngồi nghỉ yên 5 phút trước khi đo (AHA); vừa uống cà phê/hút thuốc thì chờ 30 phút.
+const bpRestSeconds = 300;
+const bpCaffeineWaitSeconds = 1800;
+const bpBetweenReadingsSeconds = 60;
+
+/// Triệu chứng nguy hiểm khi huyết áp rất cao (AHA). Mã lưu vào DB.
+const bpSymptomLabels = <String, String>{
+  'chest_pain': 'Đau ngực',
+  'short_breath': 'Khó thở',
+  'numb_weak': 'Tê, yếu hoặc méo miệng',
+  'speech_vision': 'Nói khó hoặc nhìn mờ',
+};
 
 class MeasureState {
   const MeasureState({
-    this.step = MeasureStep.ready,
+    this.step = MeasureStep.prep,
     this.imagePath,
     this.reading,
     this.advice,
     this.error,
     this.saving = false,
+    this.samples = const [],
+    this.contexts = const {},
+    this.decision,
+    this.rested = false,
+    this.restTotal = 0,
+    this.restEndsAt,
+    this.sessionId,
+    this.symptoms,
   });
 
   final MeasureStep step;
@@ -34,23 +58,193 @@ class MeasureState {
 
   /// Đã có kết quả nhưng đang lưu ngầm.
   final bool saving;
+
+  /// Các số đo trong phiên này (tối đa 3), theo thứ tự.
+  final List<BpSample> samples;
+
+  /// Bối cảnh trước số đo đầu tiên (rỗng = đã nghỉ yên).
+  final Set<BpContext> contexts;
+  final BpDecision? decision;
+
+  /// Số đo sắp tới có được ngồi nghỉ đủ chuẩn không.
+  final bool rested;
+  final int restTotal;
+  final DateTime? restEndsAt;
+  final String? sessionId;
+
+  /// Người dùng báo có triệu chứng nguy hiểm (null = chưa hỏi).
+  final bool? symptoms;
+
+  MeasureState copyWith({
+    MeasureStep? step,
+    String? imagePath,
+    BpReading? reading,
+    String? advice,
+    String? error,
+    bool? saving,
+    List<BpSample>? samples,
+    Set<BpContext>? contexts,
+    BpDecision? decision,
+    bool? rested,
+    int? restTotal,
+    DateTime? restEndsAt,
+    bool? symptoms,
+  }) => MeasureState(
+    step: step ?? this.step,
+    imagePath: imagePath ?? this.imagePath,
+    reading: reading ?? this.reading,
+    advice: advice ?? this.advice,
+    error: error ?? this.error,
+    saving: saving ?? this.saving,
+    samples: samples ?? this.samples,
+    contexts: contexts ?? this.contexts,
+    decision: decision ?? this.decision,
+    rested: rested ?? this.rested,
+    restTotal: restTotal ?? this.restTotal,
+    restEndsAt: restEndsAt ?? this.restEndsAt,
+    sessionId: sessionId,
+    symptoms: symptoms ?? this.symptoms,
+  );
 }
 
-/// Chụp một lần: đọc số, hiện kết quả và nhận xét ngay, việc lưu chạy ngầm.
+String _newSessionId() {
+  // UUID v4 cho khoá phiên.
+  final rnd = Random.secure();
+  final b = List<int>.generate(16, (_) => rnd.nextInt(256));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  final h = b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
+  return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+}
+
+/// Một phiên đo: chuẩn bị → ngồi nghỉ 5 phút → đo → (nếu cao) chờ 1 phút đo lại → trung bình → việc cần làm.
 class MeasureController extends Notifier<MeasureState> {
   @override
   MeasureState build() => const MeasureState();
 
+  DateTime Function() clock = DateTime.now;
+  DateTime? _restStartedAt;
+
   void reset() {
     unawaited(ref.read(adviceSpeakerProvider).stop());
+    _restStartedAt = null;
     state = const MeasureState();
   }
 
-  /// Máy đọc lời khuyên theo số đo ngay khi có kết quả (nếu người dùng không tắt trong Hồ sơ).
-  Future<void> _speakAdvice(String advice) async {
+  /// Từ màn chuẩn bị: [contexts] rỗng nghĩa là "đã nghỉ yên rồi" → vào camera luôn.
+  void startFromPrep(Set<BpContext> contexts) {
+    final sid = state.sessionId ?? _newSessionId();
+    Analytics.track('bp_prep_view', {
+      'ctx': contexts.map((c) => c.name).join(','),
+    });
+    state = MeasureState(
+      step: contexts.isEmpty ? MeasureStep.ready : MeasureStep.prep,
+      contexts: contexts,
+      rested: contexts.isEmpty,
+      sessionId: sid,
+    );
+    if (contexts.isNotEmpty) {
+      startRest(
+        contexts.contains(BpContext.caffeineSmoke)
+            ? bpCaffeineWaitSeconds
+            : bpRestSeconds,
+      );
+    }
+  }
+
+  /// Bắt đầu đếm ngược ngồi yên [seconds] giây rồi mới cho đo.
+  void startRest(int seconds) {
+    _restStartedAt = clock();
+    Analytics.track('bp_rest_start', {'sec': seconds});
+    state = MeasureState(
+      step: MeasureStep.resting,
+      imagePath: null,
+      samples: state.samples,
+      contexts: state.contexts,
+      rested: false,
+      restTotal: seconds,
+      restEndsAt: clock().add(Duration(seconds: seconds)),
+      sessionId: state.sessionId ?? _newSessionId(),
+      symptoms: state.symptoms,
+    );
+    final key = seconds >= bpCaffeineWaitSeconds
+        ? BpScript.caffeineSmoke
+        : seconds <= bpBetweenReadingsSeconds
+        ? BpScript.secondReading
+        : BpScript.prep;
+    unawaited(_say(bpScriptText(key)));
+  }
+
+  /// Hết giờ nghỉ: số đo tới là đủ chuẩn nếu đã ngồi ≥ 5 phút, hoặc đây là số thứ hai sát số đủ chuẩn.
+  void finishRest() {
+    final waited = state.restTotal;
+    final rested =
+        waited >= bpRestSeconds ||
+        (state.samples.isNotEmpty && state.samples.last.rested);
+    Analytics.track('bp_rest_done', {'sec': waited});
+    state = MeasureState(
+      step: MeasureStep.ready,
+      samples: state.samples,
+      contexts: state.contexts,
+      rested: rested,
+      restTotal: waited,
+      sessionId: state.sessionId,
+      symptoms: state.symptoms,
+    );
+  }
+
+  /// "Bỏ qua, đo luôn": vẫn đo được nhưng số này bị đánh dấu chưa đủ chuẩn.
+  void skipRest() {
+    Analytics.track('bp_rest_skip');
+    final elapsed = _restStartedAt == null
+        ? 0
+        : clock().difference(_restStartedAt!).inSeconds;
+    state = MeasureState(
+      step: MeasureStep.ready,
+      samples: state.samples,
+      contexts: state.contexts,
+      rested: false,
+      restTotal: elapsed,
+      sessionId: state.sessionId,
+      symptoms: state.symptoms,
+    );
+  }
+
+  /// Đọc số chưa được: quay lại camera, giữ nguyên phiên đo (không bắt chuẩn bị và ngồi nghỉ lại).
+  void retakePhoto() => state = MeasureState(
+    step: MeasureStep.ready,
+    samples: state.samples,
+    contexts: state.contexts,
+    rested: state.rested,
+    restTotal: state.restTotal,
+    sessionId: state.sessionId,
+    symptoms: state.symptoms,
+  );
+
+  /// Người dùng trả lời hỏi triệu chứng khi huyết áp rất cao.
+  Future<void> answerSymptoms(Set<String> which) async {
+    final has = which.isNotEmpty;
+    Analytics.track('bp_symptom_flag', {'has': has});
+    final sid = state.sessionId;
+    if (sid != null) {
+      unawaited(
+        ref
+            .read(bpRepositoryProvider)
+            .markSymptoms(sid, has ? which.toList() : ['none'])
+            .catchError((_) {}),
+      );
+    }
+    final d = bpDecide(state.samples, context: state.contexts, symptoms: has);
+    final r = state.reading;
+    final advice = r == null ? null : bpAdvice(r, decision: d);
+    state = state.copyWith(symptoms: has, decision: d, advice: advice);
+    if (advice != null) unawaited(_say(advice));
+  }
+
+  Future<void> _say(String text) async {
     try {
       if (!await ref.read(speakAdviceProvider.future)) return;
-      await ref.read(adviceSpeakerProvider).replace(advice);
+      await ref.read(adviceSpeakerProvider).replace(text);
     } catch (_) {}
   }
 
@@ -70,11 +264,26 @@ class MeasureController extends Notifier<MeasureState> {
     step: MeasureStep.failed,
     imagePath: imagePath,
     error: error,
+    samples: state.samples,
+    contexts: state.contexts,
+    rested: state.rested,
+    sessionId: state.sessionId,
+    symptoms: state.symptoms,
   );
 
   Future<void> process(String imagePath) async {
     unawaited(ref.read(adviceSpeakerProvider).stop());
-    state = MeasureState(step: MeasureStep.analyzing, imagePath: imagePath);
+    final prior = state;
+    state = MeasureState(
+      step: MeasureStep.analyzing,
+      imagePath: imagePath,
+      samples: prior.samples,
+      contexts: prior.contexts,
+      rested: prior.rested,
+      restTotal: prior.restTotal,
+      sessionId: prior.sessionId ?? _newSessionId(),
+      symptoms: prior.symptoms,
+    );
     ref.read(riskRunnerProvider.notifier).clear();
     try {
       // Tải lịch sử song song với lúc đọc ảnh để không phải chờ thêm.
@@ -82,15 +291,51 @@ class MeasureController extends Notifier<MeasureState> {
           .read(bpReadingsProvider.future)
           .then<List<BpReading>>((l) => l, onError: (_) => <BpReading>[]);
       final scan = await ref.read(bpOcrEngineProvider).scan(imagePath);
-      final reading = BpExtractor.fromValues(scan.values, source: 'ocr_ai');
-      if (reading == null || !reading.isValid) {
+      final parsed = BpExtractor.fromValues(scan.values, source: 'ocr_ai');
+      if (parsed == null || !parsed.isValid) {
         Analytics.track('measure', {'ok': false});
         state = _failed(imagePath, 'Chưa đọc được số');
         return;
       }
       final history = await historyF;
+
+      // Gộp vào phiên (tối đa 3 số). Số đo này đủ chuẩn nếu trước đó đã ngồi nghỉ đủ.
+      final samples = [
+        ...prior.samples,
+        BpSample(parsed.systolic, parsed.diastolic, rested: prior.rested),
+      ];
+      final capped = samples.length > 3
+          ? samples.sublist(samples.length - 3)
+          : samples;
+      final decision = bpDecide(
+        capped,
+        context: prior.contexts,
+        symptoms: prior.symptoms,
+      );
+      final sid = state.sessionId;
+      final reading = BpReading(
+        systolic: parsed.systolic,
+        diastolic: parsed.diastolic,
+        pulse: parsed.pulse,
+        measuredAt: parsed.measuredAt,
+        source: parsed.source,
+        sessionId: sid,
+        readingNo: capped.length,
+        context: [
+          for (final c in prior.contexts)
+            switch (c) {
+              BpContext.wokeUp => 'woke_up',
+              BpContext.exertion => 'exertion',
+              BpContext.caffeineSmoke => 'caffeine_smoke',
+            },
+          if (prior.rested) 'rested',
+        ],
+        restedSeconds: prior.restTotal > 0 ? prior.restTotal : null,
+        protocolOk: prior.rested,
+      );
       final advice = bpAdvice(
         reading,
+        decision: decision,
         previous: history.isEmpty ? null : history.first,
       );
 
@@ -101,8 +346,15 @@ class MeasureController extends Notifier<MeasureState> {
         reading: reading,
         advice: advice,
         saving: true,
+        samples: capped,
+        contexts: prior.contexts,
+        decision: decision,
+        rested: prior.rested,
+        restTotal: prior.restTotal,
+        sessionId: sid,
+        symptoms: prior.symptoms,
       );
-      unawaited(_speakAdvice(advice));
+      unawaited(_say(advice));
 
       final draft = OcrDraft(
         imagePath: imagePath,
@@ -123,7 +375,10 @@ class MeasureController extends Notifier<MeasureState> {
       Analytics.track('measure', {
         'ok': true,
         'category': reading.category.code,
+        'n': capped.length,
+        'protocol_ok': reading.protocolOk,
       });
+      if (capped.length >= 2) Analytics.track('bp_second_reading');
       // Tự đánh giá nguy cơ ngay sau khi lưu; kết quả hiện ở màn đo khi có.
       final riskRun = ref.read(riskRunnerProvider.notifier).run();
       state = MeasureState(
@@ -131,6 +386,13 @@ class MeasureController extends Notifier<MeasureState> {
         imagePath: imagePath,
         reading: reading,
         advice: advice,
+        samples: capped,
+        contexts: prior.contexts,
+        decision: decision,
+        rested: prior.rested,
+        restTotal: prior.restTotal,
+        sessionId: sid,
+        symptoms: prior.symptoms,
       );
       unawaited(riskRun.then((_) => _speakRisk(reading)));
     } catch (e) {

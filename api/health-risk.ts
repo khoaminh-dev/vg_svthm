@@ -20,7 +20,7 @@ type Profile = {
   weight_kg: number | null;
   updated_at: string;
 };
-type ReadingRow = { id: string; systolic: number; diastolic: number; pulse: number | null; measured_at: string };
+type ReadingRow = { id: string; systolic: number; diastolic: number; pulse: number | null; measured_at: string; protocol_ok?: boolean | null };
 type Stored = { id: string; level: string; details: RiskResult; created_at: string };
 
 /**
@@ -38,8 +38,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const [profiles, readings] = await Promise.all([
       dbSelect<Profile[]>(`health_profile?user_id=eq.${uid}&select=*&limit=1`),
+      // Lấy dư để còn đủ số đo đủ chuẩn. Cột protocol_ok chỉ có sau migration 0035: chưa có thì đọc cách cũ.
       dbSelect<ReadingRow[]>(
-        `bp_readings?user_id=eq.${uid}&select=id,systolic,diastolic,pulse,measured_at&order=measured_at.desc&limit=3`,
+        `bp_readings?user_id=eq.${uid}&select=id,systolic,diastolic,pulse,measured_at,protocol_ok&order=measured_at.desc&limit=10`,
+      ).catch(() =>
+        dbSelect<ReadingRow[]>(
+          `bp_readings?user_id=eq.${uid}&select=id,systolic,diastolic,pulse,measured_at&order=measured_at.desc&limit=3`,
+        ),
       ),
     ]);
     const p = profiles[0];
@@ -60,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       diastolic: r.diastolic,
       pulse: r.pulse,
       measuredAt: r.measured_at,
+      protocolOk: r.protocol_ok ?? null,
     }));
     const result = assess(HEALTH_MODELS, {
       birthYear: p.birth_year,

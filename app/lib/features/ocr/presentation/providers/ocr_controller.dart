@@ -73,14 +73,7 @@ class OcrController extends AsyncNotifier<void> {
           await ref
               .read(bpRepositoryProvider)
               .add(
-                BpReading(
-                  systolic: reading.systolic,
-                  diastolic: reading.diastolic,
-                  pulse: reading.pulse,
-                  measuredAt: reading.measuredAt,
-                  source: reading.source,
-                  ocrRecordId: record.id,
-                ),
+                reading.copyWith(ocrRecordId: record.id),
               );
         } catch (_) {
           try {

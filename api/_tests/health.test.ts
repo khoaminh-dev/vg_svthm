@@ -66,7 +66,7 @@ test('huyết áp cao hơn thì nguy cơ tim mạch không giảm', () => {
 
 test('cơn tăng huyết áp: khẩn cấp bất kể model', () => {
   assert.equal(assess(HEALTH_MODELS, { ...base, readings: [reading(190, 100)] }).level, 'urgent');
-  assert.equal(assess(HEALTH_MODELS, { ...base, readings: [reading(150, 120)] }).level, 'urgent');
+  assert.equal(assess(HEALTH_MODELS, { ...base, readings: [reading(150, 121)] }).level, 'urgent');
 });
 
 test('suy ra tăng huyết áp từ trung vị 3 lần đo gần nhất', () => {
@@ -137,4 +137,24 @@ test('thêm tiểu đường không làm đổi mức tổng (chỉ hai model đ
   const b = assess(HEALTH_MODELS, { ...base, heightCm: 160, weightKg: 95, highCholesterol: true });
   assert.equal(a.level, b.level);
   assert.deepEqual(a.stroke, b.stroke);
+});
+
+test('số đo chưa đủ chuẩn (vừa ngủ dậy...) không làm suy ra tăng huyết áp; số đủ chuẩn mới tính', () => {
+  const untrusted = (s: number, d: number) => ({ ...reading(s, d), protocolOk: false });
+  const trustedR = (s: number, d: number) => ({ ...reading(s, d), protocolOk: true });
+  // 3 số cao nhưng đều chưa đủ chuẩn + 1 số đủ chuẩn bình thường: không suy ra tăng huyết áp
+  const r = assess(HEALTH_MODELS, { ...base, readings: [untrusted(150, 95), untrusted(148, 94), trustedR(118, 76), untrusted(146, 92)] });
+  assert.equal(r.hypertensionDerived, false);
+  assert.ok(!r.reasons.includes('bp_high_now'));
+  // số đủ chuẩn vẫn cao thì vẫn suy ra
+  const r2 = assess(HEALTH_MODELS, { ...base, readings: [trustedR(150, 95), trustedR(148, 94), trustedR(146, 92)] });
+  assert.equal(r2.hypertensionDerived, true);
+  // số cũ (không rõ chuẩn) xử lý như trước
+  const r3 = assess(HEALTH_MODELS, { ...base, readings: [reading(145, 88), reading(150, 92), reading(120, 80)] });
+  assert.equal(r3.hypertensionDerived, true);
+});
+
+test('số rất cao mới nhất vẫn khẩn cấp dù chưa đủ chuẩn (an toàn trước)', () => {
+  const r = assess(HEALTH_MODELS, { ...base, readings: [{ ...reading(190, 110), protocolOk: false }, { ...reading(118, 76), protocolOk: true }] });
+  assert.equal(r.level, 'urgent');
 });

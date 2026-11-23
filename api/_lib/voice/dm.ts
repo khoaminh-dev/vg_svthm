@@ -2,6 +2,7 @@
 // Nguyên tắc: LLM chỉ "hiểu" (intent + slot thô). Việc đủ/thiếu slot, hỏi lại, xác nhận, phân giải người nhận
 // đều do code ở đây quyết định để chắc chắn và kiểm thử được. Xem docs/VOICE_AGENT.md mục 4.
 
+import { guardBpSay } from './bp_guard.js';
 import { resolveUiCommand, type UiContext, type UiControl } from './ui_cmd.js';
 
 export type Expect = 'command' | 'free_text' | 'yes_no' | 'choice' | 'name' | 'none';
@@ -647,7 +648,8 @@ async function stepCore(
   if (intent === 'unsupported') return mk({ action: 'unsupported', intent, say: S.unsupported(hon) });
   if (intent === 'help') return mk({ action: 'answer', intent, say: S.help(hon) });
   if (intent === 'chitchat') {
-    const say = (nluOut.say || '').trim().slice(0, 200) || S.help(hon);
+    // Lời do mô hình tự sinh: nếu nói về huyết áp mà khuyên điều cấm (đi lại, vận động, đổi thuốc) thì thay bằng câu an toàn.
+    const say = guardBpSay((nluOut.say || '').trim().slice(0, 200) || S.help(hon), hon);
     return mk({ action: 'answer', intent, say, sayClass: 'other' });
   }
 

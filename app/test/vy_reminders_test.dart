@@ -208,7 +208,7 @@ void main() {
 
     test('reminderSpeech', () {
       expect(reminderSpeech(ReminderKind.dose, 'bác', doseWhat: 'túi Sáng'), 'Đến giờ uống thuốc rồi bác ơi. bác lấy túi Sáng nhé.');
-      expect(reminderSpeech(ReminderKind.bp, 'cô'), 'Đến giờ đo huyết áp rồi cô ơi.');
+      expect(reminderSpeech(ReminderKind.bp, 'cô'), 'Đến giờ đo huyết áp rồi cô ơi. cô ngồi yên 5 phút trước khi đo nhé.');
       expect(reminderSpeech(ReminderKind.messages, 'bác', from: 'Giang', count: 2), contains('2 tin mới từ Giang'));
       expect(reminderSpeech(ReminderKind.messages, 'bác', from: 'Giang'), contains('có tin mới từ Giang'));
     });

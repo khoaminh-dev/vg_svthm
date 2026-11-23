@@ -1,0 +1,17 @@
+{
+ "prep": "Bác ngồi thẳng, tựa lưng, tay đặt lên bàn, băng quấn ngang tim. Bác đừng nói chuyện, con đếm 5 phút nhé.",
+ "woke_up": "Bác mới ngủ dậy nên số đo có thể cao hơn bình thường. Bác ngồi yên, tựa lưng 5 phút rồi mình đo lại nhé, bác đừng đi lại.",
+ "after_walk": "Bác vừa mới hoạt động nên số đo có thể cao. Bác ngồi yên, tựa lưng 5 phút rồi mình đo lại nhé.",
+ "caffeine_smoke": "Bác vừa uống cà phê hoặc hút thuốc nên số đo chưa chuẩn. Bác ngồi yên, chờ khoảng 30 phút rồi mình đo lại nhé.",
+ "second_reading": "Bác ngồi yên thêm 1 phút, rồi mình đo số thứ hai nhé.",
+ "high_recheck": "Số này hơi cao. Một số đo cao chưa phải là bệnh. Bác ngồi yên, tựa lưng 5 phút rồi đo lại hai lần, cách nhau 1 phút nhé.",
+ "still_high": "Đo lại vẫn còn cao. Bác báo người thân hoặc nhân viên y tế trong hôm nay, và đừng tự bỏ thuốc nhé.",
+ "severe_wait": "Số đo rất cao. Bác ngồi yên, chờ 1 phút rồi đo lại. Nếu bác đau ngực, khó thở, tê yếu, méo miệng hay nói khó thì gọi 115 ngay.",
+ "ask_symptoms": "Bác có đau ngực, khó thở, tê yếu, méo miệng hoặc nói khó không ạ?",
+ "severe_confirm": "Vẫn rất cao. Bác gọi nhân viên y tế hoặc người thân ngay bây giờ. Nếu có đau ngực, khó thở, tê yếu hay nói khó thì gọi 115.",
+ "emergency": "Bác có dấu hiệu nguy hiểm. Bác gọi 115 ngay, đừng chờ xem huyết áp có hạ không.",
+ "normal": "Huyết áp bình thường. Bác cứ đo đều, cùng giờ mỗi ngày nhé.",
+ "elevated": "Huyết áp hơi cao. Bác cứ đo đều mỗi ngày, cùng giờ, và nhớ ngồi yên 5 phút trước khi đo nhé.",
+ "keep_monitoring": "Huyết áp đang cao. Bác đo đều vài ngày, mỗi lần ngồi yên 5 phút trước khi đo, và nhắc bác sĩ xem các số đo nhé.",
+ "single_reading": "Mới đo một lần nên chưa chuẩn. Bác ngồi yên 1 phút rồi đo thêm một số nữa nhé."
+}

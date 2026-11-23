@@ -139,8 +139,8 @@ class BpReminderService {
           MedAlarmService.reservedIdStart + r.id,
           r.followUp ? 'Nhắc lại: chưa đo huyết áp' : 'Đến giờ đo huyết áp',
           r.followUp
-              ? '${_cap(hon)} đo một lần cho yên tâm nhé'
-              : '${_cap(hon)} đo huyết áp một lần nhé, chỉ mất vài phút',
+              ? '${_cap(hon)} ngồi yên 5 phút rồi đo một lần cho yên tâm nhé'
+              : '${_cap(hon)} ngồi yên, tựa lưng 5 phút rồi đo huyết áp nhé',
           tz.TZDateTime.from(r.at, tz.local),
           _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

@@ -1,33 +1,32 @@
-import 'bp_models.dart';
 import '../../../shared/honorific.dart';
+import 'bp_models.dart';
+import 'bp_protocol.dart';
 
-/// Nhận xét ngắn, dễ hiểu cho một lần đo (không thay thế ý kiến bác sĩ).
-String bpAdvice(BpReading r, {BpReading? previous}) {
-  final parts = <String>[
-    switch (r.category) {
-      BpCategory.normal =>
-        hon('Huyết áp bình thường, bác cứ giữ thói quen tốt nhé.'),
-      BpCategory.elevated =>
-        hon('Huyết áp hơi cao. Bác nên nghỉ ngơi, ăn nhạt và đo lại sau ít phút.'),
-      BpCategory.stage1 => hon('Huyết áp đang cao. Bác nên nghỉ ngơi, bớt muối và theo dõi thêm vài ngày.'),
-      BpCategory.stage2 => hon('Huyết áp cao. Bác nên nghỉ ngơi, đo lại sau 5 phút và báo người thân hoặc bác sĩ.'),
-      BpCategory.crisis => hon('Huyết áp rất cao. Bác ngồi nghỉ, gọi người thân và đến cơ sở y tế ngay nếu thấy đau đầu, khó thở.'),
-    },
-  ];
+/// Nhận xét ngắn cho một lần đo (không thay thế ý kiến bác sĩ). Câu chính là câu cố định của luật AHA
+/// ([bpDecide]); thêm mạch và so với lần trước. Không bao giờ khuyên đi lại hay vận động.
+String bpAdvice(BpReading r, {BpReading? previous, BpDecision? decision}) {
+  final d =
+      decision ??
+      bpDecide([
+        BpSample(r.systolic, r.diastolic, rested: r.protocolOk == true),
+      ]);
+  final parts = <String>[bpScriptText(d.script)];
   final pulse = r.pulse;
-  if (pulse != null && pulse > 100)
+  if (pulse != null && pulse > 100) {
     parts.add('Mạch hơi nhanh ($pulse lần/phút).');
-  if (pulse != null && pulse < 50)
+  }
+  if (pulse != null && pulse < 50) {
     parts.add('Mạch hơi chậm ($pulse lần/phút).');
+  }
   if (previous != null) {
-    final d = r.systolic - previous.systolic;
-    if (d.abs() >= 10) {
+    final delta = r.systolic - previous.systolic;
+    if (delta.abs() >= 10) {
       parts.add(
-        d > 0
-            ? 'Tâm thu cao hơn lần trước ${d.abs()} mmHg.'
-            : 'Tâm thu thấp hơn lần trước ${d.abs()} mmHg.',
+        delta > 0
+            ? 'Tâm thu cao hơn lần trước ${delta.abs()} mmHg.'
+            : 'Tâm thu thấp hơn lần trước ${delta.abs()} mmHg.',
       );
     }
   }
-  return parts.join(' ');
+  return hon(parts.join(' '));
 }

@@ -7,4 +7,7 @@ abstract interface class BpRepository {
   Future<void> add(BpReading reading);
 
   Future<void> delete(String id);
+
+  /// Ghi triệu chứng người dùng báo cho cả phiên đo (`none` nếu không có).
+  Future<void> markSymptoms(String sessionId, List<String> symptoms);
 }

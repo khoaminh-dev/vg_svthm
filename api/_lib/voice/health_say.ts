@@ -1,3 +1,4 @@
+import { scriptText } from '../health/bp_protocol.js';
 // Vy trả lời về tình trạng sức khoẻ. KHÔNG dùng mô hình ngôn ngữ để viết câu: số liệu do server đọc từ
 // bảng của chính người dùng rồi điền vào khuôn câu cố định, nên không thể bịa số và không gửi số liệu ra ngoài.
 // Vy không chẩn đoán, không nói tên thuốc, không bảo uống hay bỏ thuốc.
@@ -101,9 +102,9 @@ export function buildHealthSay(topic: Topic, ctx: HealthCtx): HealthSay {
   const age = daysSince(latest.measured_at, ctx.now);
 
   // Số đo rất cao và còn mới: luôn nói trước, bất kể hỏi gì.
-  if ((s >= 180 || d >= 120) && age <= 1) {
+  if ((s > 180 || d > 120) && age <= 1) {
     return out(
-      `Huyết áp lần đo gần nhất của ${h} rất cao, ${s} trên ${d}. Nếu ${h} đau ngực, yếu liệt hoặc nói khó, hãy gọi 115 ngay. Nếu không có triệu chứng, ${h} ngồi nghỉ vài phút rồi đo lại nhé.`,
+      `Huyết áp lần đo gần nhất của ${h} là ${s} trên ${d}. ${scriptText('severe_wait', h)}`,
       true,
     );
   }

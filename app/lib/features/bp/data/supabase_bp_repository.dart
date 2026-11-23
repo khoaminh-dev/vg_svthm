@@ -26,8 +26,26 @@ class SupabaseBpRepository implements BpRepository {
 
   @override
   Future<void> add(BpReading reading) => _guard(() async {
-    await _client.from('bp_readings').insert(reading.toInsert());
+    try {
+      await _client.from('bp_readings').insert(reading.toInsert());
+    } on PostgrestException catch (e) {
+      // Máy chủ chưa có cột của phiên đo (migration 0035): vẫn lưu số đo theo cách cũ, không mất dữ liệu.
+      if (e.code == 'PGRST204' || e.code == '42703') {
+        await _client.from('bp_readings').insert(reading.toLegacyInsert());
+        return;
+      }
+      rethrow;
+    }
   });
+
+  @override
+  Future<void> markSymptoms(String sessionId, List<String> symptoms) =>
+      _guard(() async {
+        await _client
+            .from('bp_readings')
+            .update({'symptoms': symptoms})
+            .eq('session_id', sessionId);
+      });
 
   @override
   Future<void> delete(String id) => _guard(() async {

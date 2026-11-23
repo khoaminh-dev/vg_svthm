@@ -41,6 +41,8 @@ export interface Reading {
   diastolic: number;
   pulse: number | null;
   measuredAt: string;
+  /** false = đo chưa ngồi nghỉ đủ chuẩn (null/undefined = không rõ, số cũ). Số false không dùng để suy ra tăng huyết áp. */
+  protocolOk?: boolean | null;
 }
 
 export interface RiskInput {
@@ -109,14 +111,18 @@ function median(xs: number[]): number {
 }
 
 export function assess(models: { stroke: any; heart: any; diabetes?: any }, input: RiskInput): RiskResult {
-  const latest = input.readings[0];
-  if (!latest) throw new Error('no_reading');
+  const newest = input.readings[0];
+  if (!newest) throw new Error('no_reading');
+  // Số đo chưa đủ chuẩn (vừa ngủ dậy, vừa đi lại...) không dùng cho model và việc suy ra tăng huyết áp.
+  // Riêng ngưỡng khẩn cấp vẫn xét số mới nhất bất kể chuẩn (an toàn trước).
+  const trusted = input.readings.filter((r) => r.protocolOk !== false);
+  const latest = trusted[0] ?? newest;
   const age = input.year - input.birthYear;
   const male = input.sex === 'male' ? 1 : 0;
   const b = (v: boolean | null) => (v ? 1 : 0);
 
   // Tăng huyết áp: người dùng đã khai, hoặc trung vị tối đa 3 lần đo gần nhất từ 140/90 trở lên.
-  const recent = input.readings.slice(0, 3);
+  const recent = (trusted.length ? trusted : input.readings).slice(0, 3);
   const sysMed = median(recent.map((r) => r.systolic));
   const diaMed = median(recent.map((r) => r.diastolic));
   const hypertensionDerived = sysMed >= 140 || diaMed >= 90;
@@ -160,7 +166,7 @@ export function assess(models: { stroke: any; heart: any; diabetes?: any }, inpu
   let level: Level = worse(strokeLv, heartLv);
   // Luật cố định, không qua model: từng bị đột quỵ thì tối thiểu "cần chú ý"; cơn tăng huyết áp thì khẩn cấp.
   if (input.hadStroke) level = worse(level, 'attention');
-  if (latest.systolic >= 180 || latest.diastolic >= 120) level = 'urgent';
+  if (newest.systolic > 180 || newest.diastolic > 120) level = 'urgent'; // AHA: "cao hơn" 180/120
 
   const reasons: string[] = [];
   if (latest.systolic >= 140 || latest.diastolic >= 90) reasons.push('bp_high_now');

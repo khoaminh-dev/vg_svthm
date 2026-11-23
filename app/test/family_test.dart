@@ -93,6 +93,9 @@ class FakeFamily implements FamilyRepository {
 class FakeBp implements BpRepository {
   FakeBp(this.byOwner);
 
+  @override
+  Future<void> markSymptoms(String sessionId, List<String> symptoms) async {}
+
   final Map<String, List<BpReading>> byOwner;
 
   @override
