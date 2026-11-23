@@ -355,7 +355,7 @@ class VyPanel extends StatelessWidget {
           ],
           if (view.hasMic && (view.phase == VyPhase.ready || view.phase == VyPhase.listening)) ...[
             const SizedBox(height: 16),
-            _TalkRow(listening: view.phase == VyPhase.listening, onTalk: onPrimary, onClose: onClose),
+            _TalkRow(listening: view.phase == VyPhase.listening, onTalk: onPrimary),
           ],
           if (onText != null && view.phase != VyPhase.opening && view.phase != VyPhase.emergency) ...[
             const SizedBox(height: 16),
@@ -368,7 +368,7 @@ class VyPanel extends StatelessWidget {
 }
 
 /// Khối "đang kết nối": một hàng ngang gọn, quả cầu xoay + dải chấm sóng chạy liên tục + nút đóng. Ít chữ.
-/// Chờ lâu (6 giây) mới hiện thêm một nút ngắn để nói ngay bằng Vy thường. Chỉ vẽ khi đang nối, nên đồng hồ tự về 0.
+/// Chờ hơi lâu (2 giây) là hiện thêm một nút ngắn để nói ngay bằng Vy thường. Chỉ vẽ khi đang nối, nên đồng hồ tự về 0.
 class _Connecting extends StatefulWidget {
   const _Connecting({required this.onClose, this.onUseClassic});
 
@@ -387,7 +387,7 @@ class _ConnectingState extends State<_Connecting> with SingleTickerProviderState
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 6), () {
+    _timer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _slow = true);
     });
   }
@@ -487,39 +487,25 @@ class _WaveDots extends StatelessWidget {
   }
 }
 
-/// Hàng nút CÓ CHỮ ở thẻ lớn, để người cao tuổi khỏi phải đoán biểu tượng: "Bấm để nói" (hoặc "Nói xong, bấm gửi") và "Tắt Vy".
+/// Nút CÓ CHỮ ở thẻ lớn, để người cao tuổi khỏi phải đoán biểu tượng: "Bấm để nói" (hoặc "Xong, bấm gửi").
+/// Nút tắt đã có ở thanh trên (X), không lặp lại ở đây.
 class _TalkRow extends StatelessWidget {
-  const _TalkRow({required this.listening, required this.onTalk, required this.onClose});
+  const _TalkRow({required this.listening, required this.onTalk});
 
   final bool listening;
   final VoidCallback onTalk;
-  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: FilledButton.icon(
-            key: const Key('vy-talk-big'),
-            style: FilledButton.styleFrom(backgroundColor: _blue, minimumSize: const Size(0, 60)),
-            onPressed: onTalk,
-            icon: Icon(listening ? Icons.arrow_upward_rounded : Icons.mic_none_rounded, size: 26),
-            label: Text(listening ? 'Xong, bấm gửi' : 'Bấm để nói', style: const TextStyle(fontSize: 19)),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          flex: 2,
-          child: OutlinedButton(
-            key: const Key('vy-close-big'),
-            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 60)),
-            onPressed: onClose,
-            child: const Text('Tắt Vy', style: TextStyle(fontSize: 19)),
-          ),
-        ),
-      ],
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        key: const Key('vy-talk-big'),
+        style: FilledButton.styleFrom(backgroundColor: _blue, minimumSize: const Size(0, 60)),
+        onPressed: onTalk,
+        icon: Icon(listening ? Icons.arrow_upward_rounded : Icons.mic_none_rounded, size: 26),
+        label: Text(listening ? 'Xong, bấm gửi' : 'Bấm để nói', style: const TextStyle(fontSize: 19)),
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/errors/app_failure.dart';
+import '../../../../shared/honorific.dart';
 import '../../../health/data/advice_speaker.dart';
 import '../../../health/presentation/providers/health_providers.dart';
 import '../../../health/presentation/risk_texts.dart';
@@ -177,6 +178,36 @@ class MeasureController extends Notifier<MeasureState> {
     }
   }
 
+  /// Vào màn đo là đếm ngược ngồi nghỉ 5 phút ngay (không hỏi trước): người dùng chỉ cần chạm
+  /// "Đã ngồi nghỉ rồi" nếu thật sự đã nghỉ, hoặc "Vừa làm việc khác" nếu cần chọn bối cảnh.
+  void beginRest() {
+    final sid = state.sessionId ?? _newSessionId();
+    Analytics.track('bp_prep_view', {'ctx': 'auto_rest'});
+    ref.read(bpMeasuringSinceProvider.notifier).set(clock());
+    state = MeasureState(sessionId: sid);
+    startRest(bpRestSeconds);
+  }
+
+  /// Người dùng cho biết đã ngồi nghỉ yên đủ: vào camera luôn, số đo tới tính là đủ chuẩn.
+  void confirmRested() {
+    Analytics.track('bp_rest_confirmed');
+    state = MeasureState(
+      step: MeasureStep.ready,
+      samples: state.samples,
+      contexts: const {},
+      rested: true,
+      restTotal: bpRestSeconds,
+      sessionId: state.sessionId,
+      symptoms: state.symptoms,
+    );
+  }
+
+  /// "Vừa làm việc khác": quay lại bước chọn bối cảnh (ngủ dậy, đi lại, cà phê/thuốc lá).
+  void backToPrep() {
+    Analytics.track('bp_back_to_prep');
+    state = MeasureState(sessionId: state.sessionId, samples: state.samples);
+  }
+
   /// Bắt đầu đếm ngược ngồi yên [seconds] giây rồi mới cho đo.
   void startRest(int seconds) {
     _restStartedAt = clock();
@@ -200,6 +231,10 @@ class MeasureController extends Notifier<MeasureState> {
     unawaited(_say(bpScriptText(key)));
   }
 
+  /// Vy báo thời gian còn lại lúc đang nghỉ (chỉ khi người dùng bật đọc lời khuyên).
+  void sayRestLeft(int seconds) =>
+      unawaited(_say(hon('Còn ${seconds ~/ 60} phút nữa. Bác cứ ngồi yên, tựa lưng nhé.')));
+
   /// Hết giờ nghỉ: số đo tới là đủ chuẩn nếu đã ngồi ≥ 5 phút, hoặc đây là số thứ hai sát số đủ chuẩn.
   void finishRest() {
     final waited = state.restTotal;
@@ -207,6 +242,8 @@ class MeasureController extends Notifier<MeasureState> {
         waited >= bpRestSeconds ||
         (state.samples.isNotEmpty && state.samples.last.rested);
     Analytics.track('bp_rest_done', {'sec': waited});
+    // Vy báo ngay khi hết giờ để người dùng không phải nhìn màn hình đoán.
+    unawaited(_say(hon('Hết giờ nghỉ rồi. Bác đưa màn hình máy đo vào khung rồi bấm nút chụp nhé.')));
     state = MeasureState(
       step: MeasureStep.ready,
       samples: state.samples,

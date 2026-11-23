@@ -1,3 +1,4 @@
+import '../../voice/core/control_registry.dart';
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,7 +62,7 @@ class MedPlanListScreen extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppBar(
         title: const Text('Lịch thuốc'),
         leadingWidth: 72,
@@ -223,6 +224,30 @@ class MedPlanListScreen extends ConsumerWidget {
                 ),
         ),
       ),
+    );
+
+    return VyControlScope(
+      controls: [
+        VyControl(
+          id: 'plans.new',
+          label: 'Thêm đơn',
+          aliases: const ['thêm đơn thuốc', 'đơn mới', 'nhập tay'],
+          onInvoke: () async {
+            await context.push(Routes.medsPlanFor(ownerId));
+            ref.invalidate(personPlansProvider(ownerId));
+          },
+        ),
+        VyControl(
+          id: 'plans.scan',
+          label: 'Chụp đơn thuốc',
+          aliases: const ['chụp đơn', 'quét đơn thuốc'],
+          onInvoke: () async {
+            await context.push(Routes.medsScanFor(ownerId));
+            ref.invalidate(personPlansProvider(ownerId));
+          },
+        ),
+      ],
+      child: page,
     );
   }
 }

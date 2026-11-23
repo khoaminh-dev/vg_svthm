@@ -9,6 +9,7 @@ import '../../../../core/utils/time_format.dart';
 import '../../../../shared/models/profile.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../voice/core/control_registry.dart';
 import '../../../voice/core/vy_core.dart';
 import '../../domain/room.dart';
 import '../providers/chat_controller.dart';
@@ -262,21 +263,34 @@ class _QuickReplies extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Xuống dòng thay vì cuộn ngang: mọi câu đều thấy ngay, không bị cắt ở mép màn hình.
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          for (final r in replies)
-            ActionChip(
-              label: Text(r, style: const TextStyle(fontSize: 17)),
-              onPressed: () {
-                Analytics.track('chat_quick_reply');
-                onPick(r);
-              },
-            ),
-        ],
+    // Gửi tin là việc có hậu quả: Vy phải hỏi lại trước khi bấm hộ (mức xác nhận).
+    return VyControlScope(
+      controls: [
+        for (var i = 0; i < replies.length; i++)
+          VyControl(
+            id: 'room.quick.$i',
+            label: replies[i],
+            aliases: ['gửi ${replies[i].toLowerCase()}', 'trả lời ${replies[i].toLowerCase()}'],
+            level: VyLevel.confirm,
+            onInvoke: () => onPick(replies[i]),
+          ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final r in replies)
+              ActionChip(
+                label: Text(r, style: const TextStyle(fontSize: 17)),
+                onPressed: () {
+                  Analytics.track('chat_quick_reply');
+                  onPick(r);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

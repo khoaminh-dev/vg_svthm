@@ -39,28 +39,26 @@ void bigScreen(WidgetTester t) {
 }
 
 void main() {
-  testWidgets('trang chủ người cao tuổi: thẻ Vy, 6 ô lớn, SOS, không thanh điều hướng', (t) async {
+  testWidgets('trang chủ người cao tuổi: Vy, thẻ việc kế tiếp, 3 nút lớn, SOS, không số huyết áp cố định', (t) async {
     bigScreen(t);
     await t.pumpWidget(hostElder(FakeMeds()));
     await pump(t);
     expect(find.byKey(const Key('elder-home')), findsOneWidget);
-    expect(find.byKey(const Key('elder-vy')), findsOneWidget, reason: 'Vy luôn hiện ở đầu trang chủ');
+    expect(find.byKey(const Key('elder-vy')), findsOneWidget, reason: 'Vy luôn hiện ở trang chủ');
     expect(find.text('Chạm vào Vy rồi nói'), findsOneWidget);
     final vy = t.getSize(find.byKey(const Key('elder-vy')));
-    expect(vy.height, greaterThan(300), reason: 'Vy là nút chính, chiếm vùng lớn nhất màn hình');
+    expect(vy.height, greaterThan(250), reason: 'Vy là nút chính, chiếm vùng lớn nhất màn hình');
+    expect(elderTiles.map((e) => e.key), ['measure', 'messages', 'meds'], reason: 'chỉ 3 nút lớn');
     for (final tile in elderTiles) {
-      // Thuốc và Sức khoẻ đã có thẻ riêng ở trên, không lặp thành ô.
-      final inCard = tile.key == 'meds' || tile.key == 'health';
-      expect(find.byKey(Key('elder-tile-${tile.key}')), inCard ? findsNothing : findsOneWidget, reason: tile.label);
+      expect(find.byKey(Key('elder-tile-${tile.key}')), findsOneWidget, reason: tile.label);
     }
-    expect(find.text('Tin nhắn'), findsOneWidget);
-    expect(find.text('Cộng đồng'), findsOneWidget);
-    expect(find.text('Giải trí'), findsOneWidget);
-    expect(elderTiles.length, 6);
+    expect(find.text('Cộng đồng'), findsNothing);
+    expect(find.text('Giải trí'), findsNothing);
     expect(find.byKey(const Key('elder-avatar')), findsOneWidget, reason: 'Hồ sơ mở bằng avatar');
     expect(find.byType(SosHoldButton), findsOneWidget);
     expect(find.byKey(const Key('elder-dose-none')), findsOneWidget);
-    expect(find.text('--/--'), findsOneWidget);
+    expect(find.text('--/--'), findsNothing, reason: 'không còn ô số huyết áp cố định');
+    expect(find.text('Huyết áp gần nhất'), findsNothing);
   });
 
   testWidgets('đến giờ uống thuốc: có nút "Đã uống" to và bấm là ghi nhận', (t) async {

@@ -10,6 +10,9 @@ import '../../../core/errors/app_failure.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_snackbar.dart';
+import '../../voice/core/control_registry.dart';
+import '../domain/meds_models.dart';
 import '../../ocr/presentation/providers/ocr_providers.dart';
 import '../domain/med_redact.dart';
 import '../domain/med_scan_models.dart';
@@ -37,6 +40,7 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
   String? _error;
   ScanResult? _result;
   int _masked = 0;
+  bool _saving = false;
 
   Future<void> _start({required bool camera}) async {
     final String? path;
@@ -94,6 +98,53 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
     context.pushReplacement(Routes.medsPlanFor(widget.ownerId), extra: draft);
   }
 
+  /// "Lưu luôn" chỉ khi MỌI thuốc đọc được đều khớp với ảnh, không có mục bị bỏ, và chưa có đơn nào đang dùng
+  /// (không phải hỏi dừng đơn cũ). Còn lại phải qua màn kiểm tra và chỉnh như trước.
+  bool _canQuickSave(ScanResult r, List<MedPlan>? plans) {
+    if (r.isEmpty || r.dropped > 0 || plans == null) return false;
+    if (plans.any((p) => p.active)) return false;
+    final items = [for (final s in r.slots) ...s.items];
+    final all = [...items.map((i) => i.status), ...r.prn.map((p) => p.status)];
+    return all.isNotEmpty && all.every((st) => st == ScanStatus.ok);
+  }
+
+  Future<void> _quickSave() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      final draft = _result!.toDraft(DateTime.now());
+      final days = _result!.days;
+      final plan = MedPlan(
+        title: draft.title,
+        startDate: draft.startDate,
+        endDate: draft.endDate,
+        recheckDate: draft.recheckDate,
+        slots: [
+          for (final sl in draft.slots)
+            sl.bagsRemaining == null && days != null ? sl.copyWith(bagsRemaining: () => days) : sl,
+        ],
+        prn: draft.prn,
+      );
+      await ref.read(medsRepositoryProvider).savePlan(widget.ownerId, plan, replace: false);
+      Analytics.track('med_scan_quick_save', {'slots': plan.slots.length});
+      ref
+        ..invalidate(personPlansProvider(widget.ownerId))
+        ..invalidate(personDosesProvider(widget.ownerId))
+        ..invalidate(myPlansProvider)
+        ..invalidate(myDosesProvider);
+      if (!mounted) return;
+      showAppSnackBar(context, 'Đã lưu lịch thuốc');
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = errorMessage(e);
+        _phase = _Phase.error;
+      });
+    }
+  }
+
   void _enlarge() {
     final p = _photo;
     if (p == null) return;
@@ -123,18 +174,61 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chụp đơn thuốc'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
-      ),
-      body: SafeArea(
-        child: switch (_phase) {
-          _Phase.pick => _pick(context),
-          _Phase.working => _working(context),
-          _Phase.error => _failed(context),
-          _Phase.result => _review(context),
-        },
+    final plans = ref.watch(personPlansProvider(widget.ownerId)).value;
+    final quick = _phase == _Phase.result && _result != null && _canQuickSave(_result!, plans);
+    return VyControlScope(
+      controls: [
+        if (_phase == _Phase.pick) ...[
+          VyControl(
+            id: 'scan.camera',
+            label: 'Chụp ảnh',
+            aliases: const ['chụp đơn thuốc', 'chụp đi', 'mở camera'],
+            onInvoke: () => _start(camera: true),
+          ),
+          VyControl(
+            id: 'scan.gallery',
+            label: 'Chọn ảnh có sẵn',
+            aliases: const ['chọn ảnh', 'lấy ảnh trong máy'],
+            onInvoke: () => _start(camera: false),
+          ),
+        ],
+        if (_phase == _Phase.result && _result != null && !_result!.isEmpty) ...[
+          if (quick)
+            VyControl(
+              id: 'scan.save',
+              label: 'Lưu luôn',
+              aliases: const ['lưu', 'lưu lại', 'lưu đơn thuốc'],
+              level: VyLevel.confirm,
+              onInvoke: _quickSave,
+            ),
+          VyControl(
+            id: 'scan.edit',
+            label: 'Kiểm tra và chỉnh',
+            aliases: const ['chỉnh', 'sửa', 'kiểm tra'],
+            onInvoke: _useDraft,
+          ),
+        ],
+        if (_phase == _Phase.result || _phase == _Phase.error)
+          VyControl(
+            id: 'scan.again',
+            label: 'Chụp lại',
+            aliases: const ['chụp lại'],
+            onInvoke: () => setState(() => _phase = _Phase.pick),
+          ),
+      ],
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Chụp đơn thuốc'),
+          leading: SoftBackLeading(onPressed: () => context.pop()),
+        ),
+        body: SafeArea(
+          child: switch (_phase) {
+            _Phase.pick => _pick(context),
+            _Phase.working => _working(context),
+            _Phase.error => _failed(context),
+            _Phase.result => _review(context, quick),
+          },
+        ),
       ),
     );
   }
@@ -249,7 +343,7 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
     );
   }
 
-  Widget _review(BuildContext context) {
+  Widget _review(BuildContext context, bool quick) {
     final theme = Theme.of(context);
     final r = _result!;
     return ListView(
@@ -319,17 +413,28 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
           ),
         ],
         const SizedBox(height: AppSpacing.lg),
-        if (!r.isEmpty)
+        if (quick)
           FilledButton.icon(
+            key: const Key('scan-save'),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 64)),
+            onPressed: _saving ? null : _quickSave,
+            icon: const Icon(Icons.check_rounded, size: 28),
+            label: const Text('Lưu luôn', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          ),
+        if (quick) const SizedBox(height: 10),
+        if (!r.isEmpty)
+          (quick ? OutlinedButton.icon : FilledButton.icon)(
             key: const Key('scan-use'),
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 56)),
+            style: (quick ? OutlinedButton.styleFrom(minimumSize: const Size(0, 56)) : FilledButton.styleFrom(minimumSize: const Size(0, 56))),
             onPressed: _useDraft,
             icon: const Icon(Icons.edit_note_rounded),
-            label: const Text('Kiểm tra và chỉnh trước khi lưu'),
+            label: Text(quick ? 'Chỉnh trước khi lưu' : 'Kiểm tra và chỉnh trước khi lưu'),
           ),
         const SizedBox(height: 8),
         Text(
-          'Chưa có báo thức nào được bật. Lịch chỉ có hiệu lực khi bạn bấm Lưu ở bước sau.',
+          quick
+              ? 'Mọi thuốc đều khớp với ảnh. Chưa có báo thức nào được bật cho tới khi bạn bấm Lưu.'
+              : 'Chưa có báo thức nào được bật. Lịch chỉ có hiệu lực khi bạn bấm Lưu ở bước sau.',
           style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
         ),
         const SizedBox(height: 12),

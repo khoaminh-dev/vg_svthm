@@ -1,3 +1,4 @@
+import '../../voice/core/control_registry.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -80,7 +81,7 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final watchers = ref.watch(watchersProvider);
-    return Scaffold(
+    final page = Scaffold(
       bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Người thân theo dõi'),
@@ -201,6 +202,32 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
           ],
         ),
       ),
+    );
+
+    return VyControlScope(
+      controls: [
+        if (_code == null)
+          VyControl(
+            id: 'invite.create',
+            label: 'Tạo mã mới',
+            aliases: const ['tạo mã', 'mã mời'],
+            onInvoke: _busy ? null : _create,
+          )
+        else
+          VyControl(
+            id: 'invite.share',
+            label: 'Gửi mã',
+            aliases: const ['chia sẻ mã', 'gửi mã cho con'],
+            level: VyLevel.confirm,
+            onInvoke: () => SharePlus.instance.share(
+              ShareParams(
+                text:
+                    'Mã theo dõi sức khoẻ trên Viegrand của mình: $_spaced (dùng trong 10 phút). Bạn mở Viegrand, vào Hồ sơ, chọn "Theo dõi người thân" rồi nhập mã.',
+              ),
+            ),
+          ),
+      ],
+      child: page,
     );
   }
 }

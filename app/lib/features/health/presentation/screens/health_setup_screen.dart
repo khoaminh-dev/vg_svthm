@@ -1,3 +1,4 @@
+import '../../../voice/core/control_registry.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -181,7 +182,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
     final theme = Theme.of(context);
     final last = _page == _lastPage;
 
-    return PopScope(
+    final page = PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _back();
@@ -316,6 +317,24 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
           ),
         ),
       ),
+    );
+
+    return VyControlScope(
+      controls: [
+        VyControl(
+          id: 'setup.next',
+          label: last ? 'Xong' : 'Tiếp',
+          aliases: const ['tiếp tục', 'tiếp', 'xong', 'lưu'],
+          onInvoke: _saving ? null : _next,
+        ),
+        VyControl(
+          id: 'setup.skip',
+          label: 'Để sau',
+          aliases: const ['bỏ qua', 'không cần'],
+          onInvoke: _saving ? null : _skip,
+        ),
+      ],
+      child: page,
     );
   }
 

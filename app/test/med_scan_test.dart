@@ -61,9 +61,9 @@ const _fake = ScanResult(
   ],
 );
 
-Future<(GoRouter, FakeMeds, _Ocr, _Client)> _scanHost(WidgetTester t, {String text = _rx, ScanResult result = _fake}) async {
+Future<(GoRouter, FakeMeds, _Ocr, _Client)> _scanHost(WidgetTester t, {String text = _rx, ScanResult result = _fake, List<MedPlan>? plans}) async {
   bigScreen(t);
-  final repo = FakeMeds();
+  final repo = FakeMeds(plans: plans);
   final ocr = _Ocr(text);
   final client = _Client(result);
   final router = GoRouter(
@@ -186,6 +186,49 @@ Tối: Metformin 500mg x 1 viên''';
     await t.pumpAndSettle();
     expect(find.byKey(const Key('scan-empty')), findsOneWidget);
     expect(find.byKey(const Key('scan-use')), findsNothing);
+  });
+
+  const allOk = ScanResult(
+    title: 'Đơn huyết áp',
+    days: 30,
+    slots: [
+      ScanSlot(label: 'Sáng', status: ScanStatus.ok, items: [
+        ScanItem(name: 'Amlodipin', strength: '5mg', status: ScanStatus.ok),
+      ]),
+    ],
+  );
+
+  testWidgets('mọi thuốc khớp ảnh, chưa có đơn nào: có "Lưu luôn", bấm là lưu (2 bước: chụp, lưu)', (t) async {
+    final (router, repo, _, _) = await _scanHost(t, result: allOk);
+    await t.tap(find.byKey(const Key('scan-camera')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('scan-save')), findsOneWidget);
+    expect(find.byKey(const Key('scan-use')), findsOneWidget, reason: 'vẫn có đường chỉnh trước khi lưu');
+    expect(repo.saved, isNull, reason: 'chưa bấm thì chưa lưu');
+    await t.tap(find.byKey(const Key('scan-save')));
+    await t.pumpAndSettle();
+    expect(repo.saved, isNotNull);
+    expect(repo.saved!.title, 'Đơn huyết áp');
+    expect(repo.saved!.slots.single.bagsRemaining, 30);
+    expect(repo.savedReplace, isFalse);
+    expect(find.text('GỐC'), findsOneWidget, reason: 'lưu xong quay về màn trước');
+    expect(router, isNotNull);
+  });
+
+  testWidgets('có thuốc chỉ "gần giống" hoặc bị bỏ: KHÔNG có "Lưu luôn", phải kiểm tra và chỉnh', (t) async {
+    await _scanHost(t);
+    await t.tap(find.byKey(const Key('scan-camera')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('scan-save')), findsNothing);
+    expect(find.byKey(const Key('scan-use')), findsOneWidget);
+  });
+
+  testWidgets('đang có đơn dùng: không "Lưu luôn" (phải hỏi dừng đơn cũ ở màn sửa)', (t) async {
+    final old = MedPlan(title: 'Đơn cũ', startDate: DateTime.now().subtract(const Duration(days: 2)), slots: const [MedSlot(label: 'Sáng', time: '07:00')]);
+    await _scanHost(t, result: allOk, plans: [old]);
+    await t.tap(find.byKey(const Key('scan-camera')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('scan-save')), findsNothing);
   });
 
   test('toDraft: bỏ mục không bằng chứng, giờ theo tên cữ, ngày kết thúc theo số ngày', () {

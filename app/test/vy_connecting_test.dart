@@ -42,11 +42,9 @@ void main() {
   testWidgets('chờ lâu: rồi hiện nút nói ngay bằng Vy thường; bấm được', (t) async {
     var classic = 0;
     await show(t, const VyView(phase: VyPhase.opening, engine: VyEngine.none), onUseClassic: () => classic++);
-    for (var i = 0; i < 3; i++) {
-      await t.pump(const Duration(seconds: 1));
-    }
+    await t.pump(const Duration(seconds: 1));
     expect(find.byKey(const Key('vy-use-classic')), findsNothing);
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 2; i++) {
       await t.pump(const Duration(seconds: 1));
     }
     expect(find.byKey(const Key('vy-use-classic')), findsOneWidget);

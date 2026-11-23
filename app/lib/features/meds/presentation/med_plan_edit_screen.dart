@@ -1,3 +1,4 @@
+import '../../voice/core/control_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -406,7 +407,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppBar(
         title: Text(_editing ? 'Sửa đơn thuốc' : 'Thêm đơn thuốc'),
         leadingWidth: 72,
@@ -604,6 +605,31 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
           ],
         ),
       ),
+    );
+
+    return VyControlScope(
+      controls: [
+        VyControl(
+          id: 'plan.save',
+          label: 'Lưu lịch thuốc',
+          aliases: const ['lưu', 'lưu lại', 'lưu đơn thuốc'],
+          level: VyLevel.confirm,
+          onInvoke: _saving ? null : _save,
+        ),
+        for (final p in _presets)
+          VyControl(
+            id: 'plan.slot.${p.label}',
+            label: 'Cữ ${p.label}',
+            aliases: ['uống buổi ${p.label.toLowerCase()}', p.label],
+            kind: VyKind.toggle,
+            level: VyLevel.readBack,
+            value: _has(p.label),
+            onSet: (v) {
+              if (v != _has(p.label)) _togglePreset(p);
+            },
+          ),
+      ],
+      child: page,
     );
   }
 

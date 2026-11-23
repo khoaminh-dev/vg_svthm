@@ -19,6 +19,10 @@ import '../providers/chat_controller.dart';
 import '../providers/chat_providers.dart';
 import '../../../../shared/widgets/ios_style.dart';
 import '../widgets/text_prompt_dialog.dart';
+import '../../../profile/data/phone_repository.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../voice/core/control_registry.dart';
+import '../../../voice/data/direct_caller.dart';
 import '../../../../core/analytics/analytics.dart';
 
 /// Danh sách phòng chat của người dùng.
@@ -65,6 +69,23 @@ class RoomListScreen extends ConsumerWidget {
     );
     if (username == null || !context.mounted) return;
     await _openDirectTo(context, ref, username);
+  }
+
+  /// Gọi người thân bằng số họ tự điền ở Hồ sơ (máy chủ chỉ trả số của người đang liên kết với mình).
+  Future<void> _callFamily(BuildContext context, WidgetRef ref, FamilyLink l) async {
+    final n = (l.otherName ?? '').trim();
+    final name = n.isNotEmpty ? n : (l.otherUsername ?? 'người thân');
+    String? number;
+    try {
+      number = (await ref.read(phoneRepositoryProvider).ofUsers([l.otherId]))[l.otherId];
+    } catch (_) {}
+    if (!context.mounted) return;
+    if (number == null || number.trim().isEmpty) {
+      showAppSnackBar(context, '$name chưa có số điện thoại. Nhờ $name điền số ở Hồ sơ của họ nhé.', error: true);
+      return;
+    }
+    Analytics.track('elder_call_family');
+    await ref.read(directCallProvider)(number);
   }
 
   Future<void> _openDirectTo(BuildContext context, WidgetRef ref, String username) async {
@@ -118,7 +139,7 @@ class RoomListScreen extends ConsumerWidget {
         ? [for (final l in ref.watch(watchersProvider)) if ((l.otherUsername ?? '').isNotEmpty) l]
         : const <FamilyLink>[];
 
-    return Scaffold(
+    final page = Scaffold(
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -155,6 +176,7 @@ class RoomListScreen extends ConsumerWidget {
                   Analytics.track('elder_msg_family');
                   _openDirectTo(context, ref, l.otherUsername!);
                 },
+                onCall: (l) => _callFamily(context, ref, l),
                 onOther: () => _newChat(context, ref),
               ),
             Expanded(
@@ -231,6 +253,46 @@ class RoomListScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+
+    String nameOf(FamilyLink l) {
+      final n = (l.otherName ?? '').trim();
+      return n.isNotEmpty ? n : (l.otherUsername ?? 'người thân');
+    }
+
+    return VyControlScope(
+      controls: [
+        for (final l in family.take(3))
+          VyControl(
+            id: 'rooms.msg.${l.otherId}',
+            label: 'Nhắn cho ${nameOf(l)}',
+            aliases: [nameOf(l), 'nhắn tin cho ${nameOf(l)}'],
+            onInvoke: () => _openDirectTo(context, ref, l.otherUsername!),
+          ),
+        for (final l in family.take(3))
+          VyControl(
+            id: 'rooms.call.${l.otherId}',
+            label: 'Gọi ${((l.otherName ?? '').trim().isNotEmpty ? l.otherName!.trim() : (l.otherUsername ?? 'người thân'))}',
+            aliases: const ['gọi điện', 'gọi người thân'],
+            level: VyLevel.confirm,
+            onInvoke: () => _callFamily(context, ref, l),
+          ),
+        if (elder)
+          VyControl(
+            id: 'rooms.other',
+            label: 'Nhắn cho người khác',
+            aliases: const ['nhắn người khác', 'chat mới'],
+            onInvoke: () => _newChat(context, ref),
+          )
+        else
+          VyControl(
+            id: 'rooms.new_chat',
+            label: 'Chat mới',
+            aliases: const ['tạo chat', 'nhắn tin mới'],
+            onInvoke: () => _newChat(context, ref),
+          ),
+      ],
+      child: page,
     );
   }
 }
@@ -385,10 +447,11 @@ class _SheetTile extends StatelessWidget {
 
 /// Đầu màn Tin nhắn của người cao tuổi: mỗi người thân một nút to "Nhắn cho …", và một nút nhắn cho người khác.
 class _ElderMessageActions extends StatelessWidget {
-  const _ElderMessageActions({required this.family, required this.onFamily, required this.onOther});
+  const _ElderMessageActions({required this.family, required this.onFamily, required this.onCall, required this.onOther});
 
   final List<FamilyLink> family;
   final ValueChanged<FamilyLink> onFamily;
+  final ValueChanged<FamilyLink> onCall;
   final VoidCallback onOther;
 
   @override
@@ -406,20 +469,44 @@ class _ElderMessageActions extends StatelessWidget {
           for (final l in family.take(3))
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: SizedBox(
-                width: double.infinity,
-                height: 68,
-                child: FilledButton.icon(
-                  key: Key('msg-family-${l.otherId}'),
-                  onPressed: () => onFamily(l),
-                  icon: const Icon(Icons.chat_bubble_rounded, size: 28),
-                  label: Text(
-                    'Nhắn cho ${nameOf(l)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 68,
+                      child: FilledButton.icon(
+                        key: Key('msg-family-${l.otherId}'),
+                        onPressed: () => onFamily(l),
+                        icon: const Icon(Icons.chat_bubble_rounded, size: 28),
+                        label: Text(
+                          'Nhắn cho ${nameOf(l)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 68,
+                    height: 68,
+                    child: Semantics(
+                      button: true,
+                      label: 'Gọi ${nameOf(l)}',
+                      excludeSemantics: true,
+                      child: FilledButton(
+                        key: Key('call-family-${l.otherId}'),
+                        style: FilledButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          backgroundColor: AppColors.levelGood,
+                        ),
+                        onPressed: () => onCall(l),
+                        child: const Icon(Icons.call_rounded, size: 32, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           SizedBox(

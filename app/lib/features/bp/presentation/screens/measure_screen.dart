@@ -25,6 +25,7 @@ import '../../../health/presentation/widgets/risk_view.dart' show callEmergency;
 import '../../domain/bp_models.dart';
 import '../../domain/bp_protocol.dart';
 import '../providers/measure_controller.dart';
+import '../../../voice/core/control_registry.dart';
 import '../../../../shared/honorific.dart';
 
 /// Màn đo huyết áp một chạm kiểu Locket: mở lên là thấy camera, bấm chụp là xong.
@@ -50,9 +51,11 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _speaker = ref.read(adviceSpeakerProvider);
-    Future.microtask(
-      () => ref.read(measureControllerProvider.notifier).reset(),
-    );
+    Future.microtask(() {
+      final n = ref.read(measureControllerProvider.notifier)..reset();
+      // Vào là đếm ngược nghỉ 5 phút luôn; không bắt chọn gì trước.
+      n.beginRest();
+    });
     _start();
   }
 
@@ -164,7 +167,52 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
     final c = _cam;
     final live = m.step == MeasureStep.ready;
 
-    return ElderScaleReset(
+    final ctl = ref.read(measureControllerProvider.notifier);
+    return VyControlScope(
+      controls: [
+        if (m.step == MeasureStep.resting) ...[
+          VyControl(
+            id: 'measure.rested',
+            label: 'Tôi đã ngồi nghỉ rồi',
+            aliases: const ['đã nghỉ rồi', 'đo luôn', 'tôi nghỉ đủ rồi'],
+            onInvoke: ctl.confirmRested,
+          ),
+          VyControl(
+            id: 'measure.skip_rest',
+            label: 'Bỏ qua, đo luôn',
+            aliases: const ['bỏ qua', 'không chờ nữa'],
+            level: VyLevel.readBack,
+            onInvoke: ctl.skipRest,
+          ),
+          VyControl(
+            id: 'measure.other',
+            label: 'Tôi vừa làm việc khác',
+            aliases: const ['vừa uống cà phê', 'vừa đi lại', 'vừa ngủ dậy', 'vừa hút thuốc'],
+            onInvoke: ctl.backToPrep,
+          ),
+        ],
+        if (live && c != null && c.value.isInitialized)
+          VyControl(
+            id: 'measure.shoot',
+            label: 'Chụp',
+            aliases: const ['chụp đi', 'bấm chụp', 'chụp ảnh', 'đo đi'],
+            onInvoke: _shoot,
+          ),
+        if (m.step == MeasureStep.failed || m.step == MeasureStep.confirm)
+          VyControl(
+            id: 'measure.retake',
+            label: 'Chụp lại',
+            aliases: const ['đo lại', 'chụp lại'],
+            onInvoke: ctl.retakePhoto,
+          ),
+        VyControl(
+          id: 'measure.close',
+          label: 'Đóng',
+          aliases: const ['thoát', 'đóng màn đo'],
+          onInvoke: () => context.pop(),
+        ),
+      ],
+      child: ElderScaleReset(
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
@@ -339,6 +387,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -918,42 +967,18 @@ class _IrregularAsk extends ConsumerWidget {
       );
     }
     if (m.irregular == false) return const SizedBox.shrink();
-    return Container(
+    // Tuỳ chọn, mặc định là "không": chỉ một dòng nhỏ, người dùng chạm khi máy THẬT SỰ hiện biểu tượng.
+    return Align(
       key: const Key('bp-irregular-ask'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.sky.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Máy có hiện biểu tượng nhịp tim không đều (hình trái tim nhấp nháy) không?',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  key: const Key('bp-irregular-yes'),
-                  onPressed: () => ctl.answerIrregular(true),
-                  child: const Text('Có'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  key: const Key('bp-irregular-no'),
-                  onPressed: () => ctl.answerIrregular(false),
-                  child: const Text('Không'),
-                ),
-              ),
-            ],
-          ),
-        ],
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        key: const Key('bp-irregular-yes'),
+        onPressed: () => ctl.answerIrregular(true),
+        icon: const Icon(Icons.favorite_border_rounded, size: 20),
+        label: const Text(
+          'Máy báo nhịp tim không đều? Chạm vào đây',
+          style: TextStyle(fontSize: 16),
+        ),
       ),
     );
   }
@@ -1158,6 +1183,10 @@ class _RestViewState extends ConsumerState<_RestView> {
         ref.read(measureControllerProvider.notifier).finishRest();
       } else if (mounted) {
         setState(() => _left = left);
+        final t = widget.m.restTotal;
+        if (t == bpRestSeconds && (left == 120 || left == 60)) {
+          ref.read(measureControllerProvider.notifier).sayRestLeft(left);
+        }
       }
     });
   }
@@ -1178,11 +1207,12 @@ class _RestViewState extends ConsumerState<_RestView> {
         : caffeine
         ? 'Bác vừa uống cà phê hoặc hút thuốc nên cần chờ khoảng 30 phút. Bác ngồi yên, đừng đi lại.'
         : 'Bác ngồi yên, tựa lưng, thở đều, đừng nói chuyện và đừng đi lại.';
-    return Padding(
+    return Center(
+      child: SingleChildScrollView(
       key: const Key('bp-rest'),
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Semantics(
             liveRegion: true,
@@ -1226,7 +1256,33 @@ class _RestViewState extends ConsumerState<_RestView> {
               height: 1.3,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          if (!between && !caffeine) ...[
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: FilledButton.icon(
+                key: const Key('bp-rested-yes'),
+                onPressed: () =>
+                    ref.read(measureControllerProvider.notifier).confirmRested(),
+                icon: const Icon(Icons.check_circle_rounded),
+                label: Text(
+                  hon('Bác đã ngồi nghỉ rồi, đo luôn'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            TextButton(
+              key: const Key('bp-rest-other'),
+              onPressed: () =>
+                  ref.read(measureControllerProvider.notifier).backToPrep(),
+              child: Text(
+                hon('Bác vừa uống cà phê, đi lại hoặc ngủ dậy'),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
           TextButton(
             key: const Key('bp-rest-skip'),
             onPressed: () =>
@@ -1237,6 +1293,7 @@ class _RestViewState extends ConsumerState<_RestView> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1294,6 +1351,26 @@ class _ActionCard extends ConsumerStatefulWidget {
 
 class _ActionCardState extends ConsumerState<_ActionCard> {
   final Set<String> _picked = {};
+  Timer? _auto;
+
+  @override
+  void initState() {
+    super.initState();
+    // Số đầu cao vừa phải: tự đếm 1 phút rồi đo số thứ hai, người dùng không phải chạm gì (vẫn bấm sớm hay đóng màn được).
+    if (widget.m.decision?.action == BpAction.recheck1min) {
+      _auto = Timer(const Duration(seconds: 6), () {
+        if (mounted) {
+          ref.read(measureControllerProvider.notifier).startRest(bpBetweenReadingsSeconds);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _auto?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1346,7 +1423,7 @@ class _ActionCardState extends ConsumerState<_ActionCard> {
         children.add(
           big(
             const Key('bp-start-wait'),
-            'Chờ 1 phút rồi đo lại',
+            'Chờ 1 phút rồi đo lại (tự bắt đầu)',
             () => ctl.startRest(bpBetweenReadingsSeconds),
             icon: Icons.timer_outlined,
           ),

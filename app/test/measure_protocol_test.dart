@@ -107,6 +107,54 @@ void main() {
       expect(make().read(measureControllerProvider).step, MeasureStep.prep);
     });
 
+    test('beginRest: vào đếm ngược 5 phút ngay, chưa đủ chuẩn cho tới khi hết giờ', () {
+      final c = make();
+      final n = c.read(measureControllerProvider.notifier)..beginRest();
+      var s = c.read(measureControllerProvider);
+      expect(s.step, MeasureStep.resting);
+      expect(s.restTotal, bpRestSeconds);
+      expect(s.rested, isFalse);
+      expect(s.sessionId, isNotNull);
+      n.finishRest();
+      s = c.read(measureControllerProvider);
+      expect(s.step, MeasureStep.ready);
+      expect(s.rested, isTrue);
+    });
+
+    test('Vy tự báo: hết giờ nghỉ thì nhắc chụp; còn 2 phút thì báo thời gian', () async {
+      final sp = FakeSpeaker();
+      final c = ProviderContainer(overrides: _ov(speaker: sp));
+      addTearDown(c.dispose);
+      final n = c.read(measureControllerProvider.notifier)..beginRest();
+      n.sayRestLeft(120);
+      await Future<void>.delayed(Duration.zero);
+      n.finishRest();
+      await Future<void>.delayed(Duration.zero);
+      expect(sp.replaced.any((t) => t.contains('Còn 2 phút')), isTrue, reason: sp.replaced.toString());
+      expect(sp.replaced.any((t) => t.contains('Hết giờ nghỉ') && t.contains('bấm nút chụp')), isTrue);
+    });
+
+    test('confirmRested: bỏ chờ, vào camera, số đo tới là đủ chuẩn, giữ nguyên phiên', () {
+      final c = make();
+      final n = c.read(measureControllerProvider.notifier)..beginRest();
+      final sid = c.read(measureControllerProvider).sessionId;
+      n.confirmRested();
+      final s = c.read(measureControllerProvider);
+      expect(s.step, MeasureStep.ready);
+      expect(s.rested, isTrue);
+      expect(s.sessionId, sid);
+    });
+
+    test('backToPrep: quay lại chọn bối cảnh, giữ nguyên phiên', () {
+      final c = make();
+      final n = c.read(measureControllerProvider.notifier)..beginRest();
+      final sid = c.read(measureControllerProvider).sessionId;
+      n.backToPrep();
+      final s = c.read(measureControllerProvider);
+      expect(s.step, MeasureStep.prep);
+      expect(s.sessionId, sid);
+    });
+
     test('"Đã nghỉ yên rồi": vào camera luôn, số đo sau là đủ chuẩn', () {
       final c = make();
       final n = c.read(measureControllerProvider.notifier)..startFromPrep({});
@@ -202,18 +250,53 @@ void main() {
   });
 
   group('giao diện', () {
-    testWidgets('màn đo mở bằng bước chuẩn bị, không vào camera ngay', (t) async {
+    testWidgets('màn đo mở là đếm ngược nghỉ 5 phút ngay, không hỏi trước và chưa vào camera', (t) async {
       bigScreen(t);
       await t.pumpWidget(ProviderScope(
         overrides: _ov(),
         child: const MaterialApp(home: MeasureScreen()),
       ));
       await t.pump();
+      await t.pump();
+      expect(find.byKey(const Key('bp-rest')), findsOneWidget);
+      expect(find.byKey(const Key('bp-prep')), findsNothing);
+      expect(find.text('05:00'), findsOneWidget);
+      expect(find.byKey(const Key('bp-rested-yes')), findsOneWidget);
+      expect(find.byKey(const Key('measure-shutter')), findsNothing);
+    });
+
+    testWidgets('"Bác đã ngồi nghỉ rồi": vào camera luôn và số đo tới là đủ chuẩn (2 chạm tới khi chụp)', (t) async {
+      bigScreen(t);
+      final container = ProviderContainer(overrides: _ov());
+      addTearDown(container.dispose);
+      await t.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MeasureScreen()),
+      ));
+      await t.pump();
+      await t.pump();
+      await t.tap(find.byKey(const Key('bp-rested-yes')));
+      await t.pump();
+      final s = container.read(measureControllerProvider);
+      expect(s.step, MeasureStep.ready);
+      expect(s.rested, isTrue);
+      expect(find.byKey(const Key('bp-rest')), findsNothing);
+    });
+
+    testWidgets('"Vừa uống cà phê, đi lại": mở bước chọn bối cảnh', (t) async {
+      bigScreen(t);
+      await t.pumpWidget(ProviderScope(
+        overrides: _ov(),
+        child: const MaterialApp(home: MeasureScreen()),
+      ));
+      await t.pump();
+      await t.pump();
+      await t.tap(find.byKey(const Key('bp-rest-other')));
+      await t.pump();
       expect(find.byKey(const Key('bp-prep')), findsOneWidget);
       expect(find.text('Chuẩn bị đo'), findsOneWidget);
       expect(find.textContaining('Ngồi thẳng, lưng tựa ghế'), findsOneWidget);
       expect(find.textContaining('Bác vừa làm gì?'), findsOneWidget);
-      expect(find.byKey(const Key('measure-shutter')), findsNothing);
     });
 
     testWidgets('chọn "Vừa ngủ dậy": đếm ngược 5 phút; bỏ qua thì vào camera', (t) async {
@@ -226,6 +309,9 @@ void main() {
         container: container,
         child: const MaterialApp(home: MeasureScreen()),
       ));
+      await t.pump();
+      await t.pump();
+      await t.tap(find.byKey(const Key('bp-rest-other')));
       await t.pump();
       await t.tap(find.byKey(const Key('bp-ctx-woke')));
       await t.pump();
@@ -292,6 +378,25 @@ void main() {
       expect(find.text('Trung bình'), findsOneWidget);
       expect(find.text('149/95'), findsOneWidget);
       expect(find.text('Báo người thân hoặc bác sĩ trong hôm nay'), findsOneWidget);
+    });
+
+    testWidgets('số đầu cao vừa phải: tự đếm 1 phút để đo số thứ hai, không cần chạm', (t) async {
+      bigScreen(t);
+      final container = ProviderContainer(overrides: [
+        ..._ov(),
+        currentUserProvider.overrideWithValue(const AuthUser(id: 'me', username: 'minh', fullName: 'Bác Hùng', role: AppRole.elder)),
+      ]);
+      addTearDown(container.dispose);
+      await t.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(home: Scaffold(body: MeasureResultPanel(m: _done([const BpSample(190, 110)])))),
+      ));
+      await t.pump();
+      expect(container.read(measureControllerProvider).step, isNot(MeasureStep.resting));
+      await t.pump(const Duration(seconds: 7));
+      final s = container.read(measureControllerProvider);
+      expect(s.step, MeasureStep.resting);
+      expect(s.restTotal, bpBetweenReadingsSeconds);
     });
 
     testWidgets('rất cao lần 1: chờ 1 phút + nút Gọi 115 luôn hiện', (t) async {
