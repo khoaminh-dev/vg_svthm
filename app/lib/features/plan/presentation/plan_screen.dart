@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/errors/app_failure.dart';
@@ -16,6 +15,7 @@ import '../../auth/presentation/providers/auth_providers.dart';
 import '../../voice/core/vy_core.dart';
 import '../data/plan_repository.dart';
 import '../domain/plan_models.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Gói Vy Live: xem gói đang bán, đặt gói, theo dõi đơn chờ admin xác nhận thanh toán, và xem gói đang dùng.
 /// Thanh toán làm ngoài app; chỉ khi admin xác nhận thì Vy Live mới bật (cho cả người thân đang liên kết).
@@ -110,10 +110,10 @@ class PlanScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => context.pop()) : null,
+      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => safePop(context)) : null,
       appBar: AppBar(
         title: const Text('Gói Vy Live'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
       ),
       body: SafeArea(
         child: overview.when(

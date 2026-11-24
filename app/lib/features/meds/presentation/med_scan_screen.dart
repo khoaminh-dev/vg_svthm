@@ -17,6 +17,7 @@ import '../../ocr/presentation/providers/ocr_providers.dart';
 import '../domain/med_redact.dart';
 import '../domain/med_scan_models.dart';
 import 'meds_providers.dart';
+import '../../../core/router/safe_pop.dart';
 
 Widget _noImage(BuildContext c, Object e, StackTrace? s) => const SizedBox.shrink();
 
@@ -134,7 +135,7 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
         ..invalidate(myDosesProvider);
       if (!mounted) return;
       showAppSnackBar(context, 'Đã lưu lịch thuốc');
-      context.pop();
+      safePop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -219,7 +220,7 @@ class _MedScanScreenState extends ConsumerState<MedScanScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Chụp đơn thuốc'),
-          leading: SoftBackLeading(onPressed: () => context.pop()),
+          leading: SoftBackLeading(onPressed: () => safePop(context)),
         ),
         body: SafeArea(
           child: switch (_phase) {

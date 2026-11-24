@@ -104,9 +104,13 @@ class _Entry {
     required this.lists,
     required this.dialogId,
     required this.dialogTitle,
+    this.scroll,
   });
 
   final int seq;
+
+  /// Bộ điều khiển cuộn của vùng cuộn chính của màn (để "lướt xuống" cuộn được).
+  final ScrollController? scroll;
   final List<VyControl> controls;
   final List<VyList> lists;
   final String? dialogId;
@@ -114,6 +118,9 @@ class _Entry {
 
   bool get isDialog => dialogId != null;
 }
+
+/// Kết quả của lệnh cuộn: đã cuộn, đã ở mép (không cuộn thêm được), hoặc màn không có vùng cuộn đăng ký.
+enum VyScrollResult { moved, atEdge, none }
 
 /// Kết quả của việc bấm một điều khiển theo mã.
 enum VyInvokeResult { done, notFound, disabled, selfOnly }
@@ -131,6 +138,7 @@ class ControlRegistry {
     List<VyList> lists = const [],
     String? dialogId,
     String? dialogTitle,
+    ScrollController? scroll,
   }) {
     final old = _entries[owner];
     _entries[owner] = _Entry(
@@ -139,6 +147,7 @@ class ControlRegistry {
       lists: lists,
       dialogId: dialogId,
       dialogTitle: dialogTitle,
+      scroll: scroll,
     );
   }
 
@@ -164,6 +173,39 @@ class ControlRegistry {
   List<VyControl> get controls => [for (final e in _screens) ...e.controls];
 
   List<VyList> get lists => [for (final e in _screens) ...e.lists];
+
+  /// Cuộn vùng cuộn chính của màn trên cùng ("lướt xuống", "lên trên", "về đầu", "xuống cuối"). Một lần cuộn = 85% chiều cao vùng nhìn.
+  /// Có hộp thoại mở thì không cuộn màn phía sau.
+  VyScrollResult scroll(String direction) {
+    if (_topDialog != null) return VyScrollResult.none;
+    ScrollController? c;
+    for (final e in _screens.reversed) {
+      if (e.scroll != null && e.scroll!.hasClients) {
+        c = e.scroll;
+        break;
+      }
+    }
+    if (c == null) return VyScrollResult.none;
+    final p = c.position;
+    final max = p.maxScrollExtent;
+    final now = p.pixels;
+    double target;
+    switch (direction) {
+      case 'up':
+        target = (now - p.viewportDimension * 0.85).clamp(0, max);
+      case 'top':
+        target = 0;
+      case 'bottom':
+        target = max;
+      default:
+        target = (now + p.viewportDimension * 0.85).clamp(0, max);
+    }
+    final atEdge = (target - now).abs() < 1;
+    if (!atEdge) {
+      c.animateTo(target, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+    }
+    return atEdge ? VyScrollResult.atEdge : VyScrollResult.moved;
+  }
 
   /// Tìm điều khiển đang với tới được (hộp thoại che màn sau) theo mã.
   VyControl? find(String id) => _find(id);
@@ -255,9 +297,12 @@ class VyControlScope extends ConsumerStatefulWidget {
     this.lists = const [],
     this.dialogId,
     this.dialogTitle,
+    this.scroll,
     required this.child,
   });
 
+  /// Vùng cuộn chính của màn: để Vy cuộn bằng giọng.
+  final ScrollController? scroll;
   final List<VyControl> controls;
   final List<VyList> lists;
 
@@ -290,6 +335,7 @@ class _VyControlScopeState extends ConsumerState<VyControlScope> {
         lists: widget.lists,
         dialogId: widget.dialogId,
         dialogTitle: widget.dialogTitle,
+        scroll: widget.scroll,
       );
     } else {
       r.remove(_owner);

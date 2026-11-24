@@ -15,6 +15,7 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
 import '../../../../shared/honorific.dart';
+import '../../../../core/router/safe_pop.dart';
 
 /// Hồ sơ sức khoẻ, nhập một lần, hai màn: Về bác, Sức khoẻ của bác. Lần đầu là bắt buộc (không có nút đóng);
 /// sự đồng ý nằm ngay trên nút "Hoàn tất" nên không tốn thêm màn. Khi sửa hồ sơ ([editing]) có nút lùi.
@@ -149,7 +150,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
       Analytics.track('health_profile_saved', {'editing': widget.editing});
       if (!mounted) return;
       if (widget.editing) {
-        context.pop();
+        safePop(context);
       } else {
         context.go(Routes.home);
       }
@@ -173,7 +174,7 @@ class _HealthSetupScreenState extends ConsumerState<HealthSetupScreen> {
     if (_page > 0) {
       setState(() => _page--);
     } else if (widget.editing) {
-      context.pop();
+      safePop(context);
     }
   }
 

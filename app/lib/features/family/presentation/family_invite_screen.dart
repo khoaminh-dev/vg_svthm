@@ -19,6 +19,7 @@ import '../domain/family_models.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Người được chăm sóc: tạo mã mời, xem ai đang theo dõi mình, đổi quyền, tạm dừng, gỡ.
 class FamilyInviteScreen extends ConsumerStatefulWidget {
@@ -85,7 +86,7 @@ class _FamilyInviteScreenState extends ConsumerState<FamilyInviteScreen> {
       bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Người thân theo dõi'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
       ),
       body: SafeArea(
         child: ListView(

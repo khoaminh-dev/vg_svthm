@@ -106,6 +106,7 @@ class VoiceActions {
 
   /// Lệnh đổi màn hình: chạy xong thì Vy thường thu gọn màn Vy để người dùng thấy kết quả.
   static const navIntents = {
+    'scroll',
     'open_chat',
     'open_feature',
     'measure_bp',
@@ -251,6 +252,10 @@ class VoiceActions {
         return startSos(honorific);
       case 'call_contact':
         return await callContact(s['recipient_text'] ?? '', honorific);
+      case 'scroll':
+        return _scroll(s['content'], honorific);
+      case 'read_list':
+        return _readList(honorific);
       case 'go_home':
         router.go(Routes.home);
         return null;
@@ -305,6 +310,8 @@ class VoiceActions {
     if (q.isEmpty) return null;
     // "@last", "@resume"...: Vy hiểu "bài lúc nãy", "xem tiếp", "như hôm qua" và nhờ trí nhớ nghe/xem trên máy trả lời.
     if (q.startsWith('@')) return _playRecall(q.toLowerCase(), router, honorific);
+    // Tìm mới thì hết chế độ duyệt: danh sách mới được đánh số và tự mở số 1 nếu im lặng như bình thường.
+    _ref.read(videoBrowseProvider.notifier).set(false);
     Analytics.track('voice_play_video', {'len': q.length});
     final List<VideoItem> found;
     try {
@@ -392,6 +399,87 @@ class VoiceActions {
         return 'Dạ, giờ này $hon hay nghe $topic, con mở ${cleanVideoTitle(found.first.title)} ạ.';
     }
     return null;
+  }
+
+  // ---- cuộn màn hình và đọc danh sách ("lướt xuống để tôi xem mấy video khác") ----
+
+  String _listSig = '';
+
+  /// Mục kế tiếp sẽ đọc (đếm từ 0) trong danh sách đang hiện.
+  int _readNext = 0;
+
+  static const _readBatch = 3;
+
+  /// Danh sách đầu tiên đang hiện trên màn và dấu nhận biết để biết khi nào danh sách đổi.
+  VyList? _currentList() {
+    final lists = _ref.read(controlRegistryProvider).lists;
+    if (lists.isEmpty) return null;
+    final l = lists.first;
+    final sig = '${l.id}:${l.items.length}:${l.items.isEmpty ? '' : l.items.first.title}';
+    if (sig != _listSig) {
+      _listSig = sig;
+      _readNext = 0;
+    }
+    return l;
+  }
+
+  /// Đọc tối đa [_readBatch] mục từ [_readNext], hiện số trên màn, hỏi chọn.
+  String _readItems(VyList l, String hon) {
+    final items = l.items;
+    if (_readNext >= items.length) {
+      _readNext = 0;
+      return 'Dạ, hết danh sách rồi ạ. ${_cap(hon)} nói "đọc lại" nếu muốn con đọc từ đầu.';
+    }
+    final end = (_readNext + _readBatch).clamp(0, items.length);
+    final noun = l.id.startsWith('ent.') ? 'Bài' : 'Mục';
+    final parts = [
+      for (var i = _readNext; i < end; i++) '$noun ${i + 1}: ${cleanVideoTitle(items[i].title, maxChars: 60)}',
+    ];
+    _readNext = end;
+    // Hiện số trên màn để người dùng chọn theo số; đang duyệt thì không tự mở video nào.
+    if (l.id.startsWith('ent.')) {
+      _ref.read(videoMarksProvider.notifier).set(true);
+      _ref.read(videoBrowseProvider.notifier).set(true);
+    }
+    final more = end < items.length ? '' : ' Đó là mục cuối.';
+    return '${parts.join('. ')}.$more ${_cap(hon)} chọn số mấy ạ?';
+  }
+
+  /// "Lướt xuống", "lên trên", "về đầu", "xem thêm": cuộn màn, rồi đọc ba mục mới nếu màn có danh sách.
+  String? _scroll(String? dir, String hon) {
+    final d = (dir ?? 'down').toLowerCase();
+    final reg = _ref.read(controlRegistryProvider);
+    final r = reg.scroll(d);
+    Analytics.track('voice_scroll', {'dir': d, 'result': r.name});
+    if (r == VyScrollResult.none) return 'Dạ, màn này con chưa cuộn được bằng giọng ạ. ${_cap(hon)} dùng ngón tay kéo giúp con nhé.';
+    final l = _currentList();
+    if (l == null) {
+      return r == VyScrollResult.atEdge
+          ? (d == 'up' || d == 'top' ? 'Dạ, đang ở đầu rồi ạ.' : 'Dạ, hết rồi ạ, không còn gì phía dưới nữa.')
+          : (d == 'up' || d == 'top' ? 'Dạ, con cuộn lên rồi ạ.' : 'Dạ, con cuộn xuống rồi ạ.');
+    }
+    // Có danh sách: coi như hai mục đầu đã thấy; mỗi lần lướt đọc ba mục tiếp theo (hoặc ba mục trước đó khi lên).
+    switch (d) {
+      case 'up':
+        _readNext = (_readNext - _readBatch * 2).clamp(0, l.items.length);
+      case 'top':
+        _readNext = 0;
+      case 'bottom':
+        _readNext = (l.items.length - _readBatch).clamp(0, l.items.length);
+      default:
+        if (_readNext == 0) _readNext = 2;
+    }
+    if (r == VyScrollResult.atEdge && d == 'down' && _readNext >= l.items.length) {
+      return 'Dạ, hết danh sách rồi ạ, con chỉ thấy ${l.items.length} bài. ${_cap(hon)} muốn tìm cái khác thì nói với con nhé.';
+    }
+    return _readItems(l, hon);
+  }
+
+  /// "Đọc tên các video", "có những bài nào", "đọc tiếp": đọc ba mục kế tiếp.
+  String _readList(String hon) {
+    final l = _currentList();
+    if (l == null) return 'Dạ, trên màn hình bây giờ con không thấy danh sách nào để đọc ạ.';
+    return _readItems(l, hon);
   }
 
   /// Điều khiển video đang phát bằng giọng nói. [action] là tên lệnh, hoặc "back:30" / "fwd:60" / "sleep:45".

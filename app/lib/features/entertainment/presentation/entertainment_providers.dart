@@ -117,6 +117,18 @@ class PlayerStartAtNotifier extends Notifier<int?> {
 
 final playerStartAtProvider = NotifierProvider<PlayerStartAtNotifier, int?>(PlayerStartAtNotifier.new);
 
+/// Người dùng đang duyệt danh sách bằng giọng ("lướt xuống", "đọc tên các video"): hiện số nhưng KHÔNG tự mở video số 1.
+class VideoBrowseNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool v) {
+    if (state != v) state = v;
+  }
+}
+
+final videoBrowseProvider = NotifierProvider<VideoBrowseNotifier, bool>(VideoBrowseNotifier.new);
+
 /// Chủ đề của hàng đợi đang phát ("nhạc xưa", "cải lương"): khi sắp hết bài, máy tự tìm thêm cùng chủ đề.
 class VideoTopicNotifier extends Notifier<String> {
   @override

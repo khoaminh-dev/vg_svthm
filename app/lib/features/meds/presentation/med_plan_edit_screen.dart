@@ -1,7 +1,6 @@
 import '../../voice/core/control_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/errors/app_failure.dart';
@@ -11,6 +10,7 @@ import '../../../shared/widgets/app_snackbar.dart';
 import '../domain/meds_models.dart';
 import 'meds_providers.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Đặt hoặc sửa một đơn thuốc: chọn các cữ (túi Sáng/Trưa/Chiều/Tối), giờ, thuốc trong túi (tuỳ chọn),
 /// thuốc lấy từ hũ, thuốc khi cần, số ngày và ngày tái khám.
@@ -396,7 +396,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
         ..invalidate(myDosesProvider);
       if (!mounted) return;
       showAppSnackBar(context, 'Đã lưu lịch thuốc');
-      context.pop();
+      safePop(context);
     } catch (e) {
       if (mounted) setState(() => _error = errorMessage(e));
     } finally {
@@ -424,7 +424,7 @@ class _MedPlanEditScreenState extends ConsumerState<MedPlanEditScreen> {
               shadowColor: AppColors.cardShadow,
             ),
             icon: const Icon(Icons.arrow_back_rounded),
-            onPressed: () => context.pop(),
+            onPressed: () => safePop(context),
           ),
         ),
         ),

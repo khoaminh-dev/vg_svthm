@@ -13,6 +13,7 @@ import '../../../family/presentation/family_providers.dart';
 import '../../domain/auth_user.dart';
 import '../providers/auth_controller.dart';
 import '../providers/auth_providers.dart';
+import '../../../../core/router/safe_pop.dart';
 
 /// Một lựa chọn vai trò. [forParent] là lựa chọn "cài hộ cho cha mẹ" (vai trò người cao tuổi + dẫn tới mã mời).
 class RoleChoice {
@@ -159,7 +160,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
     final c = _choice;
     final cur = ref.read(currentUserProvider)?.role;
     if (widget.change && cur != null && cur == c.role && !c.forParent) {
-      if (context.mounted) context.pop();
+      if (context.mounted) safePop(context);
       return;
     }
     if (widget.change && cur != null) {
@@ -210,7 +211,7 @@ class _ChooseRoleScreenState extends ConsumerState<ChooseRoleScreen> {
       appBar: widget.change
           ? AppBar(
               title: const Text('Vai trò của bạn'),
-              leading: SoftBackLeading(onPressed: () => context.pop()),
+              leading: SoftBackLeading(onPressed: () => safePop(context)),
             )
           : null,
       body: SafeArea(

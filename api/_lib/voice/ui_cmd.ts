@@ -1,3 +1,5 @@
+import { dialect } from './dialect.js';
+
 // Người lái màn hình, phía não: ghép lời nói với các điều khiển và danh sách CÓ THẬT đang hiện trên màn hình của người dùng.
 // Quy tắc (xem docs/VY_LIVE_SAN_PHAM_KE_HOACH.md mục 13.2, 13.3):
 //  - Chỉ làm việc với `controls`/`lists` mà app đã gửi lên (không bịa điều khiển).
@@ -160,8 +162,12 @@ const DIACRITIC_NUMS: [RegExp, string][] = [
   [W('sáu'), '6'], [W('bảy'), '7'], [W('tám'), '8'], [W('chín'), '9'], [W('mười'), '10'],
   [W('năm'), '5'], [W('bốn'), '4'], [W('tư'), '4'],
 ];
-const ORD_WORDS: Record<string, number> = { nhat: 1, dau: 1, 'dau tien': 1, mot: 1, hai: 2, ba: 3 };
-const ORD_ALT = '(dau tien|cuoi cung|cuoi|chot|nhat|dau|mot|hai|ba|[0-9]{1,2})';
+const ORD_WORDS: Record<string, number> = { nhat: 1, dau: 1, 'dau tien': 1, 'tren cung': 1, mot: 1, hai: 2, ba: 3 };
+const ORD_ALT = '(dau tien|tren cung|duoi cung|cuoi cung|cuoi|chot|nhat|dau|mot|hai|ba|[0-9]{1,2})';
+/** "… trong danh sách", "ở trên màn hình": chỉ chỉ chỗ, không phải nội dung. */
+const ORD_TAIL = /\s+(?:trong|o|tren|ben|cua) (?:danh sach|ket qua|list|trang|man hinh|nhung cai nay|may cai nay)(?: do| nay| kia| tren)?$/;
+/** "tôi muốn", "cho tôi": đệm đầu câu. */
+const ORD_LEAD = /^(?:toi |minh )?(?:muon|can|thich|nho) /;
 const ORD_NOUN = '(?:cai|bai|video|clip|so|muc|ket qua|bai hat|phim|nguoi|dong|tin|ten)';
 const ORD_VERB = '(?:mo|phat|chon|bam|xem|nghe|cho nghe|cho xem|bat|lay)';
 const ORD_RE = new RegExp(`^(${ORD_VERB} )?(${ORD_NOUN} )?(thu |so )?${ORD_ALT}(?: do| nay| di| nhe)?$`);
@@ -169,14 +175,29 @@ const ORD_RE = new RegExp(`^(${ORD_VERB} )?(${ORD_NOUN} )?(thu |so )?${ORD_ALT}(
 /** "cái thứ hai", "số 3", "bài đầu tiên", "bài cuối": số thứ tự trong danh sách; null nếu không phải.
  *  Chữ dễ nhầm với từ thường ("đầu", "nhất", "cuối") chỉ nhận khi đi kèm danh từ/động từ/"thứ", để câu như "đau" không chọn nhầm. */
 function ordinalOf(t: string): number | 'last' | null {
-  const m = t.match(ORD_RE);
+  let m = t.match(ORD_RE);
+  if (!m) {
+    // "tôi muốn xem video đầu tiên trong danh sách": gọt đệm đầu và phần chỉ chỗ rồi thử lại.
+    const s = t.replace(ORD_LEAD, '').replace(ORD_TAIL, '').trim();
+    if (s !== t) m = s.match(ORD_RE);
+  }
   if (!m) return null;
   const w = m[4];
   const anchored = !!(m[1] || m[2] || m[3]);
+  if (w === 'duoi cung') return 'last';
   if (w === 'cuoi' || w === 'cuoi cung' || w === 'chot') return anchored || w === 'cuoi cung' ? 'last' : null;
   if (/^[0-9]+$/.test(w)) return Number(w);
   if (w === 'dau' || w === 'nhat') return anchored ? 1 : null;
   return ORD_WORDS[w] ?? null;
+}
+
+/** Số thứ tự nằm đâu đó trong câu (dùng khi nội dung đã bị coi nhầm là từ khoá tìm): "đầu tiên", "thứ ba", "số 5", "cuối", "trên cùng". */
+export function ordinalFromText(t: string): number | 'last' | null {
+  if (/\b(cuoi cung|cuoi|duoi cung|chot)\b/.test(t)) return 'last';
+  const m = t.match(/\b(?:thu|so) (nhat|hai|ba|[0-9]{1,2})\b/);
+  if (m) return m[1] === 'nhat' ? 1 : m[1] === 'hai' ? 2 : m[1] === 'ba' ? 3 : Number(m[1]);
+  if (/\b(dau tien|tren cung|dau)\b/.test(t)) return 1;
+  return null;
 }
 
 // ---------- ghép nhãn ----------
@@ -232,7 +253,7 @@ function bestMatches(phrase: string, pool: UiControl[]): Match[] {
 export function resolveUiCommand(text: string, ctx: UiContext): UiCmd | null {
   let raw = text.toLowerCase().replace(/nhấn/g, 'bấm');
   for (const [re, to] of DIACRITIC_NUMS) raw = raw.replace(re, to);
-  const t0 = nz(raw);
+  const t0 = dialect(nz(raw));
   if (!t0) return null;
   // Gọt từ đệm có thể xoá nhầm một phần nhãn ("đã uống" mất "đã", "ở lại" mất "ở"): thử câu gốc trước, rồi câu đã gọt.
   const tidied = tidyText(t0);

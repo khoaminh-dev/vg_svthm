@@ -27,6 +27,7 @@ import '../../domain/bp_protocol.dart';
 import '../providers/measure_controller.dart';
 import '../../../voice/core/control_registry.dart';
 import '../../../../shared/honorific.dart';
+import '../../../../core/router/safe_pop.dart';
 
 /// Màn đo huyết áp một chạm kiểu Locket: mở lên là thấy camera, bấm chụp là xong.
 /// Số được đọc, phân loại, lưu và nhận xét tự động.
@@ -209,7 +210,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
           id: 'measure.close',
           label: 'Đóng',
           aliases: const ['thoát', 'đóng màn đo'],
-          onInvoke: () => context.pop(),
+          onInvoke: () => safePop(context),
         ),
       ],
       child: ElderScaleReset(
@@ -230,7 +231,7 @@ class _MeasureScreenState extends ConsumerState<MeasureScreen>
                     _RoundIcon(
                       icon: Icons.close_rounded,
                       label: 'Đóng',
-                      onTap: () => context.pop(),
+                      onTap: () => safePop(context),
                     ),
                     const Expanded(
                       child: Center(

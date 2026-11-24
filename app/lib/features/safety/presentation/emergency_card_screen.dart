@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/errors/app_failure.dart';
@@ -14,6 +13,7 @@ import '../../profile/data/phone_repository.dart';
 import '../domain/safety_models.dart';
 import 'safety_providers.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Điền hoặc sửa thẻ y tế khẩn cấp (chủ, hoặc con có quyền sửa hồ sơ).
 class EmergencyCardScreen extends ConsumerStatefulWidget {
@@ -97,7 +97,7 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
       ref.invalidate(emergencyCardProvider(widget.ownerId));
       if (!mounted) return;
       showAppSnackBar(context, 'Đã lưu thẻ y tế khẩn cấp');
-      context.pop();
+      safePop(context);
     } catch (e) {
       if (mounted) setState(() => _error = errorMessage(e));
     } finally {
@@ -114,7 +114,7 @@ class _EmergencyCardScreenState extends ConsumerState<EmergencyCardScreen> {
       bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Thẻ y tế khẩn cấp'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
       ),
       body: SafeArea(
         child: !existing.hasValue && !existing.hasError

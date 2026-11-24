@@ -13,6 +13,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Người chăm sóc: nhập mã 6 số của cha mẹ để theo dõi sức khoẻ.
 class FamilyJoinScreen extends ConsumerStatefulWidget {
@@ -79,7 +80,7 @@ class _FamilyJoinScreenState extends ConsumerState<FamilyJoinScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Theo dõi người thân'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
       ),
       body: SafeArea(
         child: ListView(

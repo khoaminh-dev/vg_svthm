@@ -21,6 +21,7 @@ import '../../profile/data/phone_repository.dart';
 import '../../safety/presentation/sos_widgets.dart';
 import 'family_providers.dart';
 import 'widgets/family_widgets.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Chi tiết một người thân: đèn trạng thái, huyết áp gần nhất, nguy cơ, biểu đồ, hồ sơ (chỉ đọc).
 class FamilyPersonScreen extends ConsumerWidget {
@@ -248,7 +249,7 @@ class FamilyPersonScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(name),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
       ),
       body: SafeArea(
         child: RefreshIndicator(onRefresh: refresh, child: body),

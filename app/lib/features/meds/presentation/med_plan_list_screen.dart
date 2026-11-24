@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../domain/meds_models.dart';
 import 'meds_providers.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Các đơn thuốc của một người (chính mình hoặc người thân): xem, thêm, sửa, kết thúc.
 class MedPlanListScreen extends ConsumerWidget {
@@ -79,7 +80,7 @@ class MedPlanListScreen extends ConsumerWidget {
                 shadowColor: AppColors.cardShadow,
               ),
               icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => context.pop(),
+              onPressed: () => safePop(context),
             ),
           ),
         ),

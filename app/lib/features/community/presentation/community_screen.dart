@@ -20,6 +20,7 @@ import '../../chat/presentation/providers/chat_controller.dart';
 import '../../voice/core/control_registry.dart';
 import 'community_providers.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Cộng đồng: danh sách mọi người dùng, bấm "Nhắn tin" để kết bạn và trò chuyện.
 /// Chỉ dùng trong đợt thử nghiệm (bật/tắt bằng cờ `community`).
@@ -96,7 +97,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
 
     final elder = ref.watch(currentUserProvider.select((u) => u?.role)) == AppRole.elder;
     return Scaffold(
-      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => context.pop()) : null,
+      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => safePop(context)) : null,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -113,7 +114,7 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   SoftIconButton(
                     icon: Icons.arrow_back_rounded,
                     label: 'Quay lại',
-                    onPressed: () => context.pop(),
+                    onPressed: () => safePop(context),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

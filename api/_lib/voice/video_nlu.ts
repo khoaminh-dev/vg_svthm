@@ -94,7 +94,8 @@ function topicOf(body: string): string | null {
   for (const tp of TOPICS) {
     const m = body.match(new RegExp(`^(${tp.re})(?:\\s+(.+))?$`));
     if (!m) continue;
-    let rest = strip(m[2] ?? '');
+    // "mở thời sự lên xem": "lên xem" là đệm, không phải tên chương trình.
+    let rest = strip(strip(m[2] ?? '').replace(/\b(?:len|xem|nghe|di|nhe|nha|ne|giup|dum)\b/g, ' '));
     const head = tp.q ?? strip(m[1]);
     // "thiền thư giãn", "tiểu phẩm hài": phần đuôi đã nằm trong chủ đề thì đừng nối thêm.
     if (rest && plain(head).includes(rest)) rest = '';
@@ -104,7 +105,9 @@ function topicOf(body: string): string | null {
   return null;
 }
 
-export function videoIntent(t: string): VideoIntent | null {
+export function videoIntent(t0: string): VideoIntent | null {
+  // "Bữa nay coi thời sự đi": từ chỉ thời gian đứng đầu câu là đệm.
+  const t = t0.replace(/^(?:hom nay|bay gio|toi nay|sang nay|chieu nay|trua nay|luc nay)\s+/, '');
   if (NOT_VIDEO.test(t)) return null;
   const words = t.split(' ').length;
   if (words > 14) return null;
@@ -207,4 +210,41 @@ export function personalChips(defaults: string[], habit: Habit | undefined): str
     if (out.length === 3) break;
   }
   return out;
+}
+
+// ---------- lưới an toàn: nội dung tìm video không được là "tham chiếu" ----------
+
+const REF_PHRASES = /\b(?:dau tien|cuoi cung|thu nhat|thu hai|thu ba|thu tu|thu nam|tren cung|duoi cung|trong danh sach|danh sach|ket qua|ben tren|ben duoi|cai do|cai nay|bai do|bai nay|video do|video nay|cuoi|dau|nay|do|kia)\b/g;
+const REF_FILLER = /\b(?:video|bai hat|bai|cai|clip|phim|thu|so|\d{1,2}|trong|o|tren|cua|nhung|may|mot|toi|muon|xem|nghe|mo)\b/g;
+
+/** "đầu tiên", "cái trên cùng", "trong danh sách", "bài số 3": chỉ vào mục đang hiện, KHÔNG phải tên để tìm trên YouTube.
+ *  Dù luật hay LLM trả về, nội dung như vậy không bao giờ được đem đi tìm (lỗi b51: mở video tên "đầu tiên"). */
+export function isReferentialQuery(content: string): boolean {
+  const f = plainText(content).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!f) return false;
+  const rest = f.replace(REF_PHRASES, ' ').replace(REF_FILLER, ' ').replace(/\s+/g, ' ').trim();
+  return rest === '' && /\b(dau|cuoi|thu|so|tren cung|duoi cung|danh sach|cai do|cai nay|bai do|bai nay|video do|video nay|ket qua|ben tren|ben duoi|\d)\b/.test(f);
+}
+
+// ---------- cuộn màn hình và đọc danh sách (lỗi b51: "lướt xuống" bị từ chối) ----------
+
+const RE_SCROLL_DOWN = /\b(?:luot|cuon|keo|truot|lan) xuong\b|^xuong(?: (?:nua|them|chut|di|duoi))+$|\bxem them\b|\bxem (?:may|cac|nhung) (?:cai|video|bai|clip|ket qua|tin) (?:khac|nua|ke tiep|tiep theo)\b|^(?:con|co) (?:video|bai|cai|ket qua|tin) nao (?:khac|nua)(?: khong)?$|^(?:may|cac) (?:cai|video|bai|clip) khac$/;
+const RE_SCROLL_UP = /\b(?:luot|cuon|keo|truot|lan) len\b|^len (?:tren|nua|chut|di)$|\blen (?:tren|dau) (?:danh sach|trang|man hinh)\b/;
+const RE_SCROLL_TOP = /\bve (?:dau|tren cung)(?: (?:danh sach|trang|man hinh))?\b|\b(?:luot|cuon|keo) len (?:dau|tren cung)\b/;
+const RE_SCROLL_BOTTOM = /\b(?:luot|cuon|keo) (?:xuong )?(?:cuoi|duoi cung)\b|\bxuong (?:cuoi|duoi cung)\b/;
+const RE_READ_LIST = /^(?:doc|doc to|nghe|cho toi nghe|cho nghe) (?:ten |het |cac |nhung |tat ca )?(?:video|bai hat|bai|clip|ket qua|danh sach|cac bai|cac video)(?: nao| do| nay| tren man hinh)?(?: cho toi nghe| di)?$|^(?:co|con) (?:nhung|may) (?:video|bai|cai|ket qua)(?: nao)?(?: vay| the| day)?$|^doc danh sach(?: di| cho toi nghe)?$/;
+
+/** "lướt xuống", "xem thêm", "mấy video khác", "lên trên", "về đầu danh sách". null nếu không phải. */
+export function scrollIntent(t: string): 'down' | 'up' | 'top' | 'bottom' | null {
+  if (t.split(' ').length > 14) return null;
+  if (RE_SCROLL_TOP.test(t)) return 'top';
+  if (RE_SCROLL_BOTTOM.test(t)) return 'bottom';
+  if (RE_SCROLL_UP.test(t)) return 'up';
+  if (RE_SCROLL_DOWN.test(t)) return 'down';
+  return null;
+}
+
+/** "đọc tên các video", "có những bài nào", "đọc danh sách". */
+export function readListIntent(t: string): boolean {
+  return RE_READ_LIST.test(t);
 }

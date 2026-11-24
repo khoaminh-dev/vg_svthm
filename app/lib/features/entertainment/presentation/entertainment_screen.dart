@@ -18,6 +18,7 @@ import '../data/video_rank.dart';
 import '../data/youtube_service.dart';
 import 'entertainment_providers.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Giải trí: tìm và xem video YouTube ngay trong app.
 class EntertainmentScreen extends ConsumerStatefulWidget {
@@ -65,6 +66,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
   @override
   void dispose() {
     _autoPickTimer?.cancel();
+    _scroll.dispose();
     _text.dispose();
     // Rời màn thì thôi đánh số (ghi sau khung hình hiện tại để không đổi provider giữa lúc dựng cây).
     final marks = _marks;
@@ -89,13 +91,15 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
 
   Timer? _autoPickTimer;
   bool _autoPickArmed = false;
+  final _scroll = ScrollController();
 
   /// Khi Vy bật đánh số mà người dùng không chọn trong [_autoPickAfter], tự mở video số 1.
   /// Chỉ hẹn giờ một lần cho mỗi lần đánh số; chọn tay, tắt đánh số hoặc rời màn thì huỷ.
   static const _autoPickAfter = Duration(seconds: 10);
 
   void _autoPick(bool marks, List<VideoItem> videos, VoidCallback open) {
-    if (!marks || videos.isEmpty) {
+    // Đang duyệt bằng giọng (lướt, đọc tên): hiện số nhưng không tự mở video nào.
+    if (!marks || videos.isEmpty || ref.read(videoBrowseProvider)) {
       _autoPickTimer?.cancel();
       _autoPickTimer = null;
       _autoPickArmed = false;
@@ -163,6 +167,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
     final marks = ref.watch(videoMarksProvider);
     void openVideo(List<VideoItem> list, int i) {
       ref.read(videoMarksProvider.notifier).set(false);
+      ref.read(videoBrowseProvider.notifier).set(false);
       Analytics.track('video_open', {'from': 'voice_or_list'});
       ref.read(videoQueueProvider.notifier).set(list);
       ref.read(videoTopicProvider.notifier).set(query);
@@ -188,6 +193,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
     }
 
     return VyControlScope(
+      scroll: _scroll,
       controls: [
         if (resume != null)
           VyControl(
@@ -234,7 +240,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
           ),
       ],
       child: Scaffold(
-      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => context.pop()) : null,
+      bottomNavigationBar: elder ? ElderBackBar(onPressed: () => safePop(context)) : null,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -253,13 +259,14 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                 SoftIconButton(
                   icon: Icons.close_rounded,
                   label: 'Đóng',
-                  onPressed: () => context.pop(),
+                  onPressed: () => safePop(context),
                 ),
               ],
             ),
             if (query.isEmpty)
               Expanded(
                 child: ListView(
+                  controller: _scroll,
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md,
                     AppSpacing.sm,
@@ -356,6 +363,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                       );
                     }
                     return ListView.separated(
+                      controller: _scroll,
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.md,
                         AppSpacing.sm,
@@ -370,6 +378,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                         number: marks && i < 10 ? i + 1 : null,
                         onTap: () {
                           ref.read(videoMarksProvider.notifier).set(false);
+                          ref.read(videoBrowseProvider.notifier).set(false);
                           Analytics.track('video_open', {'from': 'list'});
                           ref.read(videoQueueProvider.notifier).set(list);
                           ref.read(videoTopicProvider.notifier).set(query);

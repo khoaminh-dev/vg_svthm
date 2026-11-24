@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
@@ -16,6 +15,7 @@ import '../data/video_rank.dart';
 import '../data/youtube_service.dart';
 import 'entertainment_providers.dart';
 import 'media_audio.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Phát video YouTube ngay trong app, nút to, hết bài tự sang bài kế tiếp.
 /// Video bị chủ kênh cấm nhúng thì mở bằng app YouTube.
@@ -353,7 +353,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       case PlayerAction.seekForward:
         _seek((cmd.value ?? 15).toDouble());
       case PlayerAction.close:
-        if (mounted) context.pop();
+        if (mounted) safePop(context);
       case PlayerAction.sleep:
         _startSleep(cmd.value ?? 30);
       case PlayerAction.like:
@@ -443,7 +443,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                     label: 'Quay lại',
                     excludeSemantics: true,
                     child: GestureDetector(
-                      onTap: () => context.pop(),
+                      onTap: () => safePop(context),
                       child: Container(
                         width: AppSpacing.tapTarget,
                         height: AppSpacing.tapTarget,

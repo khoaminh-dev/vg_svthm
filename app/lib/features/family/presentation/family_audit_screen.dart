@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/elder_text_scale.dart';
@@ -10,6 +9,7 @@ import '../../../shared/widgets/ios_style.dart';
 import '../domain/family_models.dart';
 import 'family_providers.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 final familyAuditProvider = FutureProvider.autoDispose<List<AuditEntry>>(
   (ref) => ref.watch(familyRepositoryProvider).audit(),
@@ -32,7 +32,7 @@ class FamilyAuditScreen extends ConsumerWidget {
       bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Nhật ký gia đình'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
       ),
       body: SafeArea(
         child: entries.when(

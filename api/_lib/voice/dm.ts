@@ -3,8 +3,9 @@
 // đều do code ở đây quyết định để chắc chắn và kiểm thử được. Xem docs/VOICE_AGENT.md mục 4.
 
 import { guardBpSay } from './bp_guard.js';
-import { resolveUiCommand, type UiContext, type UiControl } from './ui_cmd.js';
-import { habitTopicFor, personalChips, videoFeedback, videoIntent, videoRecall } from './video_nlu.js';
+import { ordinalFromText, resolveUiCommand, type UiContext, type UiControl } from './ui_cmd.js';
+import { dialect } from './dialect.js';
+import { isReferentialQuery, readListIntent, scrollIntent, habitTopicFor, personalChips, videoFeedback, videoIntent, videoRecall } from './video_nlu.js';
 
 export type Expect = 'command' | 'free_text' | 'yes_no' | 'choice' | 'name' | 'none';
 export type Contact = { id: string; kind: 'direct' | 'group'; name: string; username?: string; aliases?: string[] };
@@ -184,7 +185,7 @@ const QUERY_TAIL_FILLER = /(?:^|\s+)(len|di|nhe|nha|a|ne|nao|voi|luon|ngay|cho (
 const QUERY_HEAD_FILLER = /^(cua|do|nay|kia|nhung|may|mot)\s+/;
 /** Cụm chỉ "cái đã nghe/cái ở trên" chứ không phải từ khoá tìm được; chưa có lịch sử nên hỏi lại thay vì tìm chữ đó trên YouTube. */
 const REFERENTIAL_QUERY = /^(do|nay|kia|dau|dau tien|lai|lai tu dau|tu dau|truoc|khac|nua|vua roi|luc nay|hom qua|hom truoc|toi hay nghe|hay nghe|nhu hom qua|nhu luc nay|nhu cu|nhu moi khi)$|\b(hom qua|hom truoc|luc nay|vua nghe|vua roi|hay nghe)\b/;
-const BARE_MEDIA = /^(nhac|video|clip|phim|bai hat|ca khuc|bai|youtube)$/;
+const BARE_MEDIA = /^(nhac|video|clip|phim|bai hat|ca khuc|bai|youtube|tivi|ti vi|truyen hinh)$/;
 
 /** "mở bài Nối vòng tay lớn", "cho nghe nhạc xưa", "phát video con mèo": lấy phần từ khoá tìm video; null nếu không phải.
  *  Chuỗi rỗng nghĩa là người dùng muốn xem/nghe nhưng chưa nói gì cụ thể ("bật nhạc lên", "mở bài đó"): hỏi lại, đừng tìm. */
@@ -460,6 +461,10 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
   if (/^(?:(?:dung|khong can|thoi dung|khoi|dung co) (?:goi y|hoi|nhac)(?: (?:nghe nhac|nhac|video|giai tri|xem video))?(?: nua)?|tat (?:goi y|goi y nhac|goi y video))$/.test(t)) {
     return { intent: 'video_control', content: 'suggest_off' };
   }
+  // Cuộn màn hình và đọc danh sách ("lướt xuống để tôi xem mấy video khác").
+  const sc = scrollIntent(t);
+  if (sc) return { intent: 'scroll', content: sc };
+  if (readListIntent(t)) return { intent: 'read_list', content: 'next' };
   // Khen/chê bài đang phát: nhớ để lần sau ưu tiên hoặc không mở lại.
   if (playerOpen) {
     const fb = videoFeedback(t);
@@ -566,7 +571,7 @@ const REQUIRED: Record<string, string[]> = {
   open_feature: ['feature'],
   play_video: ['content'],
   video_control: ['content'],
-  measure_bp: [], show_bp: [], read_bp: [], read_meds: [], mark_dose: [], snooze_dose: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
+  scroll: [], read_list: [], measure_bp: [], show_bp: [], read_bp: [], read_meds: [], mark_dose: [], snooze_dose: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message', 'record_bp']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
@@ -621,7 +626,8 @@ async function stepCore(
   const { text, state, ui } = input;
   const hon = honorificOf(ui.honorific);
   const contacts = ui.contacts ?? [];
-  const t = norm(text);
+  // Cách nói vùng miền được đưa về chuẩn để mọi luật nhận ra ("coi" = "xem"); nội dung tin nhắn vẫn lấy từ câu gốc.
+  const t = dialect(norm(text));
   const expects = state.expects ?? 'command';
 
   if (!t) return mk({ action: 'ask', say: S.notHeard(hon), expects: expects === 'none' ? 'command' : expects, expectsReply: true, task: state.task ?? null, pending: state.pending ?? null, choices: state.choices ?? [], aliasPhrase: state.aliasPhrase ?? null });
@@ -745,6 +751,17 @@ async function stepCore(
     } catch {
       return mk({ action: 'answer', intent: 'error', say: S.trouble(hon) });
     }
+  }
+  // Lưới an toàn: nội dung tìm video chỉ là tham chiếu ("đầu tiên", "trong danh sách") thì chọn mục đang hiện, không tìm chữ đó.
+  if (nluOut.intent === 'play_video' && nluOut.content && isReferentialQuery(nluOut.content)) {
+    const ord = ordinalFromText(t);
+    const hasList = (ui.context?.lists?.length ?? 0) > 0 && !ui.context?.dialog;
+    if (ord !== null && hasList) {
+      const d = uiDecision(ord === 'last' ? 'cai cuoi cung' : `so ${ord}`, ui.context!, hon);
+      if (d) return d;
+    }
+    // Không có danh sách để chọn: hỏi lại thay vì mở video tên "đầu tiên".
+    nluOut = { ...nluOut, content: '', say: '', chips: undefined };
   }
   const intent = INTENT_LIST.includes(nluOut.intent) ? nluOut.intent : 'unsupported';
 
@@ -937,6 +954,6 @@ function progress(
       sayClass: 'important', chips: ['Gửi', 'Sửa', 'Hủy'], learnAlias,
     });
   }
-  const say = ['read_bp', 'read_meds', 'mark_dose', 'snooze_dose', 'read_messages', 'call_contact'].includes(intent) ? '' : S.opened();
+  const say = ['read_bp', 'read_meds', 'mark_dose', 'snooze_dose', 'read_messages', 'call_contact', 'scroll', 'read_list'].includes(intent) ? '' : S.opened();
   return mk({ action: 'execute', intent, task, say, learnAlias });
 }

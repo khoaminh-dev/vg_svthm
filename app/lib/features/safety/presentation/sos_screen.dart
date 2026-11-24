@@ -20,6 +20,7 @@ import '../domain/safety_models.dart';
 import 'safety_providers.dart';
 import 'sos_widgets.dart';
 import '../../../shared/honorific.dart';
+import '../../../core/router/safe_pop.dart';
 
 /// Mã đặc biệt: SOS chưa gửi được (mất mạng...). Màn vẫn cho gọi 115.
 const sosFailedId = 'failed';
@@ -324,7 +325,7 @@ class _SosScreenState extends ConsumerState<SosScreen> {
                 shadowColor: AppColors.cardShadow,
               ),
               icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => context.canPop() ? context.pop() : context.go(Routes.home),
+              onPressed: () => context.canPop() ? safePop(context) : context.go(Routes.home),
             ),
           ),
         ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/ios_components.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/elder_text_scale.dart';
@@ -10,6 +9,7 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../../domain/health_models.dart';
 import '../providers/health_providers.dart';
 import '../../../../shared/honorific.dart';
+import '../../../../core/router/safe_pop.dart';
 
 /// Những lần bác hỏi Vy về sức khoẻ và câu Vy trả lời. Chỉ chính bác xem được; tự xoá sau 90 ngày.
 class HealthHistoryScreen extends ConsumerWidget {
@@ -61,7 +61,7 @@ class HealthHistoryScreen extends ConsumerWidget {
       bottomNavigationBar: elderBackBar(context, ref),
       appBar: AppBar(
         title: const Text('Lịch sử hỏi Vy'),
-        leading: SoftBackLeading(onPressed: () => context.pop()),
+        leading: SoftBackLeading(onPressed: () => safePop(context)),
         actions: [
           if (items != null && items.isNotEmpty)
             TextButton(
