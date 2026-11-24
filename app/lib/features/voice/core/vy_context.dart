@@ -33,6 +33,7 @@ final vyUiContextProvider = Provider<Map<String, Object?> Function()>((ref) {
       },
       route: topRoutePath(ref.read(routerProvider)),
       playerOpen: ref.read(playerOpenProvider),
+      habit: ref.read(mediaMemoryProvider.notifier).habit(),
     );
   };
 });

@@ -30,6 +30,8 @@ export type UiContext = {
   controls: UiControl[];
   lists: UiList[];
   player: { open: boolean; playing: boolean };
+  /** Thói quen nghe/xem do app gửi (đã nhớ trên máy): chủ đề hay nghe, bài đang xem dở, bài vừa nghe. Có thể vắng. */
+  habit?: { top: string; topics: string[]; resume: string; last: string };
 };
 
 export type UiCmd =
@@ -120,6 +122,14 @@ export function parseUiContext(v: unknown): UiContext | undefined {
     }
   }
   const p = (o.player && typeof o.player === 'object' ? o.player : {}) as Record<string, unknown>;
+  let habit: UiContext['habit'];
+  if (o.habit && typeof o.habit === 'object') {
+    const h = o.habit as Record<string, unknown>;
+    const topics = Array.isArray(h.topics) ? h.topics.map((x) => s(x, 40)).filter(Boolean).slice(0, 3) : [];
+    const top = s(h.top, 40) || topics[0] || '';
+    habit = { top, topics: top && !topics.includes(top) ? [top, ...topics].slice(0, 3) : topics, resume: s(h.resume, 80), last: s(h.last, 80) };
+    if (!habit.top && !habit.resume && !habit.last) habit = undefined;
+  }
   return {
     role: o.role === 'elder' || o.role === 'family' ? o.role : '',
     route: s(o.route, 60),
@@ -127,6 +137,7 @@ export function parseUiContext(v: unknown): UiContext | undefined {
     controls,
     lists,
     player: { open: p.open === true, playing: p.playing === true },
+    ...(habit ? { habit } : {}),
   };
 }
 

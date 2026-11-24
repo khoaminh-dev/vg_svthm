@@ -20,6 +20,17 @@ class FakeSearch implements VideoSearch {
   }
 }
 
+class _Empty implements VideoSearch {
+  _Empty(this.onCall);
+  final void Function() onCall;
+
+  @override
+  Future<List<VideoItem>> search(String query, {int limit = 12}) async {
+    onCall();
+    return const [];
+  }
+}
+
 void main() {
   test('từ khoá chung chung và cụ thể', () {
     expect(isVagueVideoQuery('nhạc xưa'), isTrue);
@@ -27,6 +38,40 @@ void main() {
     expect(isVagueVideoQuery('cải lương'), isTrue);
     expect(isVagueVideoQuery('Nối vòng tay lớn'), isFalse);
     expect(isVagueVideoQuery('nhạc Trịnh Công Sơn'), isFalse);
+  });
+
+  test('CachedVideoSearch: cùng từ khoá chỉ tìm một lần; nhiều hơn thì tìm lại; hết hạn thì tìm lại', () async {
+    final fake = FakeSearch();
+    var now = DateTime(2026, 11, 24, 9);
+    final s = CachedVideoSearch(fake, ttl: const Duration(minutes: 10), now: () => now);
+    await s.search('Nhạc  xưa');
+    await s.search('nhạc xưa');
+    await s.search('nhạc xưa', limit: 5); // ít hơn: dùng lại
+    expect(fake.queries.length, 1);
+    await s.search('nhạc xưa', limit: 20); // nhiều hơn: phải tìm lại
+    expect(fake.queries.length, 2);
+    now = now.add(const Duration(minutes: 11));
+    await s.search('nhạc xưa', limit: 20);
+    expect(fake.queries.length, 3);
+  });
+
+  test('CachedVideoSearch: kết quả rỗng không bị nhớ', () async {
+    var calls = 0;
+    final s = CachedVideoSearch(_Empty(() => calls++));
+    await s.search('abc');
+    await s.search('abc');
+    expect(calls, 2);
+  });
+
+  test('cleanVideoTitle: bỏ emoji, #thẻ, nhãn kỹ thuật; giữ tên người trong ngoặc; cắt ở ranh giới từ', () {
+    expect(cleanVideoTitle('🎵 Đường chiều (Official MV 4K) #nhacxua #shorts'), 'Đường chiều');
+    expect(cleanVideoTitle('Nối vòng tay lớn [Lyrics] | Nhạc Cách Mạng'), 'Nối vòng tay lớn - Nhạc Cách Mạng');
+    expect(cleanVideoTitle('Cải lương Tiếng trống Mê Linh (Lệ Thủy, Minh Vương)'), 'Cải lương Tiếng trống Mê Linh (Lệ Thủy, Minh Vương)');
+    expect(cleanVideoTitle('#shorts'), '#shorts'); // chẳng còn gì thì giữ nguyên, không đọc rỗng
+    final long = cleanVideoTitle('Liên khúc nhạc vàng bolero trữ tình hay nhất mọi thời đại chọn lọc 2024 không quảng cáo');
+    expect(long.length, lessThanOrEqualTo(61));
+    expect(long.endsWith('…'), isTrue);
+    expect(long.contains('  '), isFalse);
   });
 
   test('nhãn thời lượng', () {

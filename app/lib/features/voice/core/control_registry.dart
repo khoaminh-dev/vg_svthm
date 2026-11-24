@@ -194,6 +194,7 @@ class ControlRegistry {
     required String route,
     bool playerOpen = false,
     bool playerPlaying = false,
+    Map<String, Object?> habit = const {},
   }) {
     final d = _topDialog;
     return {
@@ -209,6 +210,8 @@ class ControlRegistry {
       'controls': [for (final c in controls.take(60)) c.toJson()],
       'lists': [for (final l in lists.take(3)) l.toJson()],
       'player': {'open': playerOpen, 'playing': playerPlaying},
+      // Thói quen nghe/xem (chủ đề hay nghe, bài đang xem dở, bài vừa nghe): để Vy đoán thay vì hỏi. Rỗng thì không gửi.
+      if (habit.isNotEmpty) 'habit': habit,
     };
   }
 

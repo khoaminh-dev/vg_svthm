@@ -20,13 +20,13 @@ const _covered = [
   'lib/features/meds/presentation/med_plan_list_screen.dart',
   'lib/features/health/presentation/screens/health_setup_screen.dart',
   'lib/features/family/presentation/family_invite_screen.dart',
+  'lib/features/entertainment/presentation/player_screen.dart',
 ];
 
 /// Màn còn thiếu điều khiển cho Vy. SOS để trống có chủ ý (việc an toàn, người dùng tự bấm). Các màn Gia đình là của người thân.
 /// Khi thêm điều khiển, chuyển màn sang danh sách trên.
 const _todo = [
   'lib/features/safety/presentation/sos_screen.dart',
-  'lib/features/entertainment/presentation/player_screen.dart',
   'lib/features/family/presentation/family_join_screen.dart',
   'lib/features/family/presentation/family_home_screen.dart',
   'lib/features/family/presentation/alerts_screen.dart',

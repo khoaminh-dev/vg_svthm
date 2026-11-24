@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/user_avatar.dart';
+import '../../../entertainment/data/shared_video.dart';
+import '../../../entertainment/presentation/shared_video_open.dart';
 import '../../domain/message.dart';
 import '../providers/chat_providers.dart';
 
@@ -26,6 +29,8 @@ class MessageBubble extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final fg = isMine ? Colors.white : const Color(0xFF14213D);
     final path = message.imagePath;
+    // Video người thân gửi (đường dẫn YouTube): hiện thẻ xem được ngay thay vì đường dẫn dài.
+    final shared = parseSharedVideo(message.content);
 
     final bubble = Container(
       constraints: BoxConstraints(
@@ -95,7 +100,9 @@ class MessageBubble extends StatelessWidget {
                 ],
               ),
             ),
-          if (message.content.isNotEmpty)
+          if (shared != null && path == null)
+            SharedVideoCard(video: shared, isMine: isMine)
+          else if (message.content.isNotEmpty)
             Padding(
               padding: path != null
                   ? const EdgeInsets.fromLTRB(6, 6, 6, 0)
@@ -138,6 +145,66 @@ class MessageBubble extends StatelessWidget {
           ],
           bubble,
         ],
+      ),
+    );
+  }
+}
+
+/// Thẻ video trong bong bóng chat: ảnh bìa, tên video, chạm một lần là xem (không phải bấm đường dẫn).
+class SharedVideoCard extends ConsumerWidget {
+  const SharedVideoCard({super.key, required this.video, required this.isMine});
+
+  final SharedVideo video;
+  final bool isMine;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fg = isMine ? Colors.white : const Color(0xFF14213D);
+    return Semantics(
+      button: true,
+      label: 'Xem video ${video.title}',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: const Key('shared-video'),
+        onTap: () => openSharedVideo(ref, GoRouter.of(context), video),
+        child: SizedBox(
+          width: 240,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        'https://i.ytimg.com/vi/${video.id}/mqdefault.jpg',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const ColoredBox(color: Color(0xFFE1EAF4)),
+                      ),
+                      const Center(
+                        child: CircleAvatar(
+                          radius: 26,
+                          backgroundColor: Color(0x99000000),
+                          child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                video.title,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: fg, fontSize: 17, height: 1.3, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -13,7 +13,15 @@ class VySettings {
     this.remindBp = true,
     this.remindMessages = true,
     this.textInput = false,
+    this.rememberMedia = true,
+    this.remindMedia = true,
   });
+
+  /// "Vy gợi ý nhạc, video quen nghe" đúng giờ quen (tối đa một lần mỗi buổi). Mặc định bật; tắt bằng "đừng gợi ý nữa".
+  final bool remindMedia;
+
+  /// "Nhớ những gì tôi đã nghe/xem" để lần sau Vy mở đúng ý (lịch sử nằm trên máy, xoá được). Mặc định bật.
+  final bool rememberMedia;
 
   /// Hiện chữ khi Vy nói (cho người nghe kém hoặc nơi ồn). Mặc định bật.
   final bool captions;
@@ -40,7 +48,11 @@ class VySettings {
     bool? remindBp,
     bool? remindMessages,
     bool? textInput,
+    bool? rememberMedia,
+    bool? remindMedia,
   }) => VySettings(
+    rememberMedia: rememberMedia ?? this.rememberMedia,
+    remindMedia: remindMedia ?? this.remindMedia,
     captions: captions ?? this.captions,
     sounds: sounds ?? this.sounds,
     introSeen: introSeen ?? this.introSeen,
@@ -59,6 +71,8 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
   static const _kRBp = 'vy_remind_bp';
   static const _kRMsg = 'vy_remind_msg';
   static const _kText = 'vy_text_input';
+  static const _kMedia = 'vy_remember_media';
+  static const _kRMedia = 'vy_remind_media';
 
   @override
   Future<VySettings> build() async {
@@ -71,9 +85,17 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
       remindBp: p.getBool(_kRBp) ?? true,
       remindMessages: p.getBool(_kRMsg) ?? true,
       textInput: p.getBool(_kText) ?? false,
+      rememberMedia: p.getBool(_kMedia) ?? true,
+      remindMedia: p.getBool(_kRMedia) ?? true,
     );
     VySounds.enabled = s.sounds;
     return s;
+  }
+
+  Future<void> setRememberMedia(bool v) async {
+    state = AsyncData(_now.copyWith(rememberMedia: v));
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kMedia, v);
   }
 
   VySettings get _now => state.value ?? const VySettings();
@@ -97,9 +119,10 @@ class VySettingsNotifier extends AsyncNotifier<VySettings> {
     await p.setBool(_kSounds, v);
   }
 
-  Future<void> setRemind({bool? dose, bool? bp, bool? messages}) async {
-    state = AsyncData(_now.copyWith(remindDose: dose, remindBp: bp, remindMessages: messages));
+  Future<void> setRemind({bool? dose, bool? bp, bool? messages, bool? media}) async {
+    state = AsyncData(_now.copyWith(remindDose: dose, remindBp: bp, remindMessages: messages, remindMedia: media));
     final p = await SharedPreferences.getInstance();
+    if (media != null) await p.setBool(_kRMedia, media);
     if (dose != null) await p.setBool(_kRDose, dose);
     if (bp != null) await p.setBool(_kRBp, bp);
     if (messages != null) await p.setBool(_kRMsg, messages);

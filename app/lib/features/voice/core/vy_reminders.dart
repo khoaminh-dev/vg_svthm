@@ -2,8 +2,8 @@
 /// (Vy thường, giọng máy), KHÔNG mở Live. File này chỉ chứa phần QUYẾT ĐỊNH, thuần (không đụng giao diện/mạng) để kiểm thử bằng chữ.
 library;
 
-/// Loại nhắc, theo thứ tự ưu tiên giảm dần: thuốc > đo huyết áp > tin nhắn (SOS/khẩn cấp luôn thắng và chặn mọi nhắc).
-enum ReminderKind { dose, doseCheck, bp, messages }
+/// Loại nhắc, theo thứ tự ưu tiên giảm dần: thuốc > đo huyết áp > tin nhắn > gợi ý giải trí (SOS/khẩn cấp luôn thắng và chặn mọi nhắc).
+enum ReminderKind { dose, doseCheck, bp, messages, media }
 
 /// Sau lần nhắc thuốc mà chưa xác nhận: hỏi lại "đã uống chưa" ở các mốc này (tối đa 2 lần, trước mốc 45 phút báo người thân).
 const doseCheckAfter = [Duration(minutes: 15), Duration(minutes: 30)];
@@ -13,6 +13,9 @@ const doseGap = Duration(minutes: 10);
 
 /// Khoảng cách tối thiểu giữa hai lần nhắc tin nhắn.
 const messageGap = Duration(minutes: 15);
+
+/// Gợi ý giải trí chỉ chen vào khi lần nhắc gần nhất (bất kỳ loại nào) đã cách ít nhất chừng này: Vy không nói dồn.
+const mediaGap = Duration(minutes: 30);
 
 /// "Để sau" cho tin nhắn chỉ được nhắc lại tối đa chừng này lần.
 const maxLater = 1;
@@ -61,11 +64,13 @@ class ReminderInputs {
     this.enabledDose = true,
     this.enabledBp = true,
     this.enabledMessages = true,
+    this.enabledMedia = true,
     this.quiet = false,
     this.doseKey,
     this.doseCheckKey,
     this.bpDue,
     this.messages = const [],
+    this.mediaKey,
   });
 
   final DateTime now;
@@ -79,6 +84,7 @@ class ReminderInputs {
   final bool enabledDose;
   final bool enabledBp;
   final bool enabledMessages;
+  final bool enabledMedia;
 
   /// Trong giờ yên tĩnh: chặn nhắc không quan trọng, KHÔNG chặn thuốc (quyết định D3).
   final bool quiet;
@@ -91,6 +97,9 @@ class ReminderInputs {
 
   final BpDue? bpDue;
   final List<NewMessages> messages;
+
+  /// Gợi ý nhạc/video quen nghe đang đến giờ (mã `media:<ngày>:<buổi>`), null nếu không có.
+  final String? mediaKey;
 }
 
 /// Trí nhớ của bộ nhắc (trong một lần chạy app): cái gì đã nhắc, lần nhắc tin nhắn gần nhất, số lần "để sau".
@@ -99,6 +108,9 @@ class ReminderMemory {
   final laterCount = <String, int>{};
   DateTime? lastMessages;
   DateTime? lastDose;
+
+  /// Lần nhắc gần nhất, bất kỳ loại nào.
+  DateTime? lastAny;
 
   /// Lúc đã nhắc từng việc (để nhớ qua lần mở lại app, tránh nhắc lặp cùng một việc).
   final _shownAt = <String, int>{};
@@ -109,6 +121,7 @@ class ReminderMemory {
   void markShown(ReminderPick p, DateTime now) {
     done.add(p.key);
     _shownAt[p.key] = now.millisecondsSinceEpoch;
+    lastAny = now;
     if (p.kind == ReminderKind.messages) lastMessages = now;
     if (p.kind == ReminderKind.dose || p.kind == ReminderKind.doseCheck) lastDose = now;
   }
@@ -167,6 +180,13 @@ ReminderPick? decideReminder(ReminderInputs i, ReminderMemory mem) {
         if (!mem.done.contains(key)) return ReminderPick(ReminderKind.messages, key);
       }
     }
+  }
+
+  // Thấp nhất: gợi ý giải trí đúng giờ quen. Không chen khi vừa nhắc việc khác, không trong giờ yên tĩnh.
+  final mk = i.mediaKey;
+  if (i.enabledMedia && !i.quiet && mk != null && !mem.done.contains(mk)) {
+    final last = mem.lastAny;
+    if (last == null || i.now.difference(last) >= mediaGap) return ReminderPick(ReminderKind.media, mk);
   }
   return null;
 }
@@ -276,7 +296,7 @@ List<NewMessages> groupNewMessages(
 }
 
 /// Câu Vy nói khi nhắc (giọng máy). [hon] là cách xưng hô ("bác").
-String reminderSpeech(ReminderKind kind, String hon, {String? doseWhat, String? from, int count = 1}) {
+String reminderSpeech(ReminderKind kind, String hon, {String? doseWhat, String? from, int count = 1, String? topic}) {
   switch (kind) {
     case ReminderKind.dose:
       return 'Đến giờ uống thuốc rồi $hon ơi.${doseWhat == null ? '' : ' $hon lấy $doseWhat nhé.'}';
@@ -288,5 +308,7 @@ String reminderSpeech(ReminderKind kind, String hon, {String? doseWhat, String? 
       return count > 1
           ? '$hon có $count tin mới từ ${from ?? 'người thân'}. $hon muốn nghe không ạ?'
           : '$hon có tin mới từ ${from ?? 'người thân'}. $hon muốn nghe không ạ?';
+    case ReminderKind.media:
+      return 'Giờ này $hon hay nghe ${topic ?? 'nhạc'}. ${hon.isEmpty ? 'Bác' : '${hon[0].toUpperCase()}${hon.substring(1)}'} có muốn con mở không ạ?';
   }
 }

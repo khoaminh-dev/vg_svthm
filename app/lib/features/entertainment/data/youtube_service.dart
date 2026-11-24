@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../core/config/env.dart';
+import '../../voice/live/live_hybrid.dart' show foldVi;
 
 /// Một video trong kết quả tìm kiếm.
 class VideoItem {
@@ -94,6 +95,57 @@ class ApiVideoSearch implements VideoSearch {
     }
     return fallback.search(query, limit: limit);
   }
+}
+
+/// Nhớ kết quả vài phút để một lệnh giọng chỉ tốn MỘT lần tìm (Vy tìm rồi màn Giải trí tìm lại cùng từ khoá).
+/// Khoá theo từ khoá đã chuẩn hoá; yêu cầu ít hơn số đang có thì cắt bớt, nhiều hơn thì tìm lại.
+class CachedVideoSearch implements VideoSearch {
+  CachedVideoSearch(
+    this._inner, {
+    this.ttl = const Duration(minutes: 20),
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
+
+  final VideoSearch _inner;
+  final Duration ttl;
+  final DateTime Function() _now;
+  final _cache = <String, ({DateTime at, int limit, List<VideoItem> items})>{};
+
+  @override
+  Future<List<VideoItem>> search(String query, {int limit = 12}) async {
+    final key = query.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final hit = _cache[key];
+    if (hit != null && _now().difference(hit.at) < ttl && hit.limit >= limit) {
+      return hit.items.length > limit ? hit.items.sublist(0, limit) : hit.items;
+    }
+    final items = await _inner.search(query, limit: limit);
+    // Không nhớ kết quả rỗng: lần sau cho tìm lại.
+    if (items.isNotEmpty) {
+      if (_cache.length >= 40) _cache.remove(_cache.keys.first);
+      _cache[key] = (at: _now(), limit: limit, items: items);
+    }
+    return items;
+  }
+}
+
+/// Tên video để Vy ĐỌC: bỏ emoji, #thẻ, "(Official MV 4K)", "[Lyrics]"... rồi cắt gọn ở ranh giới từ.
+String cleanVideoTitle(String title, {int maxChars = 60}) {
+  var t = title
+      .replaceAll(RegExp(r'[\u{1F000}-\u{1FFFF}\u{2190}-\u{2BFF}\u{FE0F}\u{200D}]', unicode: true), ' ')
+      .replaceAll(RegExp(r'#\S+'), ' ');
+  // Chỉ bỏ ngoặc chứa chữ "nhãn kỹ thuật"; ngoặc có tên người/vở diễn (ví dụ "(Lệ Thủy)") thì giữ.
+  final noise = RegExp(
+    r'official|\bmv\b|m/v|\bhd\b|\b4k\b|\b8k\b|1080p|720p|lyric|audio|karaoke|\bhq\b|full hd|video clip|clip',
+    caseSensitive: false,
+  );
+  t = t.replaceAllMapped(RegExp(r'[\(\[\{][^\)\]\}]*[\)\]\}]'), (m) => noise.hasMatch(m[0]!) ? ' ' : m[0]!);
+  t = t.replaceAll(RegExp(r'\s*[|•·]+\s*'), ' - ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  t = t.replaceAll(RegExp(r'^[\s\-–—:]+|[\s\-–—:]+$'), '');
+  if (t.isEmpty) t = title.trim();
+  if (t.length <= maxChars) return t;
+  final cut = t.substring(0, maxChars);
+  final sp = cut.lastIndexOf(' ');
+  return '${(sp > maxChars ~/ 2 ? cut.substring(0, sp) : cut).trimRight()}…';
 }
 
 class YoutubeExplodeSearch implements VideoSearch {
@@ -208,32 +260,14 @@ Duration? _parseDuration(String s) {
 /// Từ khoá chung chung: nên cho người dùng chọn trong danh sách thay vì tự phát kết quả đầu tiên.
 /// "nhạc xưa", "tin tức", "hài" là chung chung; "Nối vòng tay lớn" là một tên bài cụ thể.
 bool isVagueVideoQuery(String query) {
-  final text =
-      ' ${query.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ')} ';
-  final words = text.trim().split(' ');
-  if (words.length > 3) return false;
-  const vague = [
-    'nhạc',
-    'nhac',
-    'xưa',
-    'xua',
-    'vàng',
-    'vang',
-    'trẻ',
-    'tre',
-    'thiền',
-    'thien',
-    'hài',
-    'hai',
-    'phim',
-    'tin',
-    'tức',
-    'tuc',
-    'cải',
-    'cai',
-    'lương',
-    'luong',
-  ];
-  // Mọi từ đều là từ chung chung (ví dụ "nhạc xưa", "tin tức", "cải lương") thì coi là mơ hồ.
+  final words = foldVi(query).split(' ').where((w) => w.isNotEmpty).toList();
+  if (words.isEmpty || words.length > 3) return false;
+  // Mọi từ đều là từ chỉ thể loại/chủ đề (đã bỏ dấu) thì coi là mơ hồ.
+  const vague = {
+    'nhac', 'xua', 'vang', 'tre', 'thien', 'hai', 'phim', 'tin', 'tuc', 'cai', 'luong', 'bolero', 'que', 'huong',
+    'cach', 'mang', 'thieu', 'nhi', 'khong', 'loi', 'ru', 'ngu', 'nhe', 'tru', 'tinh', 'kinh', 'phat', 'truyen',
+    'dem', 'khuya', 'duong', 'sinh', 'bong', 'da', 'tuong', 'cheo', 'co', 'the', 'duc', 'sach', 'noi', 'dai',
+    'radio', 'karaoke', 'hoat', 'hinh', 'yoga', 'thu', 'gian', 'kich', 'kenh',
+  };
   return words.every(vague.contains);
 }

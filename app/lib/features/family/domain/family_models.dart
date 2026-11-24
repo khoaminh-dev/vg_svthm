@@ -36,7 +36,7 @@ abstract final class FamilyPerm {
     medsEdit: 'Đặt và sửa lịch uống thuốc',
     location: 'Xem vị trí',
     profileEdit: 'Sửa hồ sơ sức khoẻ',
-    vyHistory: 'Xem lịch sử hỏi Vy',
+    vyHistory: 'Xem lịch sử hỏi Vy và thể loại nhạc, video đã nghe',
   };
 }
 

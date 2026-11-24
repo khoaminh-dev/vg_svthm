@@ -169,6 +169,51 @@ test('điều khiển video: dừng, bài khác, nhỏ đi', async () => {
   assert.equal(d.task?.slots.content?.toLowerCase(), 'next');
 });
 
+test('videoQuery: gọt đệm, câu chưa cụ thể trả "" để hỏi lại thay vì tìm chữ vô nghĩa (24/11)', async () => {
+  const { videoQuery } = await import('../_lib/voice/dm.ts');
+  // đệm đầu/đuôi
+  assert.equal(videoQuery('mo bai cua tuan vu'), 'tuan vu');
+  assert.equal(videoQuery('nghe nhac cua trinh cong son'), 'nhac trinh cong son');
+  assert.equal(videoQuery('bat bai nhac vang cho toi'), 'nhac vang');
+  assert.equal(videoQuery('cho bac nghe bai duong chieu'), 'duong chieu');
+  // chưa nói gì cụ thể: hỏi lại
+  for (const t of ['mo nhac', 'bat nhac len', 'xem phim', 'mo bai do di', 'mo video dau tien', 'phat nhac nhe', 'mo bai hat toi hay nghe', 'mo nhac nhu hom qua', 'nghe bai luc nay']) {
+    assert.equal(videoQuery(t), '', t);
+  }
+  // vẫn tìm bình thường
+  assert.equal(videoQuery('nghe khanh ly hat'), 'khanh ly hat');
+  assert.equal(videoQuery('mo nhac xua'), 'nhac xua');
+});
+
+test('"bật nhạc lên" / "mở bài đó đi" không gọi LLM, không tìm chữ vô nghĩa mà hỏi người dùng muốn nghe gì', async () => {
+  for (const text of ['bật nhạc lên', 'mở nhạc', 'mở bài đó đi', 'xem phim']) {
+    const d = await step({ text, state: {}, ui }, noNlu);
+    assert.equal(d.action, 'ask', text);
+    assert.equal(d.intent, 'play_video', text);
+    assert.deepEqual(d.chips, ['Nhạc xưa', 'Tin tức', 'Cải lương'], text);
+  }
+});
+
+test('điều khiển video mở rộng: tua, về đầu, thoát, hẹn giờ, hỏi tên bài, âm lượng nói tự nhiên (24/11)', async () => {
+  const { videoControl } = await import('../_lib/voice/dm.ts');
+  const cases: [string, string][] = [
+    ['tua lai', 'back:15'], ['lui lai mot chut', 'back:15'], ['lui lai 30 giay', 'back:30'], ['tua lai 1 phut', 'back:60'],
+    ['tua toi', 'fwd:15'], ['tua toi 2 phut', 'fwd:120'], ['tua nhanh', 'fwd:15'],
+    ['phat lai tu dau', 'restart'], ['nghe lai bai nay', 'restart'], ['tu dau', 'restart'],
+    ['phat lai', 'play'], ['tiep tuc', 'play'],
+    ['tat video', 'close'], ['dong video di', 'close'], ['tat nhac di', 'pause'],
+    ['hen gio tat nhac sau 45 phut', 'sleep:45'], ['hen gio tat nhac sau 2 tieng', 'sleep:120'], ['hen gio tat', 'sleep:30'],
+    ['bai nay cua ai', 'info'], ['bai gi day', 'info'], ['ten bai', 'info'], ['ai hat vay', 'info'],
+    ['nho tieng chut', 'quieter'], ['nho bot', 'quieter'], ['to tieng len', 'louder'],
+    ['to tieng', 'louder'], ['to nua', 'louder'], ['lon len', 'louder'],
+  ];
+  for (const [t, want] of cases) assert.equal(videoControl(t), want, t);
+  // không bắt nhầm tên bài / lệnh khác
+  assert.equal(videoControl('mo bai tua lai'), null);
+  assert.equal(videoControl('tua lai 999 giay'), 'back:600');
+  assert.equal(videoControl('quay lai'), null);
+});
+
 test('nhắn tin bằng luật: người nhận + nội dung không gọi LLM', async () => {
   let d = await step({ text: 'nhắn cho Lan là mai bác về ăn cơm', state: {}, ui }, noNlu);
   assert.equal(d.action, 'confirm');

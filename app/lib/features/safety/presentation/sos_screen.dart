@@ -12,6 +12,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_snackbar.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../entertainment/presentation/media_audio.dart';
 import '../../family/domain/family_models.dart';
 import '../../family/presentation/family_providers.dart';
 import '../../meds/presentation/meds_providers.dart';
@@ -37,10 +38,13 @@ class SosScreen extends ConsumerStatefulWidget {
 class _SosScreenState extends ConsumerState<SosScreen> {
   Timer? _poll;
   bool _busy = false;
+  late final MediaInterruptsNotifier _interrupts = ref.read(mediaInterruptsProvider.notifier);
 
   @override
   void initState() {
     super.initState();
+    // SOS đang mở: nhạc/video đang phát phía dưới phải dừng hẳn (SOS là ưu tiên cao nhất, không tự phát lại).
+    Future.microtask(() => _interrupts.add('sos'));
     // Theo dõi trạng thái "đã nhận" trong lúc màn đang mở.
     _poll = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && widget.sosId != sosFailedId) {
@@ -52,6 +56,13 @@ class _SosScreenState extends ConsumerState<SosScreen> {
   @override
   void dispose() {
     _poll?.cancel();
+    Future.microtask(() {
+      try {
+        _interrupts.remove('sos');
+      } catch (_) {
+        // bộ chứa provider đã huỷ khi thoát app
+      }
+    });
     super.dispose();
   }
 

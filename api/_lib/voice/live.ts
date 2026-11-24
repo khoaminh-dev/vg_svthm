@@ -67,7 +67,7 @@ export const LIVE_TOOLS: FnDef[] = [
   fn('show_bp', 'Mở màn xem lịch sử và biểu đồ huyết áp.'),
   fn('read_bp', 'Đọc kết quả đo huyết áp gần nhất của người dùng.'),
   fn('play_video', 'Tìm và phát video hoặc nhạc.', { query: { type: 'string', description: 'từ khoá tìm kiếm' } }, ['query']),
-  fn('video_control', 'Điều khiển video đang phát.', { action: { type: 'string', enum: ['pause', 'play', 'next', 'previous', 'louder', 'quieter'] } }, ['action']),
+  fn('video_control', 'Điều khiển video đang phát.', { action: { type: 'string', enum: ['pause', 'play', 'next', 'previous', 'louder', 'quieter', 'restart', 'close', 'info'] } }, ['action']),
   fn('prepare_message', 'Chuẩn bị tin nhắn cho một người trong danh bạ. Không gửi; ứng dụng sẽ xác nhận với người dùng.', {
     recipient: { type: 'string', description: 'người nhận như người dùng nói, ví dụ "con trai"' },
     content: { type: 'string', description: 'nội dung tin nhắn nếu đã nói' },

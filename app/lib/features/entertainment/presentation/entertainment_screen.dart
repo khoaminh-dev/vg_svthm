@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/elder_text_scale.dart';
 import '../../voice/core/control_registry.dart';
@@ -10,6 +12,9 @@ import '../../../core/analytics/analytics.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/ios_style.dart';
+import '../../voice/core/vy_settings.dart';
+import '../data/media_memory.dart';
+import '../data/video_rank.dart';
 import '../data/youtube_service.dart';
 import 'entertainment_providers.dart';
 import '../../../shared/honorific.dart';
@@ -59,6 +64,7 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
 
   @override
   void dispose() {
+    _autoPickTimer?.cancel();
     _text.dispose();
     // Rời màn thì thôi đánh số (ghi sau khung hình hiện tại để không đổi provider giữa lúc dựng cây).
     final marks = _marks;
@@ -79,6 +85,27 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
     Analytics.track('video_search', {'len': query.length});
     _text.text = query;
     ref.read(videoQueryProvider.notifier).set(query);
+  }
+
+  Timer? _autoPickTimer;
+  bool _autoPickArmed = false;
+
+  /// Khi Vy bật đánh số mà người dùng không chọn trong [_autoPickAfter], tự mở video số 1.
+  /// Chỉ hẹn giờ một lần cho mỗi lần đánh số; chọn tay, tắt đánh số hoặc rời màn thì huỷ.
+  static const _autoPickAfter = Duration(seconds: 10);
+
+  void _autoPick(bool marks, List<VideoItem> videos, VoidCallback open) {
+    if (!marks || videos.isEmpty) {
+      _autoPickTimer?.cancel();
+      _autoPickTimer = null;
+      _autoPickArmed = false;
+      return;
+    }
+    if (_autoPickArmed) return;
+    _autoPickArmed = true;
+    _autoPickTimer = Timer(_autoPickAfter, () {
+      if (mounted && ref.read(videoMarksProvider)) open();
+    });
   }
 
   void _backToCategories() {
@@ -138,11 +165,46 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
       ref.read(videoMarksProvider.notifier).set(false);
       Analytics.track('video_open', {'from': 'voice_or_list'});
       ref.read(videoQueueProvider.notifier).set(list);
+      ref.read(videoTopicProvider.notifier).set(query);
+      ref.read(playerStartSleepProvider.notifier).set(defaultSleepMinutesFor(query));
       context.push(Routes.player, extra: list[i]);
+    }
+    // Vy đang chờ người dùng chọn số mà im lặng: sau một lúc tự mở video đầu (làm trước, hỏi sau).
+    _autoPick(marks, videos, () => openVideo(videos, 0));
+
+    // Trí nhớ nghe/xem: "Xem tiếp" (bài dài đang dở) hoặc "Nghe lại" (bài vừa nghe), chạm một lần là phát.
+    final remember = ref.watch(vySettingsProvider).value?.rememberMedia ?? true;
+    final mem = ref.watch(mediaMemoryProvider);
+    final resume = remember && query.isEmpty ? mem.resumable(DateTime.now()) : null;
+    final last = remember && query.isEmpty && resume == null ? mem.last : null;
+    void openEntry(MediaEntry e, {bool resume = false}) {
+      final video = e.toVideo();
+      Analytics.track('video_open', {'from': resume ? 'resume' : 'recent'});
+      ref.read(videoQueueProvider.notifier).set([video]);
+      ref.read(videoTopicProvider.notifier).set(e.topic);
+      ref.read(playerStartAtProvider.notifier).set(resume ? e.progressSec : null);
+      ref.read(playerStartSleepProvider.notifier).set(defaultSleepMinutesFor(e.topic));
+      context.push(Routes.player, extra: video);
     }
 
     return VyControlScope(
       controls: [
+        if (resume != null)
+          VyControl(
+            id: 'ent.resume',
+            label: 'Xem tiếp',
+            aliases: const ['nghe tiếp', 'mở tiếp', 'xem tiếp bài dở'],
+            say: 'Dạ, con mở tiếp từ chỗ đang dở ạ.',
+            onInvoke: () => openEntry(resume, resume: true),
+          ),
+        if (last != null)
+          VyControl(
+            id: 'ent.last',
+            label: 'Nghe lại bài vừa rồi',
+            aliases: const ['mở lại bài vừa rồi', 'nghe lại', 'bài lúc nãy'],
+            say: 'Dạ, con mở lại bài vừa rồi ạ.',
+            onInvoke: () => openEntry(last),
+          ),
         if (query.isEmpty)
           for (final c in _categories)
             VyControl(
@@ -211,6 +273,17 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if (resume != null || last != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _RecallCard(
+                        key: Key(resume != null ? 'ent-resume' : 'ent-last'),
+                        icon: resume != null ? Icons.play_circle_fill_rounded : Icons.replay_rounded,
+                        title: resume != null ? 'Xem tiếp' : 'Nghe lại',
+                        subtitle: cleanVideoTitle((resume ?? last)!.title, maxChars: 70),
+                        hint: resume != null ? 'Từ chỗ đang dở' : null,
+                        onTap: () => openEntry(resume ?? last!, resume: resume != null),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.md),
                     GridView.count(
                       crossAxisCount: 2,
@@ -299,6 +372,8 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
                           ref.read(videoMarksProvider.notifier).set(false);
                           Analytics.track('video_open', {'from': 'list'});
                           ref.read(videoQueueProvider.notifier).set(list);
+                          ref.read(videoTopicProvider.notifier).set(query);
+                          ref.read(playerStartSleepProvider.notifier).set(defaultSleepMinutesFor(query));
                           context.push(Routes.player, extra: list[i]);
                         },
                       ),
@@ -311,6 +386,61 @@ class _EntertainmentScreenState extends ConsumerState<EntertainmentScreen> {
         ),
       ),
     ),
+    );
+  }
+}
+
+/// Thẻ "Xem tiếp" / "Nghe lại": bài vừa nghe hoặc đang dở, chạm một lần là phát (không phải tìm lại).
+class _RecallCard extends StatelessWidget {
+  const _RecallCard({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap, this.hint});
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? hint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: '$title: $subtitle',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF14213D),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: const [BoxShadow(color: Color(0x2E14213D), blurRadius: 16, offset: Offset(0, 6))],
+          ),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white, size: 44),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white),
+                    ),
+                    if (hint != null)
+                      Text(hint!, style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -14,6 +14,8 @@ import '../../../core/router/routes.dart';
 import '../../meds/domain/meds_models.dart';
 import '../../meds/presentation/meds_providers.dart';
 import '../domain/family_models.dart';
+import '../../entertainment/data/media_summary.dart';
+import '../../entertainment/presentation/entertainment_providers.dart';
 import '../../safety/presentation/safety_providers.dart';
 import '../../profile/data/phone_repository.dart';
 import '../../safety/presentation/sos_widgets.dart';
@@ -147,6 +149,10 @@ class FamilyPersonScreen extends ConsumerWidget {
           if (link != null && link.can(FamilyPerm.medsView)) ...[
             const SizedBox(height: AppSpacing.md),
             _MedsCard(link: link),
+          ],
+          if (link != null && link.can(FamilyPerm.vyHistory)) ...[
+            const SizedBox(height: AppSpacing.md),
+            _MediaCard(ownerId: ownerId, name: name),
           ],
           if (link != null && (link.can(FamilyPerm.health) || link.can('alerts'))) ...[
             const SizedBox(height: AppSpacing.md),
@@ -452,6 +458,57 @@ class _MedsCard extends ConsumerWidget {
       style: theme.textTheme.titleSmall?.copyWith(
         color: color,
         fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+/// Cha/mẹ hay nghe gì và bao lâu (chỉ thể loại và thời lượng, không tên bài). Chỉ hiện khi được cấp quyền "xem lịch sử hỏi Vy".
+class _MediaCard extends ConsumerWidget {
+  const _MediaCard({required this.ownerId, required this.name});
+
+  final String ownerId;
+  final String name;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final async = ref.watch(personMediaProvider(ownerId));
+    return FamCard(
+      key: const Key('person-media'),
+      title: 'Nghe nhạc, xem video',
+      child: async.when(
+        loading: () => const SizedBox(height: 32, child: Center(child: CircularProgressIndicator())),
+        error: (_, _) => Text('Chưa tải được.', style: theme.textTheme.bodyMedium),
+        data: (m) {
+          if (m.isEmpty) {
+            return Text(
+              'Chưa có gì trong 7 ngày qua. (Hoặc $name đã tắt chế độ "Nhớ những gì tôi đã nghe".)',
+              key: const Key('person-media-empty'),
+              style: theme.textTheme.bodyMedium,
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (m.today.isEmpty)
+                Text('Hôm nay chưa nghe gì.', key: const Key('person-media-today'), style: theme.textTheme.bodyLarge)
+              else
+                Text(
+                  'Hôm nay: ${m.today.map((t) => '${t.topic} ${durationText(t.seconds)}').join(', ')}.',
+                  key: const Key('person-media-today'),
+                  style: theme.textTheme.bodyLarge,
+                ),
+              const SizedBox(height: 6),
+              Text(
+                '7 ngày qua: ${durationText(m.weekSeconds)} trong ${m.activeDays} ngày'
+                '${m.topTopic == null ? '' : ', nhiều nhất là ${m.topTopic}'}.',
+                key: const Key('person-media-week'),
+                style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

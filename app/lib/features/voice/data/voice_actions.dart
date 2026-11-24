@@ -14,6 +14,10 @@ import '../../bp/domain/bp_models.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../chat/domain/room.dart';
 import '../../chat/presentation/providers/chat_providers.dart';
+import '../core/vy_settings.dart';
+import '../../entertainment/data/media_memory.dart';
+import '../../entertainment/data/shared_video.dart';
+import '../../entertainment/data/video_rank.dart';
 import '../../entertainment/data/youtube_service.dart';
 import '../../entertainment/presentation/entertainment_providers.dart';
 import '../../health/presentation/providers/health_providers.dart';
@@ -299,15 +303,19 @@ class VoiceActions {
   ) async {
     final q = query?.trim() ?? '';
     if (q.isEmpty) return null;
+    // "@last", "@resume"...: Vy hiểu "bài lúc nãy", "xem tiếp", "như hôm qua" và nhờ trí nhớ nghe/xem trên máy trả lời.
+    if (q.startsWith('@')) return _playRecall(q.toLowerCase(), router, honorific);
     Analytics.track('voice_play_video', {'len': q.length});
     final List<VideoItem> found;
     try {
-      found = await _ref.read(videoSearchProvider).search(q, limit: 10);
+      // Cùng số lượng với màn Giải trí (12) để kết quả dùng lại từ bộ nhớ, không tìm hai lần.
+      found = await _ref.read(videoSearchProvider).search(q);
     } catch (_) {
       return 'Con tìm video chưa được, $honorific kiểm tra mạng rồi thử lại nhé.';
     }
     if (found.isEmpty) return 'Con không tìm thấy video nào về "$q" ạ.';
     _ref.read(videoQueryProvider.notifier).set(q);
+    _ref.read(videoTopicProvider.notifier).set(q);
     router.go(Routes.entertainment);
     if (isVagueVideoQuery(q)) {
       // Không dùng thẻ che màn: đánh số 1, 2, 3… ngay trên các video thật của màn Giải trí.
@@ -317,38 +325,151 @@ class VoiceActions {
     }
     final first = found.first;
     _ref.read(videoQueueProvider.notifier).set(found);
+    final sleep = defaultSleepMinutesFor(q);
+    _ref.read(playerStartSleepProvider.notifier).set(sleep);
     router.push(Routes.player, extra: first);
-    final title = first.title.length > 70
-        ? '${first.title.substring(0, 70)}…'
-        : first.title;
-    return 'Dạ, con mở $title ạ.';
+    final tail = sleep == null ? '' : ' Con hẹn giờ tắt sau $sleep phút cho $honorific dễ ngủ ạ.';
+    return 'Dạ, con mở ${cleanVideoTitle(first.title)} ạ.$tail';
   }
 
-  /// Điều khiển video đang phát bằng giọng nói.
+  /// Mở lại một mục trong lịch sử. [startAt] (giây) để xem tiếp đúng chỗ dở. Trả về tên bài đã làm sạch để Vy đọc.
+  String _openEntry(MediaEntry e, GoRouter router, {int? startAt}) {
+    final video = e.toVideo();
+    _ref.read(videoQueryProvider.notifier).set(e.topic);
+    _ref.read(videoTopicProvider.notifier).set(e.topic);
+    _ref.read(videoQueueProvider.notifier).set([video]);
+    _ref.read(playerStartAtProvider.notifier).set(startAt);
+    _ref.read(playerStartSleepProvider.notifier).set(defaultSleepMinutesFor(e.topic));
+    router.go(Routes.entertainment);
+    router.push(Routes.player, extra: video);
+    return cleanVideoTitle(e.title);
+  }
+
+  /// Nghe/xem lại theo trí nhớ: "bài lúc nãy" (@last), "xem tiếp" (@resume), "bài tôi thích" (@favorite), "như mọi khi" (@habit).
+  Future<String?> _playRecall(String token, GoRouter router, String hon) async {
+    Analytics.track('voice_play_recall', {'t': token});
+    final mem = _ref.read(mediaMemoryProvider);
+    final now = DateTime.now();
+    switch (token) {
+      case '@last':
+        final e = mem.last;
+        if (e == null) return 'Dạ, con chưa thấy $hon nghe gì gần đây ạ. ${_cap(hon)} muốn nghe gì ạ?';
+        final r = mem.resumable(now);
+        if (r != null && r.id == e.id) {
+          final title = _openEntry(e, router, startAt: e.progressSec);
+          return 'Dạ, con mở tiếp $title, từ chỗ $hon đang nghe dở ạ.';
+        }
+        return 'Dạ, con mở lại ${_openEntry(e, router)} ạ.';
+      case '@resume':
+        final r = mem.resumable(now);
+        if (r == null) return 'Dạ, con không thấy bài nào $hon đang xem dở ạ.';
+        final title = _openEntry(r, router, startAt: r.progressSec);
+        return 'Dạ, con mở tiếp $title, từ chỗ $hon đang xem dở ạ.';
+      case '@favorite':
+        final liked = mem.liked;
+        if (liked.isEmpty) {
+          return 'Dạ, con chưa lưu bài nào $hon thích ạ. Khi đang nghe, $hon nói "bài này hay" thì con sẽ nhớ nhé.';
+        }
+        final title = _openEntry(liked.first, router);
+        _ref.read(videoQueueProvider.notifier).set([for (final e in liked) e.toVideo()]);
+        return 'Dạ, con mở bài $hon thích: $title ạ.';
+      case '@habit':
+        final topic = mem.suggestedTopic(now);
+        if (topic == null) return 'Dạ, $hon muốn nghe gì ạ?';
+        final List<VideoItem> found;
+        try {
+          found = await _ref.read(videoSearchProvider).search(topic);
+        } catch (_) {
+          return 'Con tìm video chưa được, $hon kiểm tra mạng rồi thử lại nhé.';
+        }
+        if (found.isEmpty) return 'Con không tìm thấy video nào về "$topic" ạ.';
+        _ref.read(videoQueryProvider.notifier).set(topic);
+        _ref.read(videoTopicProvider.notifier).set(topic);
+        _ref.read(videoQueueProvider.notifier).set(found);
+        _ref.read(playerStartSleepProvider.notifier).set(defaultSleepMinutesFor(topic));
+        router.go(Routes.entertainment);
+        router.push(Routes.player, extra: found.first);
+        return 'Dạ, giờ này $hon hay nghe $topic, con mở ${cleanVideoTitle(found.first.title)} ạ.';
+    }
+    return null;
+  }
+
+  /// Điều khiển video đang phát bằng giọng nói. [action] là tên lệnh, hoặc "back:30" / "fwd:60" / "sleep:45".
   String? _controlVideo(String? action, String honorific) {
-    if (!_ref.read(playerOpenProvider))
+    final raw = (action ?? '').toLowerCase().trim();
+    // "Đừng gợi ý nữa": tắt gợi ý chủ động, nói được ở bất cứ màn nào (không cần đang phát video).
+    if (raw == 'suggest_off') {
+      unawaited(_ref.read(vySettingsProvider.notifier).setRemind(media: false));
+      return 'Dạ, con sẽ không tự gợi ý nhạc, video nữa ạ. Khi nào cần, $honorific cứ nói con mở nhé.';
+    }
+    if (!_ref.read(playerOpenProvider)) {
       return 'Dạ, hiện chưa có video nào đang phát ạ.';
-    final a = switch (action?.toLowerCase()) {
+    }
+    final name = raw.split(':').first;
+    final number = int.tryParse(raw.contains(':') ? raw.split(':').last : '');
+    final a = switch (name) {
       'pause' => PlayerAction.pause,
       'play' => PlayerAction.play,
       'next' => PlayerAction.next,
       'previous' => PlayerAction.previous,
       'louder' => PlayerAction.louder,
       'quieter' => PlayerAction.quieter,
+      'restart' => PlayerAction.restart,
+      'close' => PlayerAction.close,
+      'back' => PlayerAction.seekBack,
+      'fwd' => PlayerAction.seekForward,
+      'sleep' => PlayerAction.sleep,
+      'like' => PlayerAction.like,
+      'dislike' => PlayerAction.dislike,
+      'info' => null,
       _ => null,
     };
+    if (name == 'info') {
+      final now = _ref.read(playerNowProvider);
+      if (now == null) return 'Dạ, con chưa biết bài đang phát là bài nào ạ.';
+      final by = now.author.trim().isEmpty ? '' : ', kênh ${now.author.trim()}';
+      return 'Dạ, đây là ${cleanVideoTitle(now.title)}$by ạ.';
+    }
     if (a == null) return null;
-    _ref.read(playerCommandProvider.notifier).send(a);
-    Analytics.track('voice_video_control', {'action': action});
+    final volume = _ref.read(playerVolumeProvider);
+    // Nói đúng sự thật: đã chạm trần/đáy thì không báo "đã tăng/giảm".
+    if (a == PlayerAction.louder && volume >= 100) {
+      return 'Dạ, trong app con đã để to hết cỡ rồi ạ. $honorific bấm nút to bên hông máy giúp con nhé.';
+    }
+    if (a == PlayerAction.quieter && volume <= 10) {
+      return 'Dạ, con đã để nhỏ hết cỡ rồi ạ.';
+    }
+    final int? value = switch (a) {
+      PlayerAction.seekBack || PlayerAction.seekForward => (number ?? 15).clamp(5, 600),
+      PlayerAction.sleep => (number ?? 30).clamp(1, 480),
+      _ => null,
+    };
+    final remember = _ref.read(mediaMemoryProvider.notifier).enabled;
+    _ref.read(playerCommandProvider.notifier).send(a, value: value);
+    Analytics.track('voice_video_control', {'action': name});
     return switch (a) {
       PlayerAction.pause => 'Dạ, con dừng rồi ạ.',
       PlayerAction.play => 'Dạ, con phát tiếp ạ.',
       PlayerAction.next => 'Dạ, con chuyển bài ạ.',
       PlayerAction.previous => 'Dạ, con mở lại bài trước ạ.',
-      PlayerAction.louder =>
-        'Dạ, con tăng âm lượng rồi ạ. Nếu chưa đủ to, $honorific bấm nút to bên hông máy giúp con nhé.',
+      PlayerAction.louder => 'Dạ, con tăng âm lượng rồi ạ.',
       PlayerAction.quieter => 'Dạ, con giảm âm lượng rồi ạ.',
+      PlayerAction.restart => 'Dạ, con phát lại từ đầu ạ.',
+      PlayerAction.close => 'Dạ, con tắt video rồi ạ.',
+      PlayerAction.seekBack => 'Dạ, con tua lại ${_spokenSeconds(value!)} ạ.',
+      PlayerAction.seekForward => 'Dạ, con tua tới ${_spokenSeconds(value!)} ạ.',
+      PlayerAction.like => remember
+          ? 'Dạ, con nhớ bài này rồi ạ, lần sau con mở cho $honorific nghe ạ.'
+          : 'Dạ, $honorific đang tắt chế độ nhớ nên con chưa lưu được ạ.',
+      PlayerAction.dislike => remember ? 'Dạ, con bỏ bài này, mở bài khác ạ.' : 'Dạ, con mở bài khác ạ.',
+      PlayerAction.sleep =>
+        'Dạ, con sẽ tắt sau ${value! >= 60 && value % 60 == 0 ? '${value ~/ 60} tiếng' : '$value phút'} ạ.',
     };
+  }
+
+  static String _spokenSeconds(int s) {
+    if (s >= 60 && s % 60 == 0) return '${s ~/ 60} phút';
+    return '$s giây';
   }
 
   void _openRoom(String id) {
@@ -866,12 +987,17 @@ final voiceActionsProvider = Provider<VoiceActions>(VoiceActions.new);
 
 /// Một tin nhắn người khác gửi cho mình (để Vy đọc).
 class IncomingMsg {
-  const IncomingMsg({required this.roomId, required this.from, required this.text, required this.at});
+  const IncomingMsg({required this.roomId, required this.from, required this.text, required this.at, this.content = ''});
 
   final String roomId;
   final String from;
+
+  /// Lời Vy đọc (đã rút gọn, tin hình thì "gửi một hình ảnh").
   final String text;
   final DateTime at;
+
+  /// Nội dung gốc đầy đủ (để nhận ra video người thân gửi, không bị cắt giữa đường dẫn).
+  final String content;
 }
 
 /// Tin nhắn người khác gửi trong 3 ngày qua (mới nhất trước, tối đa 5). Tin chỉ có hình thì đọc là "gửi một hình ảnh".
@@ -895,12 +1021,15 @@ final recentIncomingMessagesProvider = FutureProvider.autoDispose<List<IncomingM
         roomId: r['room_id'] as String,
         from: names[r['room_id']] ?? 'Người thân',
         text: _spokenText((r['content'] as String?) ?? '', r['image_path'] != null),
+        content: (r['content'] as String?) ?? '',
         at: DateTime.parse(r['created_at'] as String).toLocal(),
       ),
   ];
 });
 
 String _spokenText(String content, bool hasImage) {
+  final video = parseSharedVideo(content);
+  if (video != null) return 'gửi một video: ${cleanVideoTitle(video.title, maxChars: 80)}';
   final t = content.trim();
   if (t.isEmpty) return hasImage ? 'gửi một hình ảnh' : '(tin trống)';
   return t.length > 200 ? '${t.substring(0, 200)}…' : t;

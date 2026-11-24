@@ -4,6 +4,7 @@
 
 import { guardBpSay } from './bp_guard.js';
 import { resolveUiCommand, type UiContext, type UiControl } from './ui_cmd.js';
+import { habitTopicFor, personalChips, videoFeedback, videoIntent, videoRecall } from './video_nlu.js';
 
 export type Expect = 'command' | 'free_text' | 'yes_no' | 'choice' | 'name' | 'none';
 export type Contact = { id: string; kind: 'direct' | 'group'; name: string; username?: string; aliases?: string[] };
@@ -43,6 +44,8 @@ export type NluResult = {
   say: string;
   /** Động từ người dùng nói khi nhắn tin ("hoi" = hỏi, "bao" = bảo/báo, "noi" = nói với): để chuẩn hoá tin cho đúng. */
   verb?: string;
+  /** Chỉ với play_video khi chưa biết xem gì: gợi ý chạm được (tối đa 3) để Vy hỏi một câu. */
+  chips?: string[];
 };
 /** Chuẩn hoá nội dung tin nhắn trước khi gửi: sửa chuẩn câu, KHÔNG viết lại. Lỗi hay quá hạn thì trả về chính nội dung đã gọt gọn. */
 export type Refine = (m: { content: string; recipient: string; verb?: string }) => Promise<string>;
@@ -165,31 +168,87 @@ export function featureOf(s: string): string {
 
 const NOT_VIDEO = /\b(tin nhan|nhan tin|huyet ap|chat|ocr|trang chu|so lieu|nhan cho|gui cho)\b/;
 
-/** "mở bài Nối vòng tay lớn", "cho nghe nhạc xưa", "phát video con mèo": lấy phần từ khoá tìm video; null nếu không phải. */
+/** Lấy lại cụm có dấu từ câu gốc để tìm trên YouTube chính xác hơn: tìm đoạn từ liền nhau trong câu gốc có cùng chữ không dấu với [content]. */
+export function restoreAccents(orig: string, content: string): string {
+  const want = norm(content);
+  const n = content.trim().split(/\s+/).length;
+  const words = orig.trim().split(/\s+/);
+  for (let i = words.length - n; i >= 0; i--) {
+    const win = words.slice(i, i + n).join(' ');
+    if (norm(win) === want) return win.replace(/[.,!?;:]+$/g, '');
+  }
+  return content;
+}
+
+const QUERY_TAIL_FILLER = /(?:^|\s+)(len|di|nhe|nha|a|ne|nao|voi|luon|ngay|cho (?:toi|bac|con|co|chu)|giup (?:toi|con)|duoc khong)$/;
+const QUERY_HEAD_FILLER = /^(cua|do|nay|kia|nhung|may|mot)\s+/;
+/** Cụm chỉ "cái đã nghe/cái ở trên" chứ không phải từ khoá tìm được; chưa có lịch sử nên hỏi lại thay vì tìm chữ đó trên YouTube. */
+const REFERENTIAL_QUERY = /^(do|nay|kia|dau|dau tien|lai|lai tu dau|tu dau|truoc|khac|nua|vua roi|luc nay|hom qua|hom truoc|toi hay nghe|hay nghe|nhu hom qua|nhu luc nay|nhu cu|nhu moi khi)$|\b(hom qua|hom truoc|luc nay|vua nghe|vua roi|hay nghe)\b/;
+const BARE_MEDIA = /^(nhac|video|clip|phim|bai hat|ca khuc|bai|youtube)$/;
+
+/** "mở bài Nối vòng tay lớn", "cho nghe nhạc xưa", "phát video con mèo": lấy phần từ khoá tìm video; null nếu không phải.
+ *  Chuỗi rỗng nghĩa là người dùng muốn xem/nghe nhưng chưa nói gì cụ thể ("bật nhạc lên", "mở bài đó"): hỏi lại, đừng tìm. */
 export function videoQuery(t: string): string | null {
   if (NOT_VIDEO.test(t)) return null;
-  const m = t.match(/^(mo|phat|bat|cho (?:toi |con )?(?:nghe|xem)|nghe|xem)\s+(?:(bai hat|ca khuc|bai|video|clip|nhac|phim|youtube)\s+)?(.{2,80})$/);
+  const m = t.match(/^(mo|phat|bat|cho (?:toi |con |bac )?(?:nghe|xem)|nghe|xem)\s+(?:(bai hat|ca khuc|bai|video|clip|nhac|phim|youtube)\s+)?(.{2,80})$/);
   if (!m) return null;
   const verb = m[1];
   const media = m[2];
   // "mở X" / "xem X" trần trụi dễ nhầm với lệnh khác: cần thêm từ chỉ video/nhạc.
-  if (!media && (verb === 'mo' || verb === 'xem')) return null;
-  const rest = (media === 'nhac' ? `nhac ${m[3]}` : m[3]).replace(/\s+(tren )?(youtube|you tube)$/, '').trim();
-  return rest.length >= 2 ? rest : null;
+  if (!media && (verb === 'mo' || verb === 'xem')) {
+    // Trừ khi chính X là từ chỉ video/nhạc ("mở nhạc", "xem phim"): người dùng muốn nghe nhưng chưa nói gì.
+    return BARE_MEDIA.test(strip(m[3])) ? '' : null;
+  }
+  const body = strip(m[3].replace(/\s+(tren )?(youtube|you tube)$/, ''));
+  if (!body || BARE_MEDIA.test(body)) return '';
+  const full = media === 'nhac' ? `nhac ${body}` : body;
+  if (REFERENTIAL_QUERY.test(full) || REFERENTIAL_QUERY.test(body)) return '';
+  return full.length >= 2 ? full : null;
+}
+
+/** Gọt đệm đầu/đuôi ("của", "lên", "đi nhé") để từ khoá tìm kiếm sạch. */
+function strip(s: string): string {
+  let r = s.trim();
+  for (let i = 0; i < 4; i++) {
+    const next = r.replace(QUERY_TAIL_FILLER, '').replace(QUERY_HEAD_FILLER, '').trim();
+    if (next === r) break;
+    r = next;
+  }
+  return r;
 }
 
 /** Lệnh điều khiển video đang phát: "dừng", "bài khác", "nhỏ đi"... (t đã bỏ dấu); trả về tên hành động hoặc null. */
 export function videoControl(t: string): string | null {
-  const tail = '( a| nhe| di| chut| giup con| giup toi)*';
+  const tail = '( a| nhe| di| chut| giup con| giup toi| nua| thoi| len)*';
   const rules: [RegExp, string][] = [
-    [new RegExp(`^(tam dung|dung lai|dung|ngung|tat nhac|tat video)${tail}$`), 'pause'],
-    [new RegExp(`^(tiep tuc|phat tiep|phat lai|bat lai)${tail}$`), 'play'],
+    [new RegExp(`^(tam dung|dung lai|dung|ngung|tat nhac)${tail}$`), 'pause'],
+    // "tắt video / đóng video / thoát video": rời màn phát (khác với tạm dừng).
+    [new RegExp(`^(tat video|dong video|thoat video|thoat ra khoi video|dong bai nay|tat bai nay)${tail}$`), 'close'],
+    // Phải đứng trước "phát lại" (tiếp tục): "phát lại từ đầu" là về giây 0, không phải bấm phát.
+    [new RegExp(`^(phat lai tu dau|nghe lai tu dau|mo lai tu dau|tu dau|ve dau bai|nghe lai bai nay|phat lai bai nay|mo lai bai nay|nghe lai)${tail}$`), 'restart'],
+    [new RegExp(`^(tiep tuc|phat tiep|phat lai|bat lai|nghe tiep|xem tiep|mo tiep|cho nghe tiep)${tail}$`), 'play'],
     [new RegExp(`^(bai khac|bai tiep theo|bai tiep|bai ke tiep|video khac|video tiep theo|chuyen bai|qua bai|bai sau)${tail}$`), 'next'],
     [new RegExp(`^(bai truoc|bai vua roi|video truoc)${tail}$`), 'previous'],
-    [new RegExp(`^(to len|to hon|lon len|lon hon|tang am luong|tang tieng|nghe khong ro)${tail}$`), 'louder'],
-    [new RegExp(`^(nho di|nho lai|nho hon|giam am luong|giam tieng)${tail}$`), 'quieter'],
+    [new RegExp(`^(to len|to hon|to tieng|lon len|lon hon|lon tieng|to nua|lon nua|tang len|tang am luong|tang tieng|nghe khong ro)${tail}$`), 'louder'],
+    [new RegExp(`^(nho di|nho lai|nho hon|nho tieng|nho bot|nho xuong|nho nho|nho chut|bot tieng|bot am|giam am luong|giam tieng)${tail}$`), 'quieter'],
+    // "bài này của ai", "bài gì đây": Vy đọc tên bài đang phát.
+    [new RegExp(`^(bai nay (cua ai|ten (gi|la gi))|bai gi( day| the| vay)?|ai hat( bai nay)?( vay| the)?|ten bai( gi| la gi)?|day la bai gi)${tail}$`), 'info'],
   ];
   for (const [re, action] of rules) if (re.test(t)) return action;
+  // "tua lại 30 giây", "lùi một chút", "tua tới 1 phút": tua theo giây (mặc định 15 giây, giống nút trên màn).
+  const seek = t.match(/^(tua lai|lui lai|lui|tua nguoc|tua toi|tua len|tua nhanh|tua)(?: (\d{1,3}) (giay|phut))?(?: mot chut| chut)?( a| nhe| di| giup con| giup toi| thoi)*$/);
+  if (seek) {
+    const back = /^(tua lai|lui lai|lui|tua nguoc)$/.test(seek[1]);
+    const n = seek[2] ? Number(seek[2]) * (seek[3] === 'phut' ? 60 : 1) : 15;
+    const secs = Math.min(Math.max(n, 5), 600);
+    return `${back ? 'back' : 'fwd'}:${secs}`;
+  }
+  // "hẹn giờ tắt nhạc sau 30 phút": tắt dần rồi dừng. Không nói số thì lấy 30 phút (mặc định đã duyệt).
+  const sleep = t.match(/^hen gio (?:tat|dung)(?: nhac| video| bai)?(?: sau)?(?: (\d{1,3}) (phut|tieng|gio))?( a| nhe| di| giup con| giup toi)*$/);
+  if (sleep) {
+    const n = sleep[1] ? Number(sleep[1]) * (sleep[2] === 'phut' ? 1 : 60) : 30;
+    return `sleep:${Math.min(Math.max(n, 1), 480)}`;
+  }
   return null;
 }
 
@@ -285,7 +344,7 @@ export function healthTopic(t: string): string | null {
 }
 
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
-type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string; verb?: string };
+type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string; verb?: string; chips?: string[] };
 
 const SEND_VERB = /^(nhan tin|nhan|gui tin nhan|gui tin|gui|bao|noi|hoi)( cho| den| voi)?$/;
 const SEND_SEP = new Set(['rang', 'la', 'noi', 'nhe']);
@@ -364,7 +423,7 @@ export function tidy(t: string): string {
   return s || t;
 }
 
-function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: string | null | undefined, hon: string): Fast | null {
+function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: string | null | undefined, hon: string, ctx?: UiContext): Fast | null {
   // gọi điện: kiểm tra trước các luật "không hỗ trợ"
   const callee = callTarget(t0);
   if (callee !== null) return { intent: 'call_contact', recipient: callee };
@@ -395,10 +454,55 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
   if (/^(mo|vao|xem) (tin nhan|chat|tro chuyen)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'chat' };
   if (/^(mo|vao|chup|quet) (ocr|doc so lieu|so lieu)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'ocr' };
   if (/^(mo|vao) (giai tri|youtube)( a| nhe)?$/.test(t)) return { intent: 'open_feature', feature: 'fun' };
+  const playerOpen = ctx?.player?.open === true;
+  const habit = ctx?.habit;
+  // "Đừng gợi ý nữa": tắt gợi ý nhạc/video chủ động (nói được ở mọi màn).
+  if (/^(?:(?:dung|khong can|thoi dung|khoi|dung co) (?:goi y|hoi|nhac)(?: (?:nghe nhac|nhac|video|giai tri|xem video))?(?: nua)?|tat (?:goi y|goi y nhac|goi y video))$/.test(t)) {
+    return { intent: 'video_control', content: 'suggest_off' };
+  }
+  // Khen/chê bài đang phát: nhớ để lần sau ưu tiên hoặc không mở lại.
+  if (playerOpen) {
+    const fb = videoFeedback(t);
+    if (fb) return { intent: 'video_control', content: fb };
+  }
+  // Nhớ lại: "mở lại bài lúc nãy", "xem tiếp", "bài tôi thích", "như mọi khi" (app trả lời bằng trí nhớ trên máy).
+  const recall = videoRecall(t, playerOpen);
+  if (recall) {
+    if (recall === '@last' && playerOpen) return { intent: 'video_control', content: 'previous' };
+    // "Như mọi khi" mà chưa biết thói quen thì hỏi (có gợi ý chạm được) thay vì mở bừa.
+    if (recall === '@habit') {
+      return habit?.top
+        ? { intent: 'play_video', content: `@habit:${habit.top}` }
+        : { intent: 'play_video', content: '' };
+    }
+    return { intent: 'play_video', content: recall };
+  }
   const ctl = videoControl(t);
-  if (ctl) return { intent: 'video_control', content: ctl };
+  if (ctl) {
+    // "Tiếp tục" khi chưa phát gì mà có bài xem dở: mở tiếp bài dở thay vì báo "chưa có video".
+    if (ctl === 'play' && !playerOpen && habit?.resume) return { intent: 'play_video', content: '@resume' };
+    return { intent: 'video_control', content: ctl };
+  }
+  const vi = videoIntent(t);
+  if (vi?.kind === 'play') return { intent: 'play_video', content: vi.query };
+  if (vi?.kind === 'ask') {
+    // "Mở cái gì đó": đã có thói quen thì đoán và nói rõ đã chọn gì, không hỏi.
+    if (vi.tag === 'general') {
+      const topic = habitTopicFor(habit, false);
+      if (topic) return { intent: 'play_video', content: `@habit:${topic}` };
+    }
+    const chips = vi.tag === 'general' || vi.tag === 'open' ? personalChips(vi.chips, habit) : vi.chips;
+    return { intent: 'play_video', content: '', say: vi.say(hon), chips };
+  }
   const video = videoQuery(t);
-  if (video) return { intent: 'play_video', content: video };
+  if (video !== null) {
+    if (video === '') {
+      const topic = habitTopicFor(habit, /\b(nhac|bai hat|ca khuc)\b/.test(t));
+      if (topic) return { intent: 'play_video', content: `@habit:${topic}` };
+      if (habit?.topics.length) return { intent: 'play_video', content: '', chips: personalChips(['Nhạc xưa', 'Tin tức', 'Cải lương'], habit) };
+    }
+    return { intent: 'play_video', content: video };
+  }
   if (/(giup|lam duoc gi|huong dan|biet lam gi|co the lam)/.test(t) && t.split(' ').length <= 8) return { intent: 'help' };
   return null;
 }
@@ -537,8 +641,11 @@ async function stepCore(
     return mk({ action: 'execute', intent: tk.intent, task: tk, say: doneSay(tk) });
   }
   // 2) hủy
-  if (CANCEL.test(t)) return mk({ action: 'cancel', say: S.cancelled() });
-  if (REPEAT.test(t) && t.split(' ').length <= 4) return mk({ action: 'repeat', say: '' });
+  // Đang phát video và không có việc dở: "dừng", "dừng lại" là tạm dừng video, không phải huỷ việc (mục I14).
+  const stopsVideo = !state.task && ui.context?.player?.open === true && /^(dung|dung lai)( a| nhe| di| roi)?$/.test(t);
+  if (CANCEL.test(t) && !stopsVideo) return mk({ action: 'cancel', say: S.cancelled() });
+  // "nghe lại từ đầu" khi đang phát video là phát lại bài, không phải nhắc Vy nói lại.
+  if (REPEAT.test(t) && t.split(' ').length <= 4 && !(ui.context?.player?.open === true && /\btu dau\b/.test(t))) return mk({ action: 'repeat', say: '' });
   // 2b) tạm biệt: nói một câu chào rồi tự đóng
   if (expects !== 'free_text' && isGoodbye(t)) return mk({ action: 'answer', intent: 'goodbye', say: S.bye(hon), endSession: true });
 
@@ -626,16 +733,12 @@ async function stepCore(
   }
 
   // 7) lệnh mới: luật nhanh → LLM
-  const fast = fastIntent(t, text, contacts, ui.roomId, hon);
+  const fast = fastIntent(t, text, contacts, ui.roomId, hon, ui.context);
   let nluOut: NluResult | null = null;
   if (fast) {
     let content = fast.content ?? '';
-    if (fast.intent === 'play_video' && content) {
-      // Lấy lại cụm có dấu từ câu gốc để tìm trên YouTube chính xác hơn (nếu khớp với bản không dấu).
-      const orig = text.trim().split(/\s+/).slice(-content.split(' ').length).join(' ');
-      if (norm(orig) === content) content = orig;
-    }
-    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '', verb: fast.verb };
+    if (fast.intent === 'play_video' && content && !content.startsWith('@')) content = restoreAccents(text, content);
+    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '', verb: fast.verb, chips: fast.chips };
   } else {
     try {
       nluOut = await nlu(text, { state, ui, honorific: hon });
@@ -660,6 +763,11 @@ async function stepCore(
   }
   if (nluOut.verb && intent === 'send_message') task.slots.msg_verb = nluOut.verb;
   if (nluOut.content) task.slots.content = cleanContent(nluOut.content.slice(0, 500));
+  if (intent === 'play_video' && !nluOut.content) {
+    // Chưa biết xem gì: Vy hỏi một câu riêng theo hoàn cảnh (tâm trạng, giấc ngủ...) kèm gợi ý chạm được.
+    if (nluOut.say) task.slots.ask_say = nluOut.say.slice(0, 200);
+    if (nluOut.chips?.length) task.slots.ask_chips = nluOut.chips.slice(0, 3).join('|');
+  }
   if (intent === 'open_feature') {
     // Mô hình đôi khi chọn "mở một mục" mà quên nói mục nào: lấy từ chính câu người dùng thay vì hỏi lại.
     const f = featureOf(nluOut.feature || '') || featureOf(text);
@@ -793,12 +901,18 @@ function progress(
   }
   // nội dung
   if (need.includes('content') && !task.slots.content) {
+    const askSay = task.slots.ask_say;
+    const askChips = (task.slots.ask_chips ?? '').split('|').filter(Boolean);
     return mk({
       action: 'ask', intent, task, pending: 'content', expects: 'free_text',
-      say: intent === 'play_video' ? S.askVideo(hon) : S.askContent(hon),
+      say: intent === 'play_video' ? askSay || S.askVideo(hon) : S.askContent(hon),
       expectsReply: true, aliasPhrase, learnAlias,
-      chips: intent === 'play_video' ? ['Nhạc xưa', 'Tin tức', 'Cải lương'] : [],
+      chips: intent === 'play_video' ? (askChips.length ? askChips : ['Nhạc xưa', 'Tin tức', 'Cải lương']) : [],
     });
+  }
+  if (task.slots.content) {
+    delete task.slots.ask_say;
+    delete task.slots.ask_chips;
   }
   if (need.includes('feature') && !task.slots.feature) {
     return mk({ action: 'ask', intent, task, pending: 'feature', expects: 'command', say: S.askFeatureMissing(hon), expectsReply: true, chips: ['Tin nhắn', 'Huyết áp', 'Giải trí'] });

@@ -17,6 +17,7 @@ class MessageInput extends StatefulWidget {
     super.key,
     required this.onSend,
     this.onSendImage,
+    this.onSendVideo,
     this.pickImage = pickChatImageDefault,
   });
 
@@ -25,6 +26,9 @@ class MessageInput extends StatefulWidget {
   /// Gửi ảnh kèm chú thích (có thể rỗng). Null thì ẩn nút đính kèm.
   final Future<bool> Function(Uint8List bytes, String caption)? onSendImage;
   final PickChatImage pickImage;
+
+  /// Người thân chọn và gửi một video cho cha/mẹ. Null thì ẩn nút.
+  final Future<void> Function()? onSendVideo;
 
   @override
   State<MessageInput> createState() => _MessageInputState();
@@ -168,6 +172,23 @@ class _MessageInputState extends State<MessageInput> {
                   )
                 else
                   const SizedBox(width: 8),
+                if (widget.onSendVideo != null)
+                  IconButton(
+                    key: const Key('chat-send-video'),
+                    tooltip: 'Gửi video',
+                    iconSize: 30,
+                    onPressed: _sending
+                        ? null
+                        : () async {
+                            setState(() => _sending = true);
+                            try {
+                              await widget.onSendVideo!();
+                            } finally {
+                              if (mounted) setState(() => _sending = false);
+                            }
+                          },
+                    icon: const Icon(Icons.smart_display_outlined),
+                  ),
                 Expanded(
                   child: TextField(
                     controller: _controller,

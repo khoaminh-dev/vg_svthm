@@ -13,6 +13,7 @@ import '../../../shared/widgets/user_avatar.dart';
 import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_controller.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
+import '../../entertainment/presentation/entertainment_providers.dart';
 import '../../health/data/advice_speaker.dart';
 import '../../family/presentation/family_providers.dart';
 import '../../bp/data/bp_reminder_service.dart';
@@ -129,6 +130,23 @@ class ProfileScreen extends ConsumerWidget {
         onSet: (v) => ref.read(vySettingsProvider.notifier).setSounds(v),
       ),
       VyControl(
+        id: 'prof.media',
+        label: 'Nhớ những gì tôi đã nghe',
+        aliases: const ['nhớ bài đã nghe', 'nhớ lịch sử nghe', 'nhớ thói quen nghe nhạc'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.rememberMedia,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setRememberMedia(v),
+      ),
+      VyControl(
+        id: 'prof.media.clear',
+        label: 'Xoá lịch sử nghe và xem',
+        aliases: const ['xoá lịch sử nghe', 'xóa lịch sử nghe', 'xoá bài đã nghe', 'xóa bài đã nghe'],
+        level: VyLevel.confirm,
+        say: 'Dạ, con đã xoá lịch sử nghe và xem rồi ạ.',
+        onInvoke: () => ref.read(mediaMemoryProvider.notifier).clear(),
+      ),
+      VyControl(
         id: 'prof.remind.dose',
         label: 'Vy tự nhắc uống thuốc',
         aliases: const ['nhắc uống thuốc', 'tự nhắc uống thuốc'],
@@ -154,6 +172,15 @@ class ProfileScreen extends ConsumerWidget {
         level: VyLevel.readBack,
         value: vySet.remindMessages,
         onSet: (v) => ref.read(vySettingsProvider.notifier).setRemind(messages: v),
+      ),
+      VyControl(
+        id: 'prof.remind.media',
+        label: 'Vy gợi ý nhạc và video quen nghe',
+        aliases: const ['gợi ý nhạc', 'gợi ý video', 'tự gợi ý nhạc', 'gợi ý giải trí'],
+        kind: VyKind.toggle,
+        level: VyLevel.readBack,
+        value: vySet.remindMedia,
+        onSet: (v) => ref.read(vySettingsProvider.notifier).setRemind(media: v),
       ),
       VyControl(
         id: 'prof.speak',
@@ -974,6 +1001,56 @@ class _VySettingsGroup extends ConsumerWidget {
           onChanged: (v) {
             Analytics.track('vy_setting', {'remind_msg': v});
             n.setRemind(messages: v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-remind-media'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.lightbulb_outline_rounded),
+          title: const Text('Vy gợi ý nhạc và video quen nghe', style: titleStyle),
+          subtitle: Text(hon('Đúng giờ bác hay nghe, tối đa một lần mỗi buổi')),
+          value: s.remindMedia,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'remind_media': v});
+            n.setRemind(media: v);
+          },
+        ),
+        SwitchListTile(
+          key: const Key('vy-media-memory'),
+          contentPadding: pad,
+          secondary: const _LeadIcon(Icons.history_rounded),
+          title: const Text('Nhớ những gì tôi đã nghe', style: titleStyle),
+          subtitle: Text(hon('Để lần sau Vy mở đúng ý bác. Chỉ lưu trên máy này')),
+          value: s.rememberMedia,
+          onChanged: (v) {
+            Analytics.track('vy_setting', {'remember_media': v});
+            n.setRememberMedia(v);
+          },
+        ),
+        ListTile(
+          key: const Key('vy-media-clear'),
+          contentPadding: pad,
+          leading: const _LeadIcon(Icons.delete_outline_rounded),
+          title: const Text('Xoá lịch sử nghe và xem', style: titleStyle),
+          onTap: () async {
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Xoá lịch sử nghe và xem?'),
+                content: Text(hon('Vy sẽ quên các bài bác đã nghe, bài bác thích và chỗ xem dở.')),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Thôi')),
+                  FilledButton(key: const Key('vy-media-clear-yes'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Xoá')),
+                ],
+              ),
+            );
+            if (ok == true) {
+              await ref.read(mediaMemoryProvider.notifier).clear();
+              Analytics.track('vy_setting', {'media_cleared': true});
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xoá lịch sử nghe và xem')));
+              }
+            }
           },
         ),
         SwitchListTile(

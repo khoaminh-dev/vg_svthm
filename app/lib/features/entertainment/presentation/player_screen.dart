@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,8 +8,14 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../../core/analytics/analytics.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../auth/domain/auth_user.dart';
+import '../../auth/presentation/providers/auth_providers.dart';
+import '../../voice/core/control_registry.dart';
+import '../data/media_summary.dart';
+import '../data/video_rank.dart';
 import '../data/youtube_service.dart';
 import 'entertainment_providers.dart';
+import 'media_audio.dart';
 
 /// Phát video YouTube ngay trong app, nút to, hết bài tự sang bài kế tiếp.
 /// Video bị chủ kênh cấm nhúng thì mở bằng app YouTube.
@@ -25,6 +33,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   late final YoutubePlayerController _c = YoutubePlayerController.fromVideoId(
     videoId: widget.video.id,
     autoPlay: true,
+    // "Xem tiếp": bắt đầu đúng chỗ đang xem dở (Vy đặt trước khi mở màn).
+    startSeconds: ref.read(playerStartAtProvider)?.toDouble(),
     params: const YoutubePlayerParams(
       showControls: false,
       showFullscreenButton: false,
@@ -33,10 +43,48 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     ),
   );
   late final PlayerOpenNotifier _open = ref.read(playerOpenProvider.notifier);
+  late final PlayerNowNotifier _now = ref.read(playerNowProvider.notifier);
+  late final PlayerVolumeNotifier _volumeN = ref.read(playerVolumeProvider.notifier);
+  late final SleepTimerNotifier _sleepN = ref.read(sleepTimerProvider.notifier);
+  late final MediaMemoryNotifier _mem = ref.read(mediaMemoryProvider.notifier);
+  Timer? _sleepTimer;
+  Timer? _fadeTimer;
+  Timer? _progressTimer;
+  int _pendingSeconds = 0; // giây đã nghe chưa gửi tóm tắt
+  int _pendingPlays = 0;
+  MediaSummaryRepository? _summaryRepo; // giữ sẵn để dispose không phải dùng ref
+  bool _isElder = false;
+  String _topicNow = '';
+  int _lastPos = 0;
+  int _lastDur = 0;
 
   bool _blocked = false;
   PlayerState _state = PlayerState.unStarted;
   int _volume = 100;
+
+  /// Chế độ âm thanh hiện tại (hạ tiếng khi Vy mở, dừng khi SOS) và cờ "mình tạm dừng nên phải phát tiếp".
+  MediaAudio _audio = MediaAudio.normal;
+  bool _pausedByMixer = false;
+
+  bool get _isPlaying => _state == PlayerState.playing || _state == PlayerState.buffering;
+
+  Future<void> _applyAudio(MediaAudio next) async {
+    final step = mixStep(from: _audio, to: next, pausedByMixer: _pausedByMixer, isPlaying: _isPlaying);
+    _audio = next;
+    _pausedByMixer = step.pausedByMixer;
+    for (final op in step.ops) {
+      switch (op) {
+        case MixOp.duckVolume:
+          await _c.setVolume(effectiveVolume(_volume, next));
+        case MixOp.restoreVolume:
+          await _c.setVolume(_volume);
+        case MixOp.pause:
+          await _c.pauseVideo();
+        case MixOp.play:
+          await _c.playVideo();
+      }
+    }
+  }
 
   List<VideoItem> get _queue {
     final q = ref.read(videoQueueProvider);
@@ -48,12 +96,43 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _open.set(true));
+    Future.microtask(() {
+      _open.set(true);
+      _now.set(_video);
+      _volumeN.set(100);
+      _sleepN.set(null);
+      // Yêu cầu để ngủ ("nhạc ru ngủ"): hẹn giờ tắt ngay, người dùng không phải nói thêm.
+      final sleep = ref.read(playerStartSleepProvider);
+      if (sleep != null) {
+        ref.read(playerStartSleepProvider.notifier).set(null);
+        _startSleep(sleep);
+      }
+      _maybeRefill();
+      _applyAudio(ref.read(mediaAudioProvider));
+      // Nhớ bài này đã nghe; đã dùng chỗ bắt đầu thì xoá để lần mở sau không bị tua nhầm.
+      _summaryRepo = ref.read(mediaSummaryRepositoryProvider);
+      _isElder = ref.read(currentUserProvider)?.role == AppRole.elder;
+      _topicNow = ref.read(videoTopicProvider).trim();
+      _mem.play(_video, _topicNow);
+      _pendingPlays++;
+      ref.read(playerStartAtProvider.notifier).set(null);
+    });
+    _progressTimer = Timer.periodic(const Duration(seconds: 15), (_) => _tick());
     _c.listen((v) {
       if (!mounted) return;
+      // Khung YouTube chỉ nhận lệnh âm lượng/dừng khi đã chạy: nếu Vy đang mở hoặc SOS đang hiện lúc video bắt đầu thì áp ngay.
+      if (v.playerState == PlayerState.playing && _state != PlayerState.playing) {
+        if (_audio == MediaAudio.duck) {
+          _c.setVolume(effectiveVolume(_volume, _audio));
+        } else if (_audio == MediaAudio.pause || _audio == MediaAudio.stop) {
+          _pausedByMixer = _audio == MediaAudio.pause;
+          _c.pauseVideo();
+        }
+      }
       final blocked =
           v.error == YoutubeError.notEmbeddable ||
           v.error == YoutubeError.sameAsNotEmbeddable;
+      final wasBlocked = _blocked;
       if (blocked != _blocked || v.playerState != _state) {
         final ended =
             v.playerState == PlayerState.ended && _state != PlayerState.ended;
@@ -61,14 +140,45 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           _blocked = blocked;
           _state = v.playerState;
         });
-        if (ended) _go(1, auto: true);
+        if (ended) {
+          _mem.progress(_video.id, progressSec: 0, completed: true);
+          _go(1, auto: true);
+        }
+        // Video bị cấm nhúng: tự sang bài kế sau một chút, người dùng không phải làm gì.
+        if (blocked && !wasBlocked && _index < _queue.length - 1) {
+          final id = _video.id;
+          Future.delayed(const Duration(milliseconds: 2500), () {
+            if (mounted && _blocked && _video.id == id) _go(1, auto: true);
+          });
+        }
       }
     });
   }
 
   @override
   void dispose() {
-    Future.microtask(() => _open.set(false));
+    _cancelSleep();
+    _progressTimer?.cancel();
+    _flushSummary(); // gửi nốt phần chưa gửi (dùng giá trị đã giữ sẵn: không đụng `ref` trong dispose)
+    // Lưu chỗ đang xem lần cuối (dùng giá trị đo gần nhất, vì khung YouTube sắp đóng).
+    final id = _video.id;
+    final pos = _lastPos;
+    final dur = _lastDur;
+    Future.microtask(() {
+      try {
+        if (pos > 0) _mem.progress(id, progressSec: pos, durationSec: dur);
+      } catch (_) {
+        // bộ chứa provider đã huỷ khi thoát app
+      }
+    });
+    Future.microtask(() {
+      try {
+        _open.set(false);
+        _now.set(null);
+      } catch (_) {
+        // bộ chứa provider đã huỷ khi thoát app
+      }
+    });
     _c.close();
     super.dispose();
   }
@@ -79,12 +189,84 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     final i = _index + delta;
     if (i < 0 || i >= q.length) return;
     Analytics.track('video_next', {'auto': auto, 'delta': delta});
+    // Lưu chỗ dở của bài đang rời đi (trừ khi đã hết bài: đã đánh dấu xong).
+    if (!auto && _lastPos > 0) _mem.progress(_video.id, progressSec: _lastPos, durationSec: _lastDur);
+    _lastPos = 0;
+    _lastDur = 0;
     setState(() {
       _video = q[i];
       _blocked = false;
       _state = PlayerState.unStarted;
     });
     _c.loadVideoById(videoId: _video.id);
+    _now.set(_video);
+    _topicNow = ref.read(videoTopicProvider).trim();
+    _mem.play(_video, _topicNow);
+    _pendingPlays++;
+    _maybeRefill();
+  }
+
+  /// Mỗi 15 giây: ghi chỗ đang xem, cộng thời gian nghe, và cứ đủ 1 phút thì gửi tóm tắt cho người thân.
+  void _tick() {
+    if (_isPlaying) _pendingSeconds += 15;
+    unawaited(_saveProgress());
+    if (_pendingSeconds >= 60) _flushSummary();
+  }
+
+  /// Gửi tóm tắt (thể loại + số giây, KHÔNG tên bài). Chỉ người cao tuổi đang bật "Nhớ những gì tôi đã nghe".
+  void _flushSummary() {
+    final secs = _pendingSeconds;
+    final plays = _pendingPlays;
+    _pendingSeconds = 0;
+    _pendingPlays = 0;
+    final repo = _summaryRepo;
+    if (repo == null || !_isElder) return;
+    if (secs <= 0 && plays <= 0) return;
+    if (!_mem.enabled) return;
+    unawaited(repo.addTime(_topicNow.isEmpty ? 'Video người thân gửi' : _topicNow, secs, plays: plays).catchError((_) {}));
+  }
+
+  /// Ghi chỗ đang xem để lần sau "xem tiếp" đúng chỗ. Chỉ khi đang phát.
+  Future<void> _saveProgress() async {
+    if (!mounted || !_isPlaying) return;
+    try {
+      final pos = (await _c.currentTime).round();
+      final dur = _c.value.metaData.duration.inSeconds;
+      _lastPos = pos;
+      if (dur > 0) _lastDur = dur;
+      _mem.progress(_video.id, progressSec: pos, durationSec: _lastDur > 0 ? _lastDur : null);
+    } catch (_) {
+      // khung YouTube chưa sẵn sàng: bỏ lượt này
+    }
+  }
+
+  bool _refilling = false;
+  int _refillStep = 0;
+
+  /// Còn từ 2 bài trở xuống thì tự tìm thêm cùng chủ đề, để nhạc/video không bao giờ tự dừng vì hết danh sách.
+  Future<void> _maybeRefill() async {
+    if (_refilling || !mounted) return;
+    final q = _queue;
+    if (q.length - 1 - _index > 2) return;
+    final topic = ref.read(videoTopicProvider);
+    if (topic.isEmpty) return;
+    _refilling = true;
+    try {
+      final batch = await nextBatch(
+        search: ref.read(videoSearchProvider),
+        topic: topic,
+        have: {for (final v in q) v.id},
+        haveTitles: {for (final v in q) videoTitleKey(v.title)},
+        step: _refillStep,
+      );
+      _refillStep = batch.step;
+      if (!mounted || batch.items.isEmpty) return;
+      ref.read(videoQueueProvider.notifier).set([..._queue, ...batch.items]);
+    } catch (_) {
+      // Mạng chập chờn: lần chuyển bài sau sẽ thử lại.
+    } finally {
+      _refilling = false;
+    }
   }
 
   Future<void> _toggle() async {
@@ -105,10 +287,51 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   Future<void> _setVolume(int v) async {
     _volume = v.clamp(10, 100);
-    await _c.setVolume(_volume);
+    _volumeN.set(_volume);
+    await _c.setVolume(effectiveVolume(_volume, _audio));
   }
 
-  void _onCommand(PlayerAction a) {
+  /// Hẹn giờ tắt: tới gần giờ thì nhỏ dần trong 30 giây rồi dừng (không tắt đột ngột khi đang ngủ).
+  void _startSleep(int minutes) {
+    _cancelSleep();
+    _sleepN.set(minutes);
+    final total = Duration(minutes: minutes);
+    const fade = Duration(seconds: 30);
+    _sleepTimer = Timer(total > fade ? total - fade : Duration.zero, () {
+      final from = _volume;
+      var step = 0;
+      _fadeTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
+        step++;
+        if (step >= 10) {
+          t.cancel();
+          await _c.pauseVideo();
+          await _setVolume(from); // trả âm lượng cũ để lần phát sau không bị câm
+          _sleepN.set(null);
+          return;
+        }
+        await _c.setVolume((from * (10 - step) / 10).round().clamp(1, 100));
+      });
+    });
+  }
+
+  void _cancelSleep() {
+    _sleepTimer?.cancel();
+    _fadeTimer?.cancel();
+    _sleepTimer = null;
+    _fadeTimer = null;
+    Future.microtask(() {
+      try {
+        _sleepN.set(null);
+      } catch (_) {
+        // bộ chứa provider đã huỷ khi thoát app
+      }
+    });
+  }
+
+  void _onCommand(PlayerCommand cmd) {
+    final a = cmd.action;
+    // Người dùng tự dừng/phát: từ đây mình không còn tự phát tiếp thay họ.
+    if (a == PlayerAction.pause || a == PlayerAction.play) _pausedByMixer = false;
     switch (a) {
       case PlayerAction.pause:
         _c.pauseVideo();
@@ -122,6 +345,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _setVolume(_volume + 30);
       case PlayerAction.quieter:
         _setVolume(_volume - 30);
+      case PlayerAction.restart:
+        _c.seekTo(seconds: 0, allowSeekAhead: true);
+        _c.playVideo();
+      case PlayerAction.seekBack:
+        _seek(-(cmd.value ?? 15).toDouble());
+      case PlayerAction.seekForward:
+        _seek((cmd.value ?? 15).toDouble());
+      case PlayerAction.close:
+        if (mounted) context.pop();
+      case PlayerAction.sleep:
+        _startSleep(cmd.value ?? 30);
+      case PlayerAction.like:
+        _mem.like(_video.id);
+      case PlayerAction.dislike:
+        // Không thích: nhớ để không mở lại, sang bài khác (hết bài thì dừng).
+        _mem.dislike(_video.id);
+        if (_index < _queue.length - 1) {
+          _go(1);
+        } else {
+          _c.pauseVideo();
+        }
     }
   }
 
@@ -135,8 +379,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<MediaAudio>(mediaAudioProvider, (_, next) => _applyAudio(next));
     ref.listen<PlayerCommand?>(playerCommandProvider, (_, next) {
-      if (next != null) _onCommand(next.action);
+      if (next != null) _onCommand(next);
     });
     final q = _queue;
     final i = _index;
@@ -146,7 +391,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _state == PlayerState.playing || _state == PlayerState.buffering;
     final loading = _state == PlayerState.unStarted && !_blocked;
 
-    return Scaffold(
+    // Vy thấy các nút của màn phát để "bấm giúp"; lệnh nói thường (dừng, bài khác, tua…) đi đường video_control.
+    return VyControlScope(
+      controls: [
+        VyControl(
+          id: 'player.toggle',
+          label: playing ? 'Tạm dừng' : 'Phát',
+          aliases: playing ? const [] : const ['phát video'],
+          onInvoke: _toggle,
+        ),
+        VyControl(
+          id: 'player.prev',
+          label: 'Bài trước',
+          enabled: hasPrev,
+          onInvoke: () => _go(-1),
+        ),
+        VyControl(
+          id: 'player.next',
+          label: 'Bài kế tiếp',
+          aliases: const ['bài tiếp theo'],
+          enabled: hasNext,
+          onInvoke: () => _go(1),
+        ),
+        VyControl(id: 'player.back15', label: 'Lùi 15 giây', onInvoke: () => _seek(-15)),
+        VyControl(id: 'player.fwd15', label: 'Tới 15 giây', onInvoke: () => _seek(15)),
+        if (_blocked)
+          VyControl(
+            id: 'player.youtube',
+            label: 'Mở bằng app YouTube',
+            aliases: const ['mở bằng youtube'],
+            level: VyLevel.confirm, // rời khỏi Viegrand: hỏi lại trước khi mở
+            onInvoke: _openInYoutube,
+          ),
+      ],
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
@@ -213,6 +491,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       style: TextStyle(color: Colors.white, fontSize: 18),
                     ),
                   ],
+                  if (ref.watch(sleepTimerProvider) case final m?) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Đã hẹn giờ tắt sau $m phút',
+                      key: const Key('player-sleep-label'),
+                      style: const TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -274,9 +560,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ],
                   if (_blocked) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    const Text(
-                      'Video này không cho xem trong Viegrand.',
-                      style: TextStyle(
+                    Text(
+                      hasNext
+                          ? 'Bài này không mở được, đang mở bài kế tiếp…'
+                          : 'Video này không cho xem trong Viegrand.',
+                      key: const Key('player-blocked'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -304,6 +593,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

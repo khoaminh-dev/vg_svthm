@@ -9,6 +9,10 @@ import '../../../core/analytics/analytics.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
 import '../../bp/data/bp_reminder_service.dart';
+import '../../entertainment/data/media_suggest.dart';
+import '../../entertainment/data/shared_video.dart';
+import '../../entertainment/presentation/shared_video_open.dart';
+import '../../entertainment/presentation/entertainment_providers.dart';
 import '../../bp/presentation/providers/bp_providers.dart';
 import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../meds/domain/meds_models.dart';
@@ -22,6 +26,7 @@ import '../core/vy_cursor.dart';
 import '../core/vy_reminders.dart';
 import '../core/vy_settings.dart';
 import '../data/voice_actions.dart';
+import '../domain/voice_models.dart';
 import '../live/live_state.dart';
 
 /// Nhịp kiểm tra việc cần nhắc.
@@ -53,6 +58,8 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
 
   Dose? _dose; // cữ kế tiếp (do build giữ sống)
   List<DateTime> _measured = const [];
+  MediaSuggestion? _mediaSug; // gợi ý giải trí của nhịp kiểm tra gần nhất
+  List<IncomingMsg> _incomingMsgs = const []; // tin nhắn đến (để nhận ra video người thân gửi)
 
   @override
   void initState() {
@@ -113,6 +120,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
         try {
           final list = await ref.refresh(recentIncomingMessagesProvider.future);
           _incoming = [for (final m in list) (roomId: m.roomId, from: m.from, at: m.at)];
+          _incomingMsgs = list;
         } catch (_) {}
       }
       final groups = groupNewMessages(_incoming, since: _start);
@@ -152,12 +160,21 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
       final bp = bpSettings.effectiveEnabled(elder: true) ? bpReminderDue(now, bpSettings.slots, _measured) : null;
 
       final busy = core.isOpen ||
+          ref.read(playerOpenProvider) ||
+          path == Routes.entertainment ||
+          path == Routes.player ||
           ref.read(liveActiveProvider) ||
           ref.read(vyCursorProvider).active ||
           ref.read(vyCardProvider) != null ||
           ref.read(controlRegistryProvider).hasDialog ||
           path.startsWith('/sos') ||
           path == Routes.measure;
+
+      // Gợi ý nhạc/video quen nghe đúng giờ quen (thấp nhất trong các loại nhắc, tối đa một lần mỗi buổi).
+      final sug = settings.remindMedia && settings.rememberMedia
+          ? suggestMedia(now: now, memory: ref.read(mediaMemoryProvider))
+          : null;
+      _mediaSug = sug;
 
       final pick = decideReminder(
         ReminderInputs(
@@ -167,6 +184,8 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
           enabledDose: settings.remindDose,
           enabledBp: settings.remindBp,
           enabledMessages: settings.remindMessages,
+          enabledMedia: settings.remindMedia,
+          mediaKey: sug?.key,
           quiet: quiet,
           doseKey: doseKey,
           doseCheckKey: doseCheckKey,
@@ -286,9 +305,73 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
             ],
           ),
         );
+      case ReminderKind.media:
+        final sug = _mediaSug;
+        if (sug == null) return;
+        await core.remind(
+          kind: 'media',
+          speech: reminderSpeech(ReminderKind.media, hon, topic: sug.topic),
+          card: NoticeCard(
+            title: 'Nghe ${sug.topic}?',
+            body: 'Giờ này ${hon.isEmpty ? 'bác' : hon} hay nghe ${sug.topic}.',
+            actions: [
+              VyCardAction(
+                label: 'Mở',
+                primary: true,
+                run: () {
+                  Analytics.track('vy_remind_reply', {'kind': 'media', 'reply': 'open'});
+                  unawaited(
+                    actions.execute(VoiceTask(intent: 'play_video', slots: {'content': '@habit:${sug.topic}'}), const [], hon),
+                  );
+                },
+              ),
+              VyCardAction(label: 'Không', run: () => Analytics.track('vy_remind_reply', {'kind': 'media', 'reply': 'no'})),
+              VyCardAction(
+                label: 'Đừng gợi ý nữa',
+                run: () {
+                  Analytics.track('vy_remind_reply', {'kind': 'media', 'reply': 'stop'});
+                  unawaited(ref.read(vySettingsProvider.notifier).setRemind(media: false));
+                },
+              ),
+            ],
+          ),
+        );
       case ReminderKind.messages:
         final g = groups.where((m) => 'msg:${m.roomId}:${m.latest.millisecondsSinceEpoch}' == pick.key).firstOrNull;
         if (g == null) return;
+        // Tin mới nhất là video người thân gửi: nói thẳng "gửi bác một video" và cho xem luôn bằng một chạm.
+        final shared = _incomingMsgs
+            .where((m) => m.roomId == g.roomId)
+            .map((m) => parseSharedVideo(m.content.isNotEmpty ? m.content : m.text))
+            .whereType<SharedVideo>()
+            .firstOrNull;
+        if (shared != null && g.count == 1) {
+          await core.remind(
+            kind: 'shared_video',
+            speech: sharedVideoSpeech(hon, g.from, shared.title),
+            card: NoticeCard(
+              title: '${g.from} gửi video',
+              body: shared.title,
+              actions: [
+                VyCardAction(
+                  label: 'Xem luôn',
+                  primary: true,
+                  run: () {
+                    Analytics.track('vy_remind_reply', {'kind': 'shared_video', 'reply': 'watch'});
+                    openSharedVideo(ref, router, shared);
+                  },
+                ),
+                VyCardAction(
+                  label: 'Để sau',
+                  run: () {
+                    Analytics.track('vy_remind_reply', {'kind': 'shared_video', 'reply': 'later'});
+                  },
+                ),
+              ],
+            ),
+          );
+          return;
+        }
         await core.remind(
           kind: 'messages',
           speech: reminderSpeech(ReminderKind.messages, hon, from: g.from, count: g.count),

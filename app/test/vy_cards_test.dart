@@ -500,6 +500,95 @@ void main() {
       expect(c.read(videoQueueProvider).length, 8);
     });
 
+    group('điều khiển video bằng giọng (24/11)', () {
+      Future<String?> ctl(ProviderContainer c, String action) =>
+          c.read(voiceActionsProvider).execute(task('video_control', {'content': action}), const [], 'bác');
+
+      test('chưa có video nào đang phát thì nói thật', () async {
+        final c = make();
+        addTearDown(c.dispose);
+        expect(await ctl(c, 'pause'), contains('chưa có video'));
+        expect(c.read(playerCommandProvider), isNull);
+      });
+
+      test('"to lên" khi đã to hết cỡ: nói thật, không gửi lệnh, không báo "đã tăng"', () async {
+        final c = make();
+        addTearDown(c.dispose);
+        c.read(playerOpenProvider.notifier).set(true);
+        final say = await ctl(c, 'louder');
+        expect(say, contains('to hết cỡ'));
+        expect(say, isNot(contains('tăng âm lượng rồi')));
+        expect(c.read(playerCommandProvider), isNull);
+      });
+
+      test('âm lượng đang nhỏ thì tăng thật và báo đã tăng; chạm đáy thì báo nhỏ hết cỡ', () async {
+        final c = make();
+        addTearDown(c.dispose);
+        c.read(playerOpenProvider.notifier).set(true);
+        c.read(playerVolumeProvider.notifier).set(40);
+        expect(await ctl(c, 'louder'), contains('tăng âm lượng rồi'));
+        expect(c.read(playerCommandProvider)?.action, PlayerAction.louder);
+        c.read(playerVolumeProvider.notifier).set(10);
+        expect(await ctl(c, 'quieter'), contains('nhỏ hết cỡ'));
+      });
+
+      test('tua theo giây, phút; mặc định 15 giây; kẹp 5–600 giây', () async {
+        final c = make();
+        addTearDown(c.dispose);
+        c.read(playerOpenProvider.notifier).set(true);
+        expect(await ctl(c, 'back:30'), contains('tua lại 30 giây'));
+        expect(c.read(playerCommandProvider)?.action, PlayerAction.seekBack);
+        expect(c.read(playerCommandProvider)?.value, 30);
+        expect(await ctl(c, 'fwd:120'), contains('tua tới 2 phút'));
+        expect(c.read(playerCommandProvider)?.value, 120);
+        await ctl(c, 'fwd');
+        expect(c.read(playerCommandProvider)?.value, 15);
+        await ctl(c, 'back:9999');
+        expect(c.read(playerCommandProvider)?.value, 600);
+      });
+
+      test('hẹn giờ tắt, phát lại từ đầu, thoát', () async {
+        final c = make();
+        addTearDown(c.dispose);
+        c.read(playerOpenProvider.notifier).set(true);
+        expect(await ctl(c, 'sleep:45'), contains('tắt sau 45 phút'));
+        expect(c.read(playerCommandProvider)?.action, PlayerAction.sleep);
+        expect(c.read(playerCommandProvider)?.value, 45);
+        expect(await ctl(c, 'sleep:120'), contains('2 tiếng'));
+        expect(await ctl(c, 'restart'), contains('từ đầu'));
+        expect(c.read(playerCommandProvider)?.action, PlayerAction.restart);
+        expect(await ctl(c, 'close'), contains('tắt video'));
+        expect(c.read(playerCommandProvider)?.action, PlayerAction.close);
+      });
+
+      test('"bài này của ai": đọc tên đã làm sạch (bỏ emoji, #, (Official MV)) và tên kênh', () async {
+        final c = make();
+        addTearDown(c.dispose);
+        c.read(playerOpenProvider.notifier).set(true);
+        c.read(playerNowProvider.notifier).set(const VideoItem(
+          id: 'x',
+          title: '🎵 Đường chiều (Official MV 4K) #nhacxua #shorts',
+          author: 'Khánh Ly',
+          thumbnailUrl: '',
+        ));
+        final say = await ctl(c, 'info');
+        expect(say, contains('Đường chiều'));
+        expect(say, isNot(contains('Official')));
+        expect(say, isNot(contains('#')));
+        expect(say, contains('kênh Khánh Ly'));
+        expect(c.read(playerCommandProvider), isNull);
+      });
+
+      test('mở video cụ thể: Vy đọc tên sạch, không đọc "#shorts" hay emoji', () async {
+        final c = make(videos: [
+          const VideoItem(id: 'a', title: 'Nối vòng tay lớn 🇻🇳 #shorts', author: 'K', thumbnailUrl: ''),
+        ]);
+        addTearDown(c.dispose);
+        final say = await c.read(voiceActionsProvider).execute(task('play_video', {'content': 'nối vòng tay lớn'}), const [], 'bác');
+        expect(say, 'Dạ, con mở Nối vòng tay lớn ạ.');
+      });
+    });
+
     test('gửi tin xong: hiện thẻ Đã gửi, không nhảy sang phòng chat', () async {
       final c = make();
       addTearDown(c.dispose);

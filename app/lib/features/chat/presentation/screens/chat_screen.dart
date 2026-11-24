@@ -17,6 +17,9 @@ import '../providers/chat_providers.dart';
 import '../widgets/members_sheet.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
+import '../widgets/send_video_sheet.dart';
+import '../../../entertainment/data/shared_video.dart';
+import '../../../auth/domain/auth_user.dart';
 import '../../../../core/analytics/analytics.dart';
 
 /// Màn hình chat của một phòng, tin nhắn cập nhật realtime.
@@ -217,6 +220,15 @@ class ChatScreen extends ConsumerWidget {
             onSend: (text) => _send(context, ref, text),
             onSendImage: (bytes, caption) =>
                 _sendImage(context, ref, bytes, caption),
+            // Người thân chọn video gửi cho cha/mẹ: tin nhắn có đường dẫn YouTube, bên kia hiện thẻ xem được ngay.
+            onSendVideo: ref.watch(currentUserProvider)?.role == AppRole.family
+                ? () async {
+                    final v = await pickVideoToSend(context);
+                    if (v == null || !context.mounted) return;
+                    Analytics.track('send_video');
+                    await _send(context, ref, encodeSharedVideo(v));
+                  }
+                : null,
           ),
         ],
       ),
