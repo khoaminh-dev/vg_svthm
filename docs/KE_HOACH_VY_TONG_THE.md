@@ -16,6 +16,9 @@ Nối tiếp [KE_HOACH_VY_GIAI_TRI.md](KE_HOACH_VY_GIAI_TRI.md) (đã làm 5 đ�
 **Hệ quả**: lỗi L1 làm người dùng **bị kẹt** (không thoát được màn nào Vy mở bằng giọng). Nặng hơn một lỗi tính năng, nên làm đầu tiên và phát hành riêng (b52).
 
 **Tiến độ Đợt 0 (24/11/2026)**: đã làm cả 4 lỗi L1–L4, chưa thử máy thật.
+
+**Tiến độ Đợt 1–7 (24/11/2026, bản b53)**: đã làm cả bảy đợt theo các quyết định mặc định Q1–Q9. Bằng chữ: máy chủ 692 test đạt (có `api/_tests/vy_overall.test.ts`, 150 ca), app 616 test đạt (có `app/test/vy_overall_test.dart`). **Chưa thử trên máy thật**: thông báo nhắc việc ngoài app, quay 115, nút Back vật lý. **Đợt 8** (chạy danh mục qua LLM thật) có sẵn tệp `api/_tests/llm_catalog.ts` nhưng chưa chạy vì máy này không có khoá Groq; chủ dự án chạy bằng `$env:GROQ_API_KEY="..."; cd api; node --experimental-transform-types --import ./_tests/register_ts.mjs _tests/llm_catalog.ts`.
+Chưa làm / hạn chế đã biết: (a) "im lặng 10 giây = có" của câu hỏi mơ hồ chưa làm (hiện chờ người dùng trả lời); (b) cuộn bằng giọng chỉ ở màn Giải trí; (c) "gọi mẹ" cho vai trò Gia đình chưa kiểm; (d) nhắc việc chỉ nhắc bằng giọng khi app đang mở, còn lại là thông báo hệ điều hành (chưa thử máy thật); (e) "chân tôi yếu", "tay tôi yếu" báo khẩn cấp luôn (dấu hiệu đột quỵ), có thể báo hơi nhiều với người hay mỏi chân: cần theo dõi phản hồi.
 - L1: `safePop` thay 27 chỗ ở 17 màn + thanh Quay lại của người cao tuổi; có test: mở bằng `go`, `push`, đường dẫn thẳng, và màn Giải trí.
 - L2: `api/_lib/voice/dialect.ts`; "coi" và vài cách nói miền Nam; chạy trong `dm.ts` và `ui_cmd.ts`. Có kiểm thử không làm đổi nghĩa ("túi sáng", "máy hỏng", "bác sĩ"…): "tui" chỉ đổi khi đi trước động từ của người nói vì bỏ dấu trùng "túi" (túi thuốc).
 - L3: số thứ tự nhận ở bất kỳ chỗ nào trong câu; `isReferentialQuery` + lưới an toàn sau mọi đường (kể cả LLM).

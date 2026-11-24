@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +16,13 @@ import '../../bp/presentation/providers/bp_providers.dart';
 import '../../chat/domain/room.dart';
 import '../../chat/presentation/providers/chat_providers.dart';
 import '../core/vy_settings.dart';
+import '../../bp/domain/bp_voice.dart';
+import '../core/vy_last.dart';
+import '../../family/domain/family_models.dart';
+import '../../family/domain/family_status.dart';
 import '../../entertainment/data/media_memory.dart';
+import '../../reminders/user_reminders.dart';
+import '../../../shared/widgets/elder_text_scale.dart';
 import '../../entertainment/data/shared_video.dart';
 import '../../entertainment/data/video_rank.dart';
 import '../../entertainment/data/youtube_service.dart';
@@ -107,6 +114,7 @@ class VoiceActions {
   /// Lệnh đổi màn hình: chạy xong thì Vy thường thu gọn màn Vy để người dùng thấy kết quả.
   static const navIntents = {
     'scroll',
+    'open_screen',
     'open_chat',
     'open_feature',
     'measure_bp',
@@ -237,7 +245,7 @@ class VoiceActions {
         router.go(Routes.bp);
         return null;
       case 'read_bp':
-        return await readBp(honorific);
+        return await readBp(honorific, mode: s['content']);
       case 'read_meds':
         return await readMeds(honorific, forgot: (s['content'] ?? '').toLowerCase() == 'forgot');
       case 'mark_dose':
@@ -252,6 +260,16 @@ class VoiceActions {
         return startSos(honorific);
       case 'call_contact':
         return await callContact(s['recipient_text'] ?? '', honorific);
+      case 'family_info':
+        return await _familyInfo(s['content'], honorific);
+      case 'open_screen':
+        return _openScreen(s['content'], honorific, router);
+      case 'skip_dose':
+        return await _skipDose(honorific);
+      case 'set_reminder':
+        return _setReminder(s['content'], honorific);
+      case 'adjust_setting':
+        return _adjustSetting(s['content'], honorific);
       case 'scroll':
         return _scroll(s['content'], honorific);
       case 'read_list':
@@ -399,6 +417,175 @@ class VoiceActions {
         return 'Dạ, giờ này $hon hay nghe $topic, con mở ${cleanVideoTitle(found.first.title)} ạ.';
     }
     return null;
+  }
+
+  // ---- người thân hỏi về cha/mẹ ("huyết áp của mẹ", "mẹ uống thuốc chưa", "xem cảnh báo") ----
+
+  /// Chọn người đang theo dõi theo cách gọi: chỉ có một người thì là người đó; nhiều người thì khớp tên.
+  FamilyLink? _pickLink(List<FamilyLink> links, String subject) {
+    if (links.length == 1) return links.first;
+    final s = viNorm(subject);
+    if (s.isEmpty) return null;
+    final hits = [
+      for (final l in links)
+        if (viNorm(l.name).contains(s) || (viNorm(l.name).isNotEmpty && s.contains(viNorm(l.name))) || viNorm(l.otherUsername ?? '') == s) l,
+    ];
+    return hits.length == 1 ? hits.first : null;
+  }
+
+  Future<String> _familyInfo(String? content, String hon) async {
+    final parts = (content ?? '').split('|');
+    final topic = parts.first;
+    final subject = parts.length > 1 ? parts[1] : '';
+    final cap = _cap(hon);
+    final List<FamilyLink> links;
+    try {
+      final all = await _ref.read(familyLinksProvider.future);
+      links = [for (final l in all) if (!l.iAmOwner && l.active) l];
+    } catch (_) {
+      return 'Dạ, con chưa xem được ạ, $hon kiểm tra mạng rồi thử lại nhé.';
+    }
+    if (links.isEmpty) return 'Dạ, $hon chưa theo dõi ai trong ứng dụng ạ. $cap nói "mời người thân" để con mở màn mời giúp $hon.';
+    Analytics.track('voice_family_info', {'topic': topic});
+
+    if (topic == 'alerts') {
+      try {
+        final items = await _ref.read(alertsFeedProvider.future);
+        if (items.isEmpty) return 'Dạ, hiện không có cảnh báo nào ạ.';
+        final top = items.take(3).map((a) => '${a.ownerName}: ${a.title}').join('. ');
+        return 'Có ${items.length} cảnh báo. $top.${items.length > 3 ? ' Còn ${items.length - 3} cảnh báo nữa trong màn Cảnh báo.' : ''}';
+      } catch (_) {
+        return 'Dạ, con chưa đọc được cảnh báo ạ.';
+      }
+    }
+
+    final link = _pickLink(links, subject);
+    if (link == null) {
+      return 'Dạ, $hon muốn xem của ai ạ? Con đang thấy: ${links.map((l) => l.name).join(', ')}.';
+    }
+    final name = link.name;
+    String denied(String what) => 'Dạ, $name chưa cho phép $hon xem $what nên con chưa đọc được ạ.';
+    try {
+      switch (topic) {
+        case 'bp':
+          if (!link.can(FamilyPerm.health)) return denied('huyết áp');
+          final list = await _ref.read(personBpProvider(link.otherId).future);
+          return bpHistorySay(list, 'recent', DateTime.now(), hon, who: name);
+        case 'meds':
+          if (!link.can(FamilyPerm.medsView)) return denied('lịch uống thuốc');
+          final doses = await _ref.read(personDosesProvider(link.otherId).future);
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final mine = [for (final d in doses) if (!d.dueAt.isBefore(today) && d.dueAt.isBefore(today.add(const Duration(days: 1)))) d];
+          if (mine.isEmpty) return 'Dạ, hôm nay $name không có cữ thuốc nào ạ.';
+          final taken = mine.where((d) => d.status == 'taken').length;
+          final late = mine.where((d) => d.status == 'pending' && d.dueAt.isBefore(now.subtract(const Duration(minutes: 30)))).length;
+          final lateText = late > 0 ? ' Có $late cữ đã quá giờ mà chưa ghi là uống.' : '';
+          return 'Hôm nay $name đã uống $taken trên ${mine.length} cữ.$lateText';
+        case 'overall':
+          if (!link.can(FamilyPerm.health)) return denied('tình trạng sức khoẻ');
+          await _ref.read(personBpProvider(link.otherId).future);
+          final st = _ref.read(personStatusProvider(link.otherId)).value;
+          if (st == null) return 'Dạ, con chưa xem được tình trạng của $name ạ.';
+          final light = switch (st.light) {
+            FamilyLight.green => 'xanh',
+            FamilyLight.yellow => 'vàng',
+            FamilyLight.red => 'đỏ',
+          };
+          final why = st.reasons.isEmpty ? '' : ' ${st.reasons.take(2).join('. ')}.';
+          return '$name hiện đang đèn $light: ${st.headline}.$why';
+      }
+    } catch (_) {
+      return 'Dạ, con chưa đọc được của $name ạ, $hon thử lại sau nhé.';
+    }
+    return 'Dạ, con chưa hiểu $hon muốn xem gì của $name ạ.';
+  }
+
+  // ---- mở màn bất kỳ, bỏ qua cữ thuốc ----
+
+  /// "Mở cộng đồng", "mở thẻ y tế", "mời người thân", "sửa lịch thuốc": mở từ BẤT CỨ màn nào.
+  /// Quay lại luôn về Trang chủ vì mở theo kiểu đặt Trang chủ rồi chồng màn đó lên.
+  String _openScreen(String? key, String hon, GoRouter router) {
+    final me = _ref.read(currentUserProvider)?.id;
+    final k = (key ?? '').toLowerCase();
+    (String, String)? target; // (đường dẫn, tên đọc ra)
+    switch (k) {
+      case 'community':
+        target = (Routes.community, 'Cộng đồng');
+      case 'profile':
+        target = (Routes.profile, 'trang Cá nhân');
+      case 'emergency_card':
+        if (me != null) target = (Routes.emergencyCardFor(me), 'thẻ y tế khẩn cấp');
+      case 'family_invite':
+        target = (Routes.familyInvite, 'mời người thân');
+      case 'meds_plans':
+        if (me != null) target = (Routes.medsPlanListFor(me), 'lịch uống thuốc');
+      case 'meds_scan':
+        if (me != null) target = (Routes.medsScanFor(me), 'chụp đơn thuốc');
+      case 'health_history':
+        target = (Routes.healthHistory, 'lịch sử sức khoẻ');
+      case 'health_profile':
+        target = (Routes.healthProfile, 'hồ sơ sức khoẻ');
+      case 'alerts':
+        target = (Routes.alerts, 'cảnh báo');
+    }
+    if (target == null) return 'Dạ, con chưa mở được màn đó ạ.';
+    Analytics.track('voice_open_screen', {'screen': k});
+    if (target.$1 == Routes.profile || target.$1 == Routes.alerts) {
+      router.go(target.$1);
+    } else {
+      router.go(Routes.home);
+      router.push(target.$1);
+    }
+    return 'Dạ, con mở ${target.$2} rồi ạ.';
+  }
+
+  /// "Bỏ qua cữ này" (đã được xác nhận): ghi cữ đang chờ gần nhất là bỏ qua. Nói thật kết quả.
+  Future<String> _skipDose(String hon) async {
+    final open = await _openDoses();
+    if (open == null) return 'Dạ, con chưa ghi được ạ. ${_cap(hon)} bấm "Bỏ qua" ở màn thuốc giúp con nhé.';
+    if (open.isEmpty) return 'Dạ, hiện không có cữ nào đang chờ ạ.';
+    final d = open.first;
+    try {
+      await _ref.read(medsRepositoryProvider).setDose(d.id, 'skipped');
+    } catch (_) {
+      return 'Dạ, con chưa ghi được ạ. ${_cap(hon)} bấm "Bỏ qua" ở màn thuốc giúp con nhé.';
+    }
+    Analytics.track('vy_dose_skip', {'via': 'voice'});
+    _ref.invalidate(myDosesProvider);
+    return 'Dạ, con ghi $hon bỏ qua ${d.bag ? 'túi ' : ''}${d.label.toLowerCase()} rồi ạ.';
+  }
+
+  // ---- nhắc giờ, cỡ chữ ("nhắc tôi 8 giờ đi khám", "tăng cỡ chữ") ----
+
+  /// Đặt một việc nhắc: nội dung máy chủ gửi là "<thời điểm ms>|<việc>". Đọc lại giờ và việc để người dùng bắt lỗi.
+  String _setReminder(String? content, String hon) {
+    final parts = (content ?? '').split('|');
+    final ms = int.tryParse(parts.first);
+    final what = parts.length > 1 ? parts.sublist(1).join('|').trim() : '';
+    if (ms == null || what.isEmpty) return 'Dạ, ${_cap(hon)} nói lại giờ và việc cần nhắc giúp con nhé.';
+    final at = DateTime.fromMillisecondsSinceEpoch(ms);
+    final now = DateTime.now();
+    if (!at.isAfter(now)) return 'Dạ, giờ đó đã qua rồi ạ. ${_cap(hon)} nói giờ khác giúp con nhé.';
+    final r = _ref.read(userRemindersProvider.notifier).add(at, what, now: now);
+    Analytics.track('voice_set_reminder', {'ok': r != null});
+    if (r == null) {
+      return 'Dạ, ${_cap(hon)} đang có nhiều việc cần nhắc quá ($maxPendingReminders việc) nên con chưa thêm được ạ. ${_cap(hon)} xong bớt việc rồi nhờ con lại nhé.';
+    }
+    return 'Dạ, con sẽ nhắc $hon lúc ${spokenWhen(at, now)}: $what ạ.';
+  }
+
+  /// "Tăng cỡ chữ", "chữ nhỏ lại": mỗi lần một bước, báo thật khi đã chạm mức tối đa hoặc tối thiểu.
+  String _adjustSetting(String? what, String hon) {
+    final up = what == 'font_up';
+    // ignore: deprecated_member_use
+    final system = PlatformDispatcher.instance.textScaleFactor;
+    final ok = _ref.read(elderTextBoostProvider.notifier).bump(up ? 1 : -1, system);
+    Analytics.track('voice_font', {'dir': up ? 'up' : 'down', 'ok': ok});
+    if (!ok) return up ? 'Dạ, chữ đã to hết cỡ rồi ạ.' : 'Dạ, chữ đã nhỏ nhất rồi ạ.';
+    return up
+        ? 'Dạ, con tăng cỡ chữ lên rồi ạ. ${_cap(hon)} cần to nữa thì nói con nhé.'
+        : 'Dạ, con giảm cỡ chữ rồi ạ.';
   }
 
   // ---- cuộn màn hình và đọc danh sách ("lướt xuống để tôi xem mấy video khác") ----
@@ -640,6 +827,7 @@ class VoiceActions {
     final cap = _cap(honorific);
     if (list.isEmpty) return '$cap không có tin nhắn mới trong mấy ngày qua ạ.';
     final router = _ref.read(routerProvider);
+    _ref.read(vyLastProvider.notifier).setReplyTo(list.first.from);
     _ref.read(vyCardProvider.notifier).show(
       MsgCard(
         actions: [
@@ -1032,9 +1220,11 @@ class VoiceActions {
     return 'Dạ, 15 phút nữa con nhắc $honorific uống ${d.bag ? 'túi ' : ''}${d.label.toLowerCase()} nhé.';
   }
 
-  Future<String> readBp(String honorific) async {
+  Future<String> readBp(String honorific, {String? mode}) async {
     try {
       final list = await _ref.read(bpReadingsProvider.future);
+      final m = (mode ?? '').toLowerCase();
+      if (bpHistoryModes.contains(m)) return bpHistorySay(list, m, DateTime.now(), honorific);
       if (list.isEmpty)
         return 'Chưa có kết quả đo nào. ${honorific[0].toUpperCase()}${honorific.substring(1)} đo huyết áp rồi chụp lại giúp con nhé.';
       final r = list.reduce(

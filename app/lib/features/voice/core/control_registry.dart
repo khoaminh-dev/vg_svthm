@@ -237,6 +237,7 @@ class ControlRegistry {
     bool playerOpen = false,
     bool playerPlaying = false,
     Map<String, Object?> habit = const {},
+    Map<String, Object?> last = const {},
   }) {
     final d = _topDialog;
     return {
@@ -254,6 +255,8 @@ class ControlRegistry {
       'player': {'open': playerOpen, 'playing': playerPlaying},
       // Thói quen nghe/xem (chủ đề hay nghe, bài đang xem dở, bài vừa nghe): để Vy đoán thay vì hỏi. Rỗng thì không gửi.
       if (habit.isNotEmpty) 'habit': habit,
+      // Người vừa nhắn (để "trả lời là dạ" biết trả lời ai). Rỗng thì không gửi.
+      if (last.isNotEmpty) 'last': last,
     };
   }
 

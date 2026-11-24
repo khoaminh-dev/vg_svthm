@@ -10,6 +10,7 @@ import '../../../core/router/app_router.dart';
 import '../../../core/router/routes.dart';
 import '../../bp/data/bp_reminder_service.dart';
 import '../../entertainment/data/media_suggest.dart';
+import '../../reminders/user_reminders.dart';
 import '../../entertainment/data/shared_video.dart';
 import '../../entertainment/presentation/shared_video_open.dart';
 import '../../entertainment/presentation/entertainment_providers.dart';
@@ -23,6 +24,7 @@ import '../core/vy_card.dart';
 import '../core/vy_context.dart';
 import '../core/vy_core.dart';
 import '../core/vy_cursor.dart';
+import '../core/vy_last.dart';
 import '../core/vy_reminders.dart';
 import '../core/vy_settings.dart';
 import '../data/voice_actions.dart';
@@ -59,6 +61,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
   Dose? _dose; // cữ kế tiếp (do build giữ sống)
   List<DateTime> _measured = const [];
   MediaSuggestion? _mediaSug; // gợi ý giải trí của nhịp kiểm tra gần nhất
+  UserReminder? _dueUser; // việc người dùng nhờ nhắc đã đến giờ
   List<IncomingMsg> _incomingMsgs = const []; // tin nhắn đến (để nhận ra video người thân gửi)
 
   @override
@@ -176,6 +179,10 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
           : null;
       _mediaSug = sug;
 
+      // Việc người dùng nhờ Vy nhắc ("nhắc tôi 8 giờ đi khám") đã đến giờ.
+      final du = ref.read(userRemindersProvider.notifier).due(now);
+      _dueUser = du;
+
       final pick = decideReminder(
         ReminderInputs(
           now: now,
@@ -186,6 +193,7 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
           enabledMessages: settings.remindMessages,
           enabledMedia: settings.remindMedia,
           mediaKey: sug?.key,
+          customKey: du == null ? null : userReminderKey(du),
           quiet: quiet,
           doseKey: doseKey,
           doseCheckKey: doseCheckKey,
@@ -305,6 +313,37 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
             ],
           ),
         );
+      case ReminderKind.custom:
+        final u = _dueUser;
+        if (u == null) return;
+        final store = ref.read(userRemindersProvider.notifier);
+        await core.remind(
+          kind: 'custom',
+          speech: reminderSpeech(ReminderKind.custom, hon, doseWhat: u.what),
+          card: NoticeCard(
+            title: 'Nhắc việc',
+            body: u.what,
+            actions: [
+              VyCardAction(
+                label: 'Xong rồi',
+                primary: true,
+                run: () {
+                  Analytics.track('vy_remind_reply', {'kind': 'custom', 'reply': 'done'});
+                  store.markDone(u.id);
+                },
+              ),
+              VyCardAction(
+                label: 'Nhắc lại sau 10 phút',
+                run: () {
+                  Analytics.track('vy_remind_reply', {'kind': 'custom', 'reply': 'snooze'});
+                  store.snooze(u.id, 10);
+                },
+              ),
+            ],
+          ),
+        );
+        // Đã nhắc rồi: không nhắc lại sau khi mở lại app (muốn nhắc nữa thì bấm "Nhắc lại sau 10 phút").
+        store.markDone(u.id);
       case ReminderKind.media:
         final sug = _mediaSug;
         if (sug == null) return;
@@ -372,6 +411,8 @@ class _ProactiveRemindersHostState extends ConsumerState<ProactiveRemindersHost>
           );
           return;
         }
+        // Vy vừa báo tin của ai thì "trả lời là dạ" hiểu là trả lời người đó.
+        ref.read(vyLastProvider.notifier).setReplyTo(g.from);
         await core.remind(
           kind: 'messages',
           speech: reminderSpeech(ReminderKind.messages, hon, from: g.from, count: g.count),

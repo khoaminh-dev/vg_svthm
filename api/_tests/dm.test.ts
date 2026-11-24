@@ -246,7 +246,10 @@ test('chào hỏi, cảm ơn, việc chưa hỗ trợ trả lời ngay không g�
   const call = await step({ text: 'gọi điện cho con trai', state: {}, ui }, noNlu); // đã hỗ trợ từ Vy giai đoạn 5
   assert.equal(call.intent, 'call_contact');
   assert.equal((await step({ text: 'gọi video cho con', state: {}, ui }, noNlu)).action, 'unsupported');
-  assert.equal((await step({ text: 'thời tiết hôm nay', state: {}, ui }, noNlu)).action, 'unsupported');
+  // thời tiết: trả lời thật "chưa xem được" thay vì câu từ chối chung (đợt 3)
+  const w = await step({ text: 'thời tiết hôm nay', state: {}, ui }, noNlu);
+  assert.equal(w.intent, 'chitchat');
+  assert.match(w.say, /chưa xem được thời tiết/);
 });
 
 test('tạm biệt: nhận câu ngắn, không nhận khi nằm trong nội dung tin nhắn', async () => {

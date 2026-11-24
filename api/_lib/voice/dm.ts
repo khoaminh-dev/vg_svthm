@@ -4,7 +4,10 @@
 
 import { guardBpSay } from './bp_guard.js';
 import { ordinalFromText, resolveUiCommand, type UiContext, type UiControl } from './ui_cmd.js';
+import { dailyReply, UNSUPPORTED_CHIPS } from './daily.js';
+import { bpHistoryQuery, screenIntent, skipDoseQuery } from './nav.js';
 import { dialect } from './dialect.js';
+import { familyQuery } from './family.js';
 import { isReferentialQuery, readListIntent, scrollIntent, habitTopicFor, personalChips, videoFeedback, videoIntent, videoRecall } from './video_nlu.js';
 
 export type Expect = 'command' | 'free_text' | 'yes_no' | 'choice' | 'name' | 'none';
@@ -47,6 +50,9 @@ export type NluResult = {
   verb?: string;
   /** Chỉ với play_video khi chưa biết xem gì: gợi ý chạm được (tối đa 3) để Vy hỏi một câu. */
   chips?: string[];
+  /** Lời do luật (đã duyệt) tạo ra: không qua bộ lọc lời khuyên huyết áp của mô hình, và có lớp lời nói riêng. */
+  rule?: boolean;
+  sayClass?: SayClass;
 };
 /** Chuẩn hoá nội dung tin nhắn trước khi gửi: sửa chuẩn câu, KHÔNG viết lại. Lỗi hay quá hạn thì trả về chính nội dung đã gọt gọn. */
 export type Refine = (m: { content: string; recipient: string; verb?: string }) => Promise<string>;
@@ -106,9 +112,9 @@ const S = {
   bye: (h: string) => `Dạ, con chào ${h} ạ.`,
   notHeard: (h: string) => `Con chưa nghe rõ, ${h} nói lại giúp con nhé.`,
   opened: () => 'Dạ, con mở rồi ạ.',
-  help: (h: string) => `Con giúp ${h} nhắn tin, đo huyết áp, xem lịch sử huyết áp, nói về tình trạng sức khoẻ và mở video, nhạc trên YouTube ạ.`,
-  unsupported: (h: string) => `Việc này con chưa làm được. Con giúp ${h} nhắn tin hoặc đo huyết áp nhé?`,
-  emergency: (h: string) => `${h} hãy gọi 115 hoặc nhờ người thân ngay nhé. Nếu thấy nguy hiểm, đừng chờ ạ.`,
+  help: (h: string) => `Con giúp ${h} nhắn tin, gọi điện, đo và xem huyết áp, nhắc uống thuốc, mở nhạc, tin tức, cải lương, và nói giờ giấc ạ.`,
+  unsupported: (h: string) => `Dạ, việc này con chưa làm được ạ. ${cap(h)} thử nói: đo huyết áp, mở nhạc xưa, đọc tin nhắn, hoặc hỏi mấy giờ rồi nhé.`,
+  emergency: (h: string) => `${cap(h)} hãy gọi 115 hoặc nhờ người thân ngay nhé. Nếu thấy nguy hiểm, đừng chờ ạ.`,
   trouble: (h: string) => `Con đang trục trặc một chút, ${h} thử lại sau nhé.`,
   confirmHint: (h: string) => `${h} nói "gửi" hoặc "sửa" giúp con nhé.`,
   askFeatureMissing: (h: string) => `Dạ, ${h} muốn mở phần nào ạ?`,
@@ -135,7 +141,9 @@ export function emergencyTexts(): Set<string> {
 
 // ---------- luật cứng (chạy trước LLM) ----------
 
-const EMERGENCY = /\b(dau nguc|kho tho|bat tinh|ngat xiu|te liet|cap cuu|chay mau|nga roi|tim dap nhanh|met lam|choang vang)\b/;
+const EMERGENCY = /\b(dau nguc|kho tho|bat tinh|ngat xiu|te liet|cap cuu|chay mau|nga roi|tim dap nhanh|bi nga|toi bi te|cuu toi|cuu voi|cuu giup|sap ngat|muon ngat|toi sam mat|tim dap manh|tim dap rat nhanh|khong tho duoc|tho khong noi|nghet tho|ngop tho|dau tim|nhoi tim|bi dot quy|dau hieu dot quy|mat meo|meo mieng|tay yeu|chan yeu|liet nua nguoi|noi khong ro|noi ngong|non ra mau|ho ra mau|di ngoai ra mau|muon chet|khong muon song|co nguoi nga|nguoi nga|bi ngat|toi te|bi te|mat toi meo|mieng toi meo|tay toi yeu|chan toi yeu|nhoi mau co tim)\b/;
+/** Dấu hiệu mơ hồ: hỏi lại MỘT câu có hai nút trước khi báo động (quyết định Q2). */
+const EMERGENCY_SOFT = /\b(met lam|choang vang|choang|xay xam|kho chiu lam|dau du doi|chong mat du doi|run ray|mat luc)\b/;
 const CANCEL = /^(thoi|huy|dung|dung lai|bo di|thoi khong|khong gui nua|khong can nua)( a| nhe| di| roi)?$/;
 const YES = /^(co|co a|vang|da|u|uh|um|dung|dung roi|luu|luu di|ghi|ghi di|gui|gui di|gui nhe|gui di nhe|gui luon|ok|okay|duoc|dong y|chuan|chinh xac|ung)( a| nhe| di| roi| nha)?$/;
 const NO = /^(khong|khong phai|sai|sai roi|chua|khong dung|khong gui)( a| roi)?$/;
@@ -288,6 +296,8 @@ export function parseBp(t: string): BpParse | null {
 /** Người nhận cuộc gọi ("gọi cho con trai", "gọi điện cho cô Lan", "gọi 115"); chỉ nhận khi có "điện/cho/đến/tới" hoặc số.
  *  Trả về cụm tên (có thể rỗng nếu chỉ nói "gọi điện"), hoặc null nếu không phải lệnh gọi. t đã bỏ dấu. */
 export function callTarget(t: string): string | null {
+  // "gọi cấp cứu", "gọi xe cấp cứu": người dùng chủ động gọi nên quay 115 (có đếm ngược và nút Huỷ), không đọc một đoạn khuyên.
+  if (/^(?:bam )?(?:goi|bam|quay) (?:dien )?(?:thoai )?(?:cho |den |toi )?(?:xe |so )?cap cuu(?: di| nhe| ngay| giup toi| giup con| gium| dum)*$/.test(t)) return '115';
   if (/\bvideo\b/.test(t)) return null;
   let m = t.match(/^goi (?:dien )?(?:thoai )?(?:cho|den|toi) (.+)$/);
   if (!m) m = t.match(/^goi dien(?: thoai)?(?: cho)?\s*(.*)$/);
@@ -345,9 +355,9 @@ export function healthTopic(t: string): string | null {
 }
 
 /** Lệnh ngắn, rõ ràng không cần gọi LLM (tiết kiệm tiền + giảm độ trễ). */
-type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string; verb?: string; chips?: string[] };
+type Fast = { intent: string; feature?: string; content?: string; recipient?: string; say?: string; verb?: string; chips?: string[]; sayClass?: SayClass };
 
-const SEND_VERB = /^(nhan tin|nhan|gui tin nhan|gui tin|gui|bao|noi|hoi)( cho| den| voi)?$/;
+const SEND_VERB = /^(nhan tin|nhan|gui tin nhan|gui tin|gui|bao|noi|hoi|tra loi)( cho| den| voi)?$/;
 const SEND_SEP = new Set(['rang', 'la', 'noi', 'nhe']);
 
 /** "nhắn cho con trai là mai bác về", "hỏi Hải ăn cơm chưa", "bảo Lan là bác khoẻ", "nói với Hải mai bác ghé":
@@ -382,6 +392,12 @@ export function fastSend(orig: string, contacts: Contact[], roomId?: string | nu
     if (content.length < 2) return null;
     return { intent: 'send_message', recipient, content, verb };
   }
+  // "nhắn cho cô Hoa", "nhắn chú Ba mai ghé": họ hàng + tên viết hoa là MỘT người nhận.
+  if (isKinship(words[i] ?? '') && words[i + 1] && /^\p{Lu}/u.test(words[i + 1]) && !SEND_SEP.has(nw[i + 1])) {
+    const named = words[i + 1];
+    const recipient = exactOne(named) ? named : `${words[i]} ${named}`;
+    return { intent: 'send_message', recipient, content: words.slice(i + 2).join(' '), verb };
+  }
   // Không có "là/rằng": thử cụm tên dài nhất (tối đa 3 từ) khớp chính xác, phần còn lại là nội dung ("hỏi Hải ăn cơm chưa").
   const rest = words.length - i;
   for (let k = Math.min(3, rest); k >= 1; k--) {
@@ -408,7 +424,7 @@ export function isGoodbye(t: string): boolean {
 
 const GREETING = /^(xin chao|chao|alo|hello|hi)( vy| co vy| em vy| ban| con)?( a| nhe)?$|^vy( oi)?( a)?$/;
 const THANKS = /^(cam on|cam on vy|cam on con|cam on em)( nhieu| a| nhe| lam)*$/;
-const NOT_SUPPORTED = /^(goi video|thoi tiet|may gio|bay gio la may gio|hom nay (la )?(thu|ngay) may|dat bao thuc|bao thuc)/;
+const NOT_SUPPORTED = /^(goi video)/;
 
 const PRON = '(toi|bac|co|chu|ong|ba|anh|chi|em|con)';
 const LEAD_FILLER = new RegExp(`^((u|um|uhm|uh|o|a|da|vang|roi|the|thi|ma|vay|nao|ok|okay|nay|vy oi|vy|lam on|cho ${PRON}|giup ${PRON}|${PRON} muon|${PRON} can)\\s+)+`);
@@ -430,12 +446,44 @@ function fastIntent(t0: string, orig: string, contacts: Contact[], roomId: strin
   if (callee !== null) return { intent: 'call_contact', recipient: callee };
   if (GREETING.test(t0)) return { intent: 'chitchat', say: `Dạ, con chào ${hon} ạ. ${hon[0].toUpperCase()}${hon.slice(1)} cần con giúp gì ạ?` };
   if (THANKS.test(t0)) return { intent: 'chitchat', say: 'Dạ, không có gì ạ.' };
+  // "Trả lời" / "trả lời là dạ" ngay sau khi Vy đọc tin: trả lời đúng người vừa nhắn (trí nhớ ngắn hạn do app gửi).
+  const replyTo = ctx?.last?.replyTo;
+  if (replyTo) {
+    if (/^tra loi(?: lai)?(?: di| nhe| nha)?$/.test(t0)) return { intent: 'send_message', recipient: replyTo, content: '' };
+    const rm = orig.trim().match(/^tr[ảa] l[ờo]i\s+(?:là|rằng|la|rang)\s+(.{1,300})$/i);
+    if (rm) return { intent: 'send_message', recipient: replyTo, content: rm[1].trim() };
+    const qm = orig.trim().match(/^tr[ảa] l[ờo]i\s+(dạ|vâng|được|ok|okay|rồi|cảm ơn|có|không|chưa|khoẻ|khỏe|tốt)(?:\s+(.{0,100}))?$/i);
+    if (qm) return { intent: 'send_message', recipient: replyTo, content: `${qm[1]}${qm[2] ? ' ' + qm[2] : ''}`.trim() };
+  }
+  // Việc hằng ngày và kịch bản an toàn (giờ, ngày, nhắc giờ, cỡ chữ, ngưỡng huyết áp, thuốc nguy hiểm, tâm sự).
+  const dr = dailyReply(t0, orig, hon, clock());
+  if (dr) {
+    return dr.kind === 'say'
+      ? { intent: 'chitchat', say: dr.say, chips: dr.chips, sayClass: dr.important ? 'important' : 'other' }
+      : { intent: dr.intent, content: dr.content };
+  }
+  // Gửi ảnh/video bằng giọng chưa làm được: nói thật và đưa người dùng tới khung chat.
+  if (/^(?:gui|nhan|chia se)(?: cho [a-z ]{2,24})? (?:anh|hinh|hinh anh|tam anh|buc anh|video|tap tin|tai lieu)\b|^(?:gui|nhan|chia se) (?:anh|hinh|hinh anh|tam anh|buc anh)\b/.test(t0)) {
+    return { intent: 'chitchat', say: `Dạ, con chưa gửi ảnh hay video bằng giọng được ạ. ${cap(hon)} mở khung chat rồi bấm nút gửi ảnh giúp con nhé.`, chips: ['Mở tin nhắn'], sayClass: 'other' };
+  }
+  // "Gửi lại", "nhắn lại": chưa nói gửi cho ai thì hỏi người nhận, không đoán.
+  if (/^(?:gui|nhan) lai(?: nua| di)?$/.test(t0)) return { intent: 'send_message' };
   if (NOT_SUPPORTED.test(t0)) return { intent: 'unsupported' };
   const send = fastSend(orig, contacts, roomId);
   if (send) return send;
   const t = tidy(t0);
   if (/^(ve )?(trang chu|man hinh chinh)$/.test(t) || /^ve trang chu/.test(t)) return { intent: 'go_home' };
   if (/^(quay lai|tro lai|lui lai)( a| nhe)?$/.test(t)) return { intent: 'go_back' };
+  // Vai trò Gia đình: "huyết áp của mẹ", "mẹ uống thuốc chưa", "xem cảnh báo" hỏi về người đang theo dõi, không phải về chính mình.
+  if (ctx?.role === 'family') {
+    const fam = familyQuery(t) ?? familyQuery(t0);
+    if (fam) return { intent: 'family_info', content: `${fam.topic}|${fam.subject}` };
+  }
+  const bpHist = bpHistoryQuery(t) ?? bpHistoryQuery(t0);
+  if (bpHist) return { intent: 'read_bp', content: bpHist };
+  const scr = screenIntent(t) ?? screenIntent(t0);
+  if (scr && !(scr === 'alerts' && ctx?.role !== 'family')) return { intent: 'open_screen', content: scr };
+  if (skipDoseQuery(t)) return { intent: 'skip_dose' };
   if (/(xem|mo|vao).*(lich su|bieu do).*(huyet ap)/.test(t) || /^(xem|mo|vao|chuyen (sang|qua|den)) (theo doi )?huyet ap$/.test(t)) return { intent: 'show_bp' };
   if (/(huyet ap).*(bao nhieu|gan nhat|hom nay|vua do)/.test(t) || /(doc|cho biet).*(huyet ap)/.test(t)) return { intent: 'read_bp' };
   const bp = parseBp(t);
@@ -563,6 +611,12 @@ export function resolveRecipient(phrase: string, contacts: Contact[], roomId?: s
   return top.length === 1 ? { kind: 'one', contact: top[0].c, fuzzy: true } : { kind: 'many', list: top.map((x) => x.c) };
 }
 
+/** Đồng hồ (thay được khi kiểm thử): giờ, ngày, nhắc giờ. */
+let clock: () => Date = () => new Date();
+export function setClock(f: () => Date): void {
+  clock = f;
+}
+
 // ---------- registry ----------
 
 const REQUIRED: Record<string, string[]> = {
@@ -571,12 +625,17 @@ const REQUIRED: Record<string, string[]> = {
   open_feature: ['feature'],
   play_video: ['content'],
   video_control: ['content'],
-  scroll: [], read_list: [], measure_bp: [], show_bp: [], read_bp: [], read_meds: [], mark_dose: [], snooze_dose: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
+  scroll: [], read_list: [], set_reminder: [], adjust_setting: [], open_screen: [], skip_dose: [], family_info: [], measure_bp: [], show_bp: [], read_bp: [], read_meds: [], mark_dose: [], snooze_dose: [], record_bp: [], read_messages: [], call_contact: [], health_status: [], go_back: [], go_home: [], help: [], chitchat: [],
 };
 const NEEDS_CONFIRM = new Set(['send_message', 'record_bp']);
 export const INTENT_LIST = [...Object.keys(REQUIRED), 'unsupported'];
 /** Ý định do bộ ghép với màn hình tạo ra (không nằm trong INTENT_LIST để mô hình không tự chọn). Có thể quay lại trong `state.task` khi chờ xác nhận. */
 export const UI_INTENTS = ['invoke_control', 'choose_item', 'point_control', 'sos_start'];
+
+/** Khẩn cấp: nói thẳng, kèm hai nút gọi 115 và báo SOS. Không tự gọi, không tự bấm SOS (nguyên tắc 20/11). */
+function emergencyDecision(hon: string): Decision {
+  return mk({ action: 'answer', intent: 'emergency', say: S.emergency(hon), sayClass: 'emergency', chips: ['Gọi 115', 'Báo SOS'] });
+}
 
 function mk(p: Partial<Decision> & Pick<Decision, 'action' | 'say'>): Decision {
   return {
@@ -633,8 +692,16 @@ async function stepCore(
   if (!t) return mk({ action: 'ask', say: S.notHeard(hon), expects: expects === 'none' ? 'command' : expects, expectsReply: true, task: state.task ?? null, pending: state.pending ?? null, choices: state.choices ?? [], aliasPhrase: state.aliasPhrase ?? null });
 
   // 1) khẩn cấp (không áp dụng khi đang đọc nội dung tin nhắn)
-  if (expects !== 'free_text' && EMERGENCY.test(t)) {
-    return mk({ action: 'answer', intent: 'emergency', say: S.emergency(hon), sayClass: 'emergency', chips: [] });
+  // Người dùng chủ động nói "gọi 115"/"gọi cấp cứu" thì đi đường gọi điện (đếm ngược, nút Huỷ), không phải khẩn cấp phát hiện.
+  const explicitCall = callTarget(t) !== null;
+  if (expects !== 'free_text' && !explicitCall && EMERGENCY.test(t)) return emergencyDecision(hon);
+  // Dấu hiệu mơ hồ ("mệt lắm", "choáng"): hỏi lại MỘT câu có hai nút thay vì báo động ngay. Đang soạn tin nhắn thì bỏ qua.
+  if (expects !== 'free_text' && !explicitCall && state.task?.intent !== 'emergency_check' && !/^(nhan|gui|bao|noi|tra loi)\b/.test(t) && !/^hoi (?!choang|met|xay|kho chiu|run|chong|dau du|mat luc)/.test(t) && EMERGENCY_SOFT.test(t)) {
+    return mk({
+      action: 'confirm', intent: 'emergency_check', task: { intent: 'emergency_check', slots: {} }, expects: 'yes_no', expectsReply: true,
+      say: `${cap(hon)} thấy trong người thế nào ạ? ${cap(hon)} có cần con báo người thân hoặc gọi 115 không ạ?`,
+      sayClass: 'important', chips: ['Có, giúp con', 'Không sao'],
+    });
   }
   // 1b) có hộp thoại đang mở trên màn hình: "đồng ý"/"huỷ"/"ở lại" là nút của hộp thoại, không phải việc đang dở
   if (ui.context?.dialog) {
@@ -661,6 +728,13 @@ async function stepCore(
 
   // 3) đang chờ xác nhận
   if (expects === 'yes_no' && task) {
+    if (task.intent === 'emergency_check') {
+      if (/^(co|vang|da|giup|goi|bao|bao di|giup con|co giup con|can|can giup|cap cuu|goi di)( a| nhe| di| ngay)*$/.test(t)) return emergencyDecision(hon);
+      if (/^(khong|khong sao|khong can|binh thuong|toi on|bac on|on roi|khong sao dau|khong sao roi)( a| roi| dau| nhe| con| cam on)*$/.test(t)) {
+        return mk({ action: 'answer', intent: 'chitchat', say: `Dạ, vậy ${hon} nghỉ ngơi nhé. Có gì ${hon} nói con ngay ạ.`, sayClass: 'other' });
+      }
+      task = null; // nói việc khác: coi như lệnh mới
+    } else
     if (YES.test(t) && !input.lowConfidence) {
       return mk({ action: 'execute', intent: task.intent, task, say: doneSay(task) });
     }
@@ -744,7 +818,7 @@ async function stepCore(
   if (fast) {
     let content = fast.content ?? '';
     if (fast.intent === 'play_video' && content && !content.startsWith('@')) content = restoreAccents(text, content);
-    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '', verb: fast.verb, chips: fast.chips };
+    nluOut = { intent: fast.intent, recipient: fast.recipient ?? '', content, feature: fast.feature ?? '', say: fast.say ?? '', verb: fast.verb, chips: fast.chips, rule: true, sayClass: fast.sayClass };
   } else {
     try {
       nluOut = await nlu(text, { state, ui, honorific: hon });
@@ -765,12 +839,19 @@ async function stepCore(
   }
   const intent = INTENT_LIST.includes(nluOut.intent) ? nluOut.intent : 'unsupported';
 
-  if (intent === 'unsupported') return mk({ action: 'unsupported', intent, say: S.unsupported(hon) });
+  if (intent === 'skip_dose') {
+    return mk({
+      action: 'confirm', intent, task: { intent, slots: {} }, expects: 'yes_no', expectsReply: true,
+      say: `${cap(hon)} muốn bỏ qua cữ thuốc này, đúng không ạ? Nếu ${hon} thấy khó chịu khi uống thuốc thì nên hỏi bác sĩ.`, sayClass: 'important', chips: ['Đúng', 'Không'],
+    });
+  }
+  if (intent === 'unsupported') return mk({ action: 'unsupported', intent, say: S.unsupported(hon), chips: UNSUPPORTED_CHIPS });
   if (intent === 'help') return mk({ action: 'answer', intent, say: S.help(hon) });
   if (intent === 'chitchat') {
     // Lời do mô hình tự sinh: nếu nói về huyết áp mà khuyên điều cấm (đi lại, vận động, đổi thuốc) thì thay bằng câu an toàn.
-    const say = guardBpSay((nluOut.say || '').trim().slice(0, 200) || S.help(hon), hon);
-    return mk({ action: 'answer', intent, say, sayClass: 'other' });
+    const raw = (nluOut.say || '').trim().slice(0, nluOut.rule ? 600 : 200) || S.help(hon);
+    const say = nluOut.rule ? raw : guardBpSay(raw, hon);
+    return mk({ action: 'answer', intent, say, sayClass: nluOut.sayClass ?? 'other', chips: nluOut.chips ?? [] });
   }
 
   task = { intent, slots: {} };
@@ -801,6 +882,8 @@ function cap(h: string): string {
 function doneSay(task: Task): string {
   if (task.intent === 'send_message') return S.sentOk();
   if (task.intent === 'record_bp') return 'Dạ, con ghi rồi ạ.';
+  // Bỏ qua cữ: app tự nói kết quả thật (đã ghi hay chưa), không nói trước.
+  if (task.intent === 'skip_dose') return '';
   return task.slots.say || S.opened();
 }
 
@@ -954,6 +1037,6 @@ function progress(
       sayClass: 'important', chips: ['Gửi', 'Sửa', 'Hủy'], learnAlias,
     });
   }
-  const say = ['read_bp', 'read_meds', 'mark_dose', 'snooze_dose', 'read_messages', 'call_contact', 'scroll', 'read_list'].includes(intent) ? '' : S.opened();
+  const say = ['read_bp', 'read_meds', 'mark_dose', 'snooze_dose', 'read_messages', 'call_contact', 'scroll', 'read_list', 'set_reminder', 'adjust_setting', 'open_screen', 'family_info'].includes(intent) ? '' : S.opened();
   return mk({ action: 'execute', intent, task, say, learnAlias });
 }

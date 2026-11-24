@@ -74,7 +74,7 @@ function parseState(v: unknown): DState {
   };
 }
 
-const SYSTEM = `Bạn là bộ hiểu lệnh tiếng Việt cho ứng dụng chăm sóc người cao tuổi. Chỉ trả về JSON:
+export const SYSTEM = `Bạn là bộ hiểu lệnh tiếng Việt cho ứng dụng chăm sóc người cao tuổi. Chỉ trả về JSON:
 {"intent": "...", "recipient": "", "content": "", "feature": "", "say": ""}
 intent là một trong: send_message (nhắn tin cho ai đó), open_chat (mở khung chat với ai đó), open_feature (mở tính năng: chat | ocr | bp | fun | home; fun là mục Giải trí/YouTube), measure_bp (đo/chụp huyết áp), show_bp (xem lịch sử/biểu đồ huyết áp), read_bp (đọc kết quả huyết áp gần nhất), record_bp (người dùng đọc số huyết áp vừa đo để ghi lại, ví dụ "huyết áp 130 trên 80 mạch 72"; content là "tâm thu,tâm trương,mạch"), read_messages (đọc tin nhắn mới, có tin nhắn không), call_contact (gọi điện cho ai đó; recipient là người cần gọi, hoặc 115), scroll (cuộn màn hình: content là down | up | top | bottom; "lướt/cuộn/kéo xuống", "xem thêm", "mấy cái khác" là down), read_list (đọc tên các mục đang hiện trên màn hình), read_meds (hỏi lịch uống thuốc: hôm nay/tối nay uống thuốc gì, cữ thuốc kế tiếp, mấy giờ uống thuốc; KHÔNG dùng khi người dùng nói đã uống rồi), health_status (hỏi về tình trạng sức khoẻ, xu hướng huyết áp, nguy cơ của chính mình, hoặc hỏi y khoa chung; content là một trong general, trend, risk, habit, other), play_video (xem/nghe video, bài hát, nhạc trên YouTube; từ khoá tìm đặt vào content), video_control (điều khiển video đang phát: content là một trong pause, play, next, previous, louder, quieter, restart (phát lại từ đầu), close (thoát video), info (bài gì, của ai), back:<giây> (tua lại, mặc định back:15), fwd:<giây> (tua tới, mặc định fwd:15), sleep:<phút> (hẹn giờ tắt, mặc định sleep:30), like (khen bài đang phát: "bài này hay"), dislike (chê: "không thích bài này")), go_back, go_home, help (hỏi làm được gì), chitchat (chào hỏi/hỏi thăm ngắn), unsupported (ngoài khả năng).
 - recipient: đúng cụm người nhận như người dùng nói (vd "con trai", "bà Lan"), để trống nếu không nói.
@@ -97,9 +97,9 @@ function parseNlu(text: string): NluResult {
   };
 }
 
-type Meter = { nluProvider?: string; failovers: number; ms: number; tokensIn?: number; tokensOut?: number; nluFail?: string; refineMs?: number; refine?: 'ai' | 'rule' };
+export type Meter = { nluProvider?: string; failovers: number; ms: number; tokensIn?: number; tokensOut?: number; nluFail?: string; refineMs?: number; refine?: 'ai' | 'rule' };
 
-function makeNlu(model: string, meter: Meter): Nlu {
+export function makeNlu(model: string, meter: Meter): Nlu {
   return async (text, ctx) => {
     const messages: Msg[] = [
       { role: 'system', content: SYSTEM },

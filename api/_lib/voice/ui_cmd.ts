@@ -34,6 +34,8 @@ export type UiContext = {
   player: { open: boolean; playing: boolean };
   /** Thói quen nghe/xem do app gửi (đã nhớ trên máy): chủ đề hay nghe, bài đang xem dở, bài vừa nghe. Có thể vắng. */
   habit?: { top: string; topics: string[]; resume: string; last: string };
+  /** Trí nhớ ngắn hạn do app gửi: người vừa nhắn (để "trả lời" biết trả lời ai). Có thể vắng. */
+  last?: { replyTo: string };
 };
 
 export type UiCmd =
@@ -132,6 +134,11 @@ export function parseUiContext(v: unknown): UiContext | undefined {
     habit = { top, topics: top && !topics.includes(top) ? [top, ...topics].slice(0, 3) : topics, resume: s(h.resume, 80), last: s(h.last, 80) };
     if (!habit.top && !habit.resume && !habit.last) habit = undefined;
   }
+  let last: UiContext['last'];
+  if (o.last && typeof o.last === 'object') {
+    const replyTo = s((o.last as Record<string, unknown>).replyTo, 60);
+    if (replyTo) last = { replyTo };
+  }
   return {
     role: o.role === 'elder' || o.role === 'family' ? o.role : '',
     route: s(o.route, 60),
@@ -140,6 +147,7 @@ export function parseUiContext(v: unknown): UiContext | undefined {
     lists,
     player: { open: p.open === true, playing: p.playing === true },
     ...(habit ? { habit } : {}),
+    ...(last ? { last } : {}),
   };
 }
 

@@ -6,6 +6,7 @@ import '../../auth/domain/auth_user.dart';
 import '../../auth/presentation/providers/auth_providers.dart';
 import '../../entertainment/presentation/entertainment_providers.dart';
 import 'control_registry.dart';
+import 'vy_last.dart';
 
 /// Đường dẫn của màn đang ở TRÊN CÙNG, kể cả màn mở bằng `push` (Giải trí, Đo huyết áp, trình phát...).
 /// `routeInformationProvider` chỉ báo màn gốc nên màn chồng bị báo sai; cấu hình hiện tại của bộ định tuyến thì đúng.
@@ -34,6 +35,7 @@ final vyUiContextProvider = Provider<Map<String, Object?> Function()>((ref) {
       route: topRoutePath(ref.read(routerProvider)),
       playerOpen: ref.read(playerOpenProvider),
       habit: ref.read(mediaMemoryProvider.notifier).habit(),
+      last: ref.read(vyLastProvider.notifier).snapshot(),
     );
   };
 });

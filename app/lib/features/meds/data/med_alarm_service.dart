@@ -114,7 +114,9 @@ class MedAlarmService {
     final t = now ?? DateTime.now();
     try {
       for (final r in await _p.pendingNotificationRequests()) {
-        if (r.id < reservedIdStart) await _p.cancel(r.id);
+        // Dải mã 2.050.000.000..2.050.099.999 là nhắc việc người dùng nhờ Vy đặt: không dọn.
+        final userReminder = r.id >= 2050000000 && r.id < 2050100000;
+        if (r.id < reservedIdStart && !userReminder) await _p.cancel(r.id);
       }
       final upcoming =
           doses

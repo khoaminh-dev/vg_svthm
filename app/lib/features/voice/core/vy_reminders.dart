@@ -3,7 +3,7 @@
 library;
 
 /// Loại nhắc, theo thứ tự ưu tiên giảm dần: thuốc > đo huyết áp > tin nhắn > gợi ý giải trí (SOS/khẩn cấp luôn thắng và chặn mọi nhắc).
-enum ReminderKind { dose, doseCheck, bp, messages, media }
+enum ReminderKind { dose, doseCheck, custom, bp, messages, media }
 
 /// Sau lần nhắc thuốc mà chưa xác nhận: hỏi lại "đã uống chưa" ở các mốc này (tối đa 2 lần, trước mốc 45 phút báo người thân).
 const doseCheckAfter = [Duration(minutes: 15), Duration(minutes: 30)];
@@ -71,6 +71,7 @@ class ReminderInputs {
     this.bpDue,
     this.messages = const [],
     this.mediaKey,
+    this.customKey,
   });
 
   final DateTime now;
@@ -100,6 +101,9 @@ class ReminderInputs {
 
   /// Gợi ý nhạc/video quen nghe đang đến giờ (mã `media:<ngày>:<buổi>`), null nếu không có.
   final String? mediaKey;
+
+  /// Việc người dùng nhờ Vy nhắc đã đến giờ (mã `user:<id>:<giờ>`), null nếu không có.
+  final String? customKey;
 }
 
 /// Trí nhớ của bộ nhắc (trong một lần chạy app): cái gì đã nhắc, lần nhắc tin nhắn gần nhất, số lần "để sau".
@@ -166,6 +170,10 @@ ReminderPick? decideReminder(ReminderInputs i, ReminderMemory mem) {
     final last = mem.lastDose;
     if (last == null || i.now.difference(last) >= doseGap) return ReminderPick(ReminderKind.doseCheck, ck);
   }
+
+  // Việc người dùng tự nhờ nhắc: quan trọng hơn nhắc đo huyết áp, không bị tắt bằng cài đặt "Vy tự nhắc" (họ đã chủ động nhờ).
+  final ck2 = i.customKey;
+  if (ck2 != null && !mem.done.contains(ck2)) return ReminderPick(ReminderKind.custom, ck2);
 
   final bp = i.bpDue;
   if (i.enabledBp && !i.quiet && bp != null && !mem.done.contains(bp.key)) {
@@ -308,6 +316,8 @@ String reminderSpeech(ReminderKind kind, String hon, {String? doseWhat, String? 
       return count > 1
           ? '$hon có $count tin mới từ ${from ?? 'người thân'}. $hon muốn nghe không ạ?'
           : '$hon có tin mới từ ${from ?? 'người thân'}. $hon muốn nghe không ạ?';
+    case ReminderKind.custom:
+      return 'Đến giờ rồi ${hon.isEmpty ? 'bác' : hon} ơi${doseWhat == null ? '' : ': $doseWhat'}.';
     case ReminderKind.media:
       return 'Giờ này $hon hay nghe ${topic ?? 'nhạc'}. ${hon.isEmpty ? 'Bác' : '${hon[0].toUpperCase()}${hon.substring(1)}'} có muốn con mở không ạ?';
   }
