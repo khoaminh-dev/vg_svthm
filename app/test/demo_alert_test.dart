@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vg_svthm/core/theme/app_theme.dart';
+import 'package:vg_svthm/features/auth/domain/auth_user.dart';
+import 'package:vg_svthm/features/auth/presentation/providers/auth_providers.dart';
 import 'package:vg_svthm/features/push/push_service.dart';
+import 'package:vg_svthm/features/safety/presentation/demo_alert_optin.dart';
 import 'package:vg_svthm/features/safety/presentation/demo_alert_screen.dart';
 import 'package:vg_svthm/features/safety/presentation/sos_widgets.dart';
 
@@ -95,5 +98,66 @@ void main() {
   test('bấm thông báo cảnh báo DEMO mở đúng màn', () {
     expect(PushService.pathFor({'type': 'demo_alert', 'alert_id': 'abc'}), '/alert/abc');
     expect(PushService.pathFor({'type': 'demo_alert'}), isNull);
+  });
+
+  group('công tắc nhận cảnh báo DEMO', () {
+    ProviderContainer make(DemoOptInApi api, {bool signedIn = true}) {
+      final c = ProviderContainer(overrides: [
+        currentUserProvider.overrideWithValue(signedIn ? const AuthUser(id: 'me', username: 'minh') : null),
+        demoOptInApiProvider.overrideWithValue(api),
+      ]);
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test('fromJson: bật có nhãn, tắt, dữ liệu lạ', () {
+      final a = DemoOptIn.fromJson({'on': true, 'label': 'lan'});
+      expect(a.on, isTrue);
+      expect(a.label, 'lan');
+      expect(DemoOptIn.fromJson({'on': false, 'label': null}).on, isFalse);
+      expect(DemoOptIn.fromJson(null).on, isFalse);
+    });
+
+    test('đọc trạng thái từ máy chủ; chưa đăng nhập thì tắt và không gọi máy chủ', () async {
+      var reads = 0;
+      final api = DemoOptInApi(
+        read: () async { reads++; return const DemoOptIn(on: true, label: 'minh'); },
+        write: (on) async => DemoOptIn(on: on),
+      );
+      final c = make(api);
+      expect((await c.read(demoOptInProvider.future)).on, isTrue);
+      expect(reads, 1);
+      final out = make(api, signedIn: false);
+      expect((await out.read(demoOptInProvider.future)).on, isFalse);
+      expect(reads, 1);
+    });
+
+    test('đọc lỗi (chưa chạy migration, mất mạng) thì coi như tắt', () async {
+      final c = make(DemoOptInApi(read: () async => throw Exception('x'), write: (on) async => DemoOptIn(on: on)));
+      expect((await c.read(demoOptInProvider.future)).on, isFalse);
+    });
+
+    test('bật gửi đúng giá trị và nhận nhãn từ máy chủ; tắt lại được', () async {
+      final sent = <bool>[];
+      final c = make(DemoOptInApi(
+        read: () async => const DemoOptIn(),
+        write: (on) async { sent.add(on); return DemoOptIn(on: on, label: 'minh'); },
+      ));
+      await c.read(demoOptInProvider.future);
+      expect(await c.read(demoOptInProvider.notifier).set(true), isNull);
+      expect(c.read(demoOptInProvider).value?.on, isTrue);
+      expect(c.read(demoOptInProvider).value?.label, 'minh');
+      expect(await c.read(demoOptInProvider.notifier).set(false), isNull);
+      expect(c.read(demoOptInProvider).value?.on, isFalse);
+      expect(sent, [true, false]);
+    });
+
+    test('ghi lỗi: trả thông báo và công tắc về như cũ', () async {
+      final c = make(DemoOptInApi(read: () async => const DemoOptIn(), write: (on) async => throw Exception('x')));
+      await c.read(demoOptInProvider.future);
+      final err = await c.read(demoOptInProvider.notifier).set(true);
+      expect(err, isNotNull);
+      expect(c.read(demoOptInProvider).value?.on, isFalse);
+    });
   });
 }

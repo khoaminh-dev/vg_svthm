@@ -109,7 +109,7 @@ Khuyến nghị cho bên gọi: chỉ gọi khi `DANGER` kéo dài quá N giây 
 ## 3. Cài đặt (chủ dự án làm một lần)
 
 1. **Chạy migration** `supabase/migrations/0037_demo_alerts.sql` (gồm cả hàm nhận và hỏi trạng thái) trong SQL Editor của Supabase.
-2. **Chỉ định tài khoản nhận.** Thay `tên_đăng_nhập` và nhãn cho đúng:
+2. **Chỉ định tài khoản nhận** — cách dễ nhất (bản app mới): chạy thêm `supabase/migrations/0038_demo_alert_optin.sql`, rồi trên điện thoại vào **Hồ sơ → Thông báo → "Nhận cảnh báo thử nghiệm"** và bật. Công tắc tự thêm tài khoản đó vào danh sách, hiện **nhãn** (lấy từ tên đăng nhập, ví dụ `minh`) để đưa cho module nếu muốn gửi riêng bằng `targets`, và xin quyền thông báo luôn. Tắt công tắc thì ngừng nhận. Mỗi người chỉ bật/tắt được cho chính tài khoản của mình. Cách thủ công (không cần app mới): thay `tên_đăng_nhập` và nhãn cho đúng:
    ```sql
    insert into public.demo_alert_targets (label, user_id)
    select 'me', id from public.profiles where username = 'tên_đăng_nhập'

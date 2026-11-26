@@ -19,6 +19,8 @@ import '../../family/presentation/family_providers.dart';
 import '../../bp/data/bp_reminder_service.dart';
 import '../../bp/presentation/providers/bp_reminder_providers.dart';
 import '../../push/push_service.dart';
+import '../../safety/presentation/demo_alert_optin.dart';
+import '../../../shared/widgets/app_snackbar.dart';
 import '../../voice/core/control_registry.dart';
 import '../../plan/data/plan_repository.dart';
 import '../../plan/domain/plan_models.dart';
@@ -681,6 +683,7 @@ class _NotificationSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(pushPrefsProvider).value ?? const PushPrefs();
     final notifier = ref.read(pushPrefsProvider.notifier);
+    final demo = ref.watch(demoOptInProvider).value ?? const DemoOptIn();
     const pad = EdgeInsets.symmetric(horizontal: 16);
     const titleStyle = TextStyle(fontWeight: FontWeight.w600, fontSize: 17);
     return InsetGroup(
@@ -768,6 +771,24 @@ class _NotificationSettings extends ConsumerWidget {
             onTap: () => _pickQuiet(context, prefs, notifier),
           ),
         ],
+        // Chỉ để thử module cảnh báo bên ngoài (camera...): bật thì máy này nhận cảnh báo khẩn cấp DEMO.
+        SwitchListTile(
+          key: const Key('push-demo-alert'),
+          contentPadding: pad,
+          secondary: _LeadIcon(Icons.warning_amber_rounded),
+          title: const Text('Nhận cảnh báo thử nghiệm', style: titleStyle),
+          subtitle: Text(
+            demo.on
+                ? 'Đang bật. Máy này sẽ nhận cảnh báo khẩn cấp DEMO từ camera.${demo.label == null ? '' : ' Nhãn: ${demo.label}'}'
+                : 'Dùng để thử camera cảnh báo. Bật thì máy này nhận cảnh báo khẩn cấp DEMO.',
+          ),
+          value: demo.on,
+          onChanged: (v) async {
+            Analytics.track('push_toggle', {'kind': 'demo_alert', 'on': v});
+            final err = await ref.read(demoOptInProvider.notifier).set(v);
+            if (err != null && context.mounted) showAppSnackBar(context, err, error: true);
+          },
+        ),
       ],
     );
   }
