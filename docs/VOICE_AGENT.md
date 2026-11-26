@@ -47,7 +47,7 @@ kiểm thử được, không "ảo giác" ra thao tác lạ, và LLM không th�
 
 ### 1.3 Đã có sẵn trong repo (tận dụng)
 - `api/_lib/keypool.ts`, `router.ts` (`withKeyFailover`, `withProviderFallback`, cooldown theo 401/403/429/5xx).
-- `api/stt.ts` (Groq Whisper), `api/tts.ts` (ElevenLabs), `api/llm.ts` (Groq + Gemini dự phòng) — đều đã có xác thực + giới hạn tần suất dùng chung qua DB (`consume_rate`).
+- `api/_lib/proxy/stt.ts` (Groq Whisper), `tts.ts` (ElevenLabs), `llm.ts` (Groq + Gemini dự phòng), gọi qua `api/[op].ts` (địa chỉ vẫn là `/api/stt`, `/api/tts`, `/api/llm`) — đều đã có xác thực + giới hạn tần suất dùng chung qua DB (`consume_rate`).
 - Bảng `events`, web admin, `ChatRepository`, `BpRepository`, `OcrEngine`, router `go_router`.
 - Thẻ "Trợ lý Vy" trên Home (giao diện mới) ⇒ **tên agent = Vy** (đề xuất giữ).
 
