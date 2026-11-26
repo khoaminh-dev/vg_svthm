@@ -29,6 +29,8 @@ abstract final class Routes {
   static const medsPlan = '/meds/plan/:owner';
   static const sos = '/sos/:id';
   static String sosFor(String id) => '/sos/$id';
+  static const demoAlert = '/alert/:id';
+  static String demoAlertFor(String id) => '/alert/$id';
   static const emergencyCard = '/emergency/:owner';
   static String emergencyCardFor(String owner) => '/emergency/$owner';
   static const medsScan = '/meds/scan/:owner';

@@ -36,6 +36,7 @@ import '../../features/auth/presentation/screens/choose_role_screen.dart';
 import '../../features/family/presentation/alerts_screen.dart';
 import '../../features/meds/presentation/med_scan_screen.dart';
 import '../../features/safety/presentation/emergency_card_screen.dart';
+import '../../features/safety/presentation/demo_alert_screen.dart';
 import '../../features/safety/presentation/sos_screen.dart';
 import '../../features/meds/presentation/med_plan_list_screen.dart';
 import '../../features/health/presentation/screens/health_setup_screen.dart';
@@ -163,6 +164,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.sos,
         builder: (_, s) => SosScreen(sosId: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: Routes.demoAlert,
+        builder: (_, s) => DemoAlertScreen(alertId: s.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.emergencyCard,

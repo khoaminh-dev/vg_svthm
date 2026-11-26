@@ -29,6 +29,10 @@ class PushService {
     }
     final fm = FirebaseMessaging.instance;
     FirebaseMessaging.onMessageOpenedApp.listen(_onOpened);
+    // Đang mở app: cảnh báo khẩn cấp DEMO tự bật màn đỏ (tin khác vẫn chỉ hiện ở khay thông báo như trước).
+    FirebaseMessaging.onMessage.listen((m) {
+      if (m.data['type'] == 'demo_alert') _onOpened(m);
+    });
     try {
       final first = await fm.getInitialMessage();
       if (first != null) _onOpened(first);
@@ -112,6 +116,9 @@ class PushService {
       case 'sos':
         final sos = data['sos_id'];
         return sos is String && sos.isNotEmpty ? Routes.sosFor(sos) : null;
+      case 'demo_alert':
+        final alert = data['alert_id'];
+        return alert is String && alert.isNotEmpty ? Routes.demoAlertFor(alert) : null;
       case 'meds':
         return Routes.bp;
       default:

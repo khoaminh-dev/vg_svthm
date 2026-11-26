@@ -466,6 +466,31 @@ async function handleMedReminder(b: Record<string, unknown>) {
   ]);
 }
 
+// Cảnh báo khẩn cấp DEMO (module bên ngoài gọi qua /api/alert/trigger): gửi thẳng cho các tài khoản đã chỉ định,
+// bất kể tuỳ chọn thông báo hay giờ yên tĩnh (giống SOS). Danh sách người nhận do máy chủ quyết định, không lấy từ bên gọi.
+const DEMO_TITLE: Record<string, string> = {
+  fall: 'CẢNH BÁO: phát hiện người ngã',
+  danger: 'CẢNH BÁO: nguy hiểm, cần kiểm tra ngay',
+  sos: 'CẢNH BÁO KHẨN CẤP',
+  test: 'Thử cảnh báo khẩn cấp',
+};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function handleDemoAlert(b: Record<string, unknown>) {
+  const alertId = String(b.alert_id ?? '');
+  const ids = (Array.isArray(b.user_ids) ? b.user_ids : []).map(String).filter((x) => UUID.test(x));
+  if (!alertId || !ids.length) return { skipped: 'bad_request' };
+  const kind = String(b.kind ?? 'danger');
+  const camera = String(b.camera ?? '').slice(0, 60);
+  const text = String(b.message ?? '').slice(0, 200);
+  const body = [text, camera && `Camera: ${camera}`].filter(Boolean).join(' · ') || 'Bấm để mở Viegrand.';
+  const tokens = await tokensOf(ids);
+  return sendAll(tokens.map((t) => ({
+    token: t.token,
+    msg: { title: `[DEMO] ${DEMO_TITLE[kind] ?? DEMO_TITLE.danger}`, body, data: { type: 'demo_alert', alert_id: alertId, kind } },
+  })));
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('method', { status: 405 });
   if (!PUSH_SECRET || req.headers.get('x-push-secret') !== PUSH_SECRET) return new Response('unauthorized', { status: 401 });
@@ -486,6 +511,7 @@ Deno.serve(async (req) => {
       : b.type === 'sos_owner' ? await handleSosOwner(b)
       : b.type === 'digest' ? await handleDigest(b)
       : b.type === 'med_reminder' ? await handleMedReminder(b)
+      : b.type === 'demo_alert' ? await handleDemoAlert(b)
       : { skipped: 'type' };
     return new Response(JSON.stringify(out), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
