@@ -40,6 +40,7 @@ Module ngoài (camera `roi_monitor`) ─► POST /api/alert/trigger ─► push 
 | `/api/admin/*` | Đăng nhập, thống kê, cài đặt (khoá API, gói) |
 | `/api/cron/prune-chat-images` | Chạy 03:23 mỗi ngày: xoá ảnh chat quá 90 ngày, lịch sử hỏi Vy quá 90 ngày |
 
+- **Giới hạn Vercel Hobby: tối đa 12 hàm mỗi lần deploy.** Vì vậy `/api/alert/*` đi qua một hàm `api/alert/[action].ts` (logic ở `_lib/alert_trigger.ts`, `_lib/alert_status.ts`) và `/api/llm`, `/api/stt`, `/api/tts` đi qua `api/[op].ts` (logic ở `_lib/proxy/`). Địa chỉ gọi không đổi. Thêm tệp mới trực tiếp vào `api/` thì phải đếm lại: hiện còn 11 hàm.
 - Router: mỗi nhà cung cấp có một key pool; gặp 401/403/429/5xx thì đánh dấu key nghỉ và thử key kế tiếp.
 - Khoá API do admin quản lý trong bảng `provider_keys`, lưu mã hoá (`_lib/secretbox.ts`). App không bao giờ giữ `service_role`.
 

@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
-import { requireUser, rateLimit } from './_lib/auth.js';
-import { groqTranscribe } from './_lib/providers/groq.js';
-import { bodyObject, sendError } from './_lib/http.js';
+import type { VercelRequest, VercelResponse } from '../vercel-types.js';
+import { requireUser, rateLimit } from '../auth.js';
+import { groqTranscribe } from '../providers/groq.js';
+import { bodyObject, sendError } from '../http.js';
 
 // Body JSON: { audioBase64, filename?, language? }  (giới hạn body của Vercel ~4.5MB)
 export default async function handler(req: VercelRequest, res: VercelResponse) {

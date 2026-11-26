@@ -1,6 +1,6 @@
-import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
-import { dbRpc } from '../_lib/db.js';
-import { eventIdOf, keyFrom, keyOk } from '../_lib/alert.js';
+import type { VercelRequest, VercelResponse } from './vercel-types.js';
+import { dbRpc } from './db.js';
+import { eventIdOf, keyFrom, keyOk } from './alert.js';
 
 // GET /api/alert/status?event_id=... — module cảnh báo hỏi "người nhận đã bấm nhận chưa" để tắt chuông.
 // Cùng khoá với /api/alert/trigger. Xem docs/API_CANH_BAO_DEMO.md.

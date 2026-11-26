@@ -7,7 +7,7 @@ const KEY = 'demo-key-0123456789-abcdefghij';
 process.env.ALERT_API_KEY = KEY;
 
 const { keyOk, keyFrom, parseAlert } = await import('../_lib/alert.ts');
-const handler = (await import('../alert/trigger.ts')).default;
+const handler = (await import('../_lib/alert_trigger.ts')).default;
 
 test('keyOk: đúng khoá, sai khoá, thiếu khoá, khoá ngắn', () => {
   assert.equal(keyOk(KEY, KEY), true);
@@ -195,7 +195,7 @@ test('handler: gọi lại cùng event_id trả duplicate, không báo lỗi', a
 
 // ---------- /api/alert/status ----------
 
-const statusHandler = (await import('../alert/status.ts')).default;
+const statusHandler = (await import('../_lib/alert_status.ts')).default;
 function runStatus(opts: { method?: string; key?: string; query?: Record<string, string> }): Promise<Res> {
   return new Promise((resolve) => {
     const out: Res = { code: 0, body: null, headers: {} };

@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
-import { requireUser, rateLimit } from './_lib/auth.js';
-import { elevenTts } from './_lib/providers/elevenlabs.js';
-import { bodyObject, sendError } from './_lib/http.js';
+import type { VercelRequest, VercelResponse } from '../vercel-types.js';
+import { requireUser, rateLimit } from '../auth.js';
+import { elevenTts } from '../providers/elevenlabs.js';
+import { bodyObject, sendError } from '../http.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();

@@ -1,6 +1,6 @@
-import type { VercelRequest, VercelResponse } from '../_lib/vercel-types.js';
-import { dbRpc } from '../_lib/db.js';
-import { bodyOf, keyFrom, keyOk, parseAlert } from '../_lib/alert.js';
+import type { VercelRequest, VercelResponse } from './vercel-types.js';
+import { dbRpc } from './db.js';
+import { bodyOf, keyFrom, keyOk, parseAlert } from './alert.js';
 
 // POST /api/alert/trigger — module cảnh báo (camera...) gọi vào đây để phát cảnh báo khẩn cấp DEMO
 // tới các tài khoản đã được chỉ định trong bảng `demo_alert_targets`. Xem docs/API_CANH_BAO_DEMO.md.

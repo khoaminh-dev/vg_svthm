@@ -1,9 +1,9 @@
-import type { VercelRequest, VercelResponse } from './_lib/vercel-types.js';
-import { requireUser, rateLimit } from './_lib/auth.js';
-import { withProviderFallback } from './_lib/router.js';
-import { groqChat, type ChatMessage } from './_lib/providers/groq.js';
-import { geminiChat } from './_lib/providers/gemini.js';
-import { bodyObject, sendError } from './_lib/http.js';
+import type { VercelRequest, VercelResponse } from '../vercel-types.js';
+import { requireUser, rateLimit } from '../auth.js';
+import { withProviderFallback } from '../router.js';
+import { groqChat, type ChatMessage } from '../providers/groq.js';
+import { geminiChat } from '../providers/gemini.js';
+import { bodyObject, sendError } from '../http.js';
 
 const ROLES = new Set(['system', 'user', 'assistant']);
 const MAX_MESSAGES = 20;
